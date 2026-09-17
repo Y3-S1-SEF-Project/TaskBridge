@@ -400,7 +400,7 @@ class _DesignSystemShowcaseState extends State<DesignSystemShowcase> {
                       ],
                     ),
                   ]),
-                  section('Iconsax', [
+                  section('Icons', [
                     Wrap(
                       spacing: 16,
                       runSpacing: 16,

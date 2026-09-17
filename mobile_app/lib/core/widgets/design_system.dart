@@ -192,7 +192,12 @@ class AppAvatar extends StatelessWidget {
       foregroundColor: AppColors.primaryDark,
       foregroundImage: image,
       onForegroundImageError: image == null ? null : (error, stack) {},
-      child: Text(initials, style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: AppColors.primaryDark)),
+      child: Text(
+        initials,
+        style: Theme.of(
+          context,
+        ).textTheme.headlineSmall?.copyWith(color: AppColors.primaryDark),
+      ),
     ),
   );
 }
@@ -304,15 +309,24 @@ class ProviderCard extends StatelessWidget {
 }
 
 class ServiceCard extends StatelessWidget {
-  const ServiceCard({super.key, required this.title, required this.icon, this.onPressed});
+  const ServiceCard({
+    super.key,
+    required this.title,
+    required this.icon,
+    this.onPressed,
+  });
   final String title;
   final IconData icon;
   final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) => AppCard(
-    child: AppButton(label: title, icon: icon,
-      variant: AppButtonVariant.ghost, onPressed: onPressed),
+    child: AppButton(
+      label: title,
+      icon: icon,
+      variant: AppButtonVariant.ghost,
+      onPressed: onPressed,
+    ),
   );
 }
 

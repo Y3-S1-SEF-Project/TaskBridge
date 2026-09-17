@@ -1,107 +1,71 @@
-import 'package:flutter/widgets.dart';
-import 'package:iconsax_flutter/iconsax_flutter.dart';
+import 'package:flutter/material.dart';
 
-/// Names verified against iconsax_flutter 1.0.1. Figma uses Iconsax Linear.
+/// Material Icons used throughout the app. Only icons actually referenced
+/// in source are kept here — add new entries as features grow.
 abstract final class AppIcons {
-  static const home = Iconsax.home;
-  static const category = Iconsax.category;
-  static const searchNormal = Iconsax.search_normal;
-  static const calendar = Iconsax.calendar;
-  static const message = Iconsax.message;
-  // The package calls Figma's Profile silhouette "user".
-  static const profile = Iconsax.user;
-  static const setting = Iconsax.setting;
-  static const location = Iconsax.location;
-  static const star = Iconsax.star;
-  static const heart = Iconsax.heart;
-  static const notification = Iconsax.notification;
-  static const arrowRight = Iconsax.arrow_right;
-  static const arrowLeft = Iconsax.arrow_left;
-  static const add = Iconsax.add;
-  static const camera = Iconsax.camera;
-  static const gallery = Iconsax.gallery;
-  static const documentUpload = Iconsax.document_upload;
-  static const clock = Iconsax.clock;
-  static const verify = Iconsax.verify;
-  static const tickCircle = Iconsax.tick_circle;
-  static const closeCircle = Iconsax.close_circle;
-  static const warning_2 = Iconsax.warning_2;
-  static const shieldTick = Iconsax.shield_tick;
-  static const briefcase = Iconsax.briefcase;
-  static const wallet = Iconsax.wallet;
-  static const chart = Iconsax.chart;
-  static const people = Iconsax.people;
-  static const filter = Iconsax.filter;
-  static const sort = Iconsax.sort;
-  static const send = Iconsax.send;
-  static const call = Iconsax.call;
-  static const receipt = Iconsax.receipt;
-  static const magicpen = Iconsax.magicpen;
-  static const cpu = Iconsax.cpu;
-  static const flash = Iconsax.flash;
-  static const drop = Iconsax.drop;
-  static const wind = Iconsax.wind;
-  static const broom = Iconsax.broom;
-  static const monitor = Iconsax.monitor;
-  static const paintbucket = Iconsax.paintbucket;
-  static const car = Iconsax.car;
-  static const box = Iconsax.box;
-  static const brush = Iconsax.brush;
-  static const tree = Iconsax.tree;
-  static const lock = Iconsax.lock;
-  static const infoCircle = Iconsax.info_circle;
-  static const more = Iconsax.more;
-  static const batteryFull = Iconsax.battery_full;
-  static const wifi = Iconsax.wifi;
+  static const home = Icons.home_rounded;
+  static const searchNormal = Icons.search_rounded;
+  static const calendar = Icons.calendar_today_rounded;
+  static const message = Icons.chat_bubble_outline_rounded;
+  static const profile = Icons.person_outline_rounded;
+  static const arrowLeft = Icons.arrow_back_rounded;
+  static const clock = Icons.access_time_rounded;
+  static const verify = Icons.verified_rounded;
+  static const tickCircle = Icons.check_circle_rounded;
+  static const warning_2 = Icons.warning_rounded;
+  static const shieldTick = Icons.verified_user_rounded;
+  static const briefcase = Icons.work_rounded;
+  static const chart = Icons.bar_chart_rounded;
+  static const star = Icons.star_rounded;
+  static const magicpen = Icons.auto_fix_high_rounded;
+  static const drop = Icons.water_drop_rounded;
+  static const notification = Icons.notifications_none_rounded;
+  static const location = Icons.location_on_outlined;
+
+  // Category icons (Material Icons matching Figma C11 & C12)
+  static const plumbing = Icons.water_drop_outlined;
+  static const electrical = Icons.bolt_rounded;
+  static const hvac = Icons.air_rounded;
+  static const cleaning = Icons.cleaning_services_outlined;
+  static const carRepair = Icons.directions_car_outlined;
+  static const itServices = Icons.computer_rounded;
+  static const painting = Icons.format_paint_outlined;
+  static const gardening = Icons.park_outlined;
+  static const moving = Icons.inventory_2_outlined;
+  static const beauty = Icons.brush_outlined;
+  static const appliances = Icons.memory_rounded;
+  static const other = Icons.grid_view_rounded;
+
   static const all = <String, IconData>{
     'home': home,
-    'category': category,
     'search-normal': searchNormal,
     'calendar': calendar,
     'message': message,
     'profile': profile,
-    'setting': setting,
-    'location': location,
-    'star': star,
-    'heart': heart,
-    'notification': notification,
-    'arrow-right': arrowRight,
     'arrow-left': arrowLeft,
-    'add': add,
-    'camera': camera,
-    'gallery': gallery,
-    'document-upload': documentUpload,
     'clock': clock,
     'verify': verify,
     'tick-circle': tickCircle,
-    'close-circle': closeCircle,
     'warning-2': warning_2,
     'shield-tick': shieldTick,
     'briefcase': briefcase,
-    'wallet': wallet,
     'chart': chart,
-    'people': people,
-    'filter': filter,
-    'sort': sort,
-    'send': send,
-    'call': call,
-    'receipt': receipt,
+    'star': star,
     'magicpen': magicpen,
-    'cpu': cpu,
-    'flash': flash,
     'drop': drop,
-    'wind': wind,
-    'broom': broom,
-    'monitor': monitor,
-    'paintbucket': paintbucket,
-    'car': car,
-    'box': box,
-    'brush': brush,
-    'tree': tree,
-    'lock': lock,
-    'info-circle': infoCircle,
-    'more': more,
-    'battery-full': batteryFull,
-    'wifi': wifi,
+    'notification': notification,
+    'location': location,
+    'plumbing': plumbing,
+    'electrical': electrical,
+    'hvac': hvac,
+    'cleaning': cleaning,
+    'car-repair': carRepair,
+    'it-services': itServices,
+    'painting': painting,
+    'gardening': gardening,
+    'moving': moving,
+    'beauty': beauty,
+    'appliances': appliances,
+    'other': other,
   };
 }
