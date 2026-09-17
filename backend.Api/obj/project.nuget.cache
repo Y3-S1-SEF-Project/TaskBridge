@@ -1,11 +1,17 @@
 {
   "version": 2,
-  "dgSpecHash": "v0dfJUKGz/Q=",
+  "dgSpecHash": "TfS6Dq9c1ko=",
   "success": true,
   "projectFilePath": "/Users/kavindualwis/SLIIT/Y3_S1/SEF/Assignment/Project/TaskBridge/backend.Api/backend.Api.csproj",
   "expectedPackageFiles": [
     "/Users/kavindualwis/.nuget/packages/microsoft.aspnetcore.openapi/10.0.10/microsoft.aspnetcore.openapi.10.0.10.nupkg.sha512",
-    "/Users/kavindualwis/.nuget/packages/microsoft.openapi/2.0.0/microsoft.openapi.2.0.0.nupkg.sha512"
+    "/Users/kavindualwis/.nuget/packages/microsoft.entityframeworkcore/10.0.4/microsoft.entityframeworkcore.10.0.4.nupkg.sha512",
+    "/Users/kavindualwis/.nuget/packages/microsoft.entityframeworkcore.abstractions/10.0.4/microsoft.entityframeworkcore.abstractions.10.0.4.nupkg.sha512",
+    "/Users/kavindualwis/.nuget/packages/microsoft.entityframeworkcore.analyzers/10.0.4/microsoft.entityframeworkcore.analyzers.10.0.4.nupkg.sha512",
+    "/Users/kavindualwis/.nuget/packages/microsoft.entityframeworkcore.relational/10.0.4/microsoft.entityframeworkcore.relational.10.0.4.nupkg.sha512",
+    "/Users/kavindualwis/.nuget/packages/microsoft.openapi/2.0.0/microsoft.openapi.2.0.0.nupkg.sha512",
+    "/Users/kavindualwis/.nuget/packages/npgsql/10.0.3/npgsql.10.0.3.nupkg.sha512",
+    "/Users/kavindualwis/.nuget/packages/npgsql.entityframeworkcore.postgresql/10.0.3/npgsql.entityframeworkcore.postgresql.10.0.3.nupkg.sha512"
   ],
   "logs": [
     {

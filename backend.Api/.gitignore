@@ -1,0 +1,10 @@
+# .NET build outputs
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# Local authentication secrets
+appsettings.Local.json
+appsettings.*.local.json
