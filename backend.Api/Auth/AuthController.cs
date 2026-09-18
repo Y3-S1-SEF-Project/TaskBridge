@@ -50,6 +50,44 @@ public sealed class AuthController(AuthService auth, AuthDbContext db) : Control
         return Ok(updated);
     }
 
+    // Uploads a profile photo to Cloudinary and updates the user's ProfilePhotoUrl.
+    [HttpPost("profile/photo")]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<UserResponse>> UploadProfilePhoto(
+        IFormFile file,
+        [FromForm] Guid? userId,
+        CancellationToken ct)
+    {
+        Guid id;
+        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!string.IsNullOrEmpty(claim) && Guid.TryParse(claim, out var parsed))
+        {
+            id = parsed;
+        }
+        else if (userId.HasValue)
+        {
+            id = userId.Value;
+        }
+        else
+        {
+            var header = Request.Headers.Authorization.ToString();
+            if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                var token = header[7..].Trim();
+                var u = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.SessionToken == token, ct);
+                if (u is not null) id = u.Id;
+                else return Unauthorized();
+            }
+            else
+            {
+                return Unauthorized();
+            }
+        }
+
+        var updated = await auth.UploadProfilePhoto(id, file, ct);
+        return Ok(updated);
+    }
+
     // Revokes the current session token.
     [Authorize, HttpPost("logout")]
     public async Task<IActionResult> Logout(CancellationToken ct)

@@ -8,6 +8,7 @@ public sealed class AuthService(
     AuthDbContext db,
     IPasswordHasher<AppUser> hasher,
     IEmailOtpSender emailSender,
+    ICloudinaryImageService cloudinary,
     ILogger<AuthService> logger)
 {
     public async Task<ChallengeResponse> Register(RegisterRequest request, CancellationToken ct)
@@ -168,6 +169,19 @@ public sealed class AuthService(
         if (!string.IsNullOrWhiteSpace(request.Preferences)) user.Preferences = request.Preferences.Trim();
         if (!string.IsNullOrWhiteSpace(request.ProfilePhotoUrl)) user.ProfilePhotoUrl = request.ProfilePhotoUrl.Trim();
 
+        user.UpdatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(ct);
+
+        return MapUser(user);
+    }
+
+    public async Task<UserResponse> UploadProfilePhoto(Guid userId, IFormFile file, CancellationToken ct)
+    {
+        var user = await db.Users.FindAsync([userId], ct);
+        if (user is null) throw new AuthProblem(404, "User not found.");
+
+        var photoUrl = await cloudinary.UploadProfilePhotoAsync(file, userId, ct);
+        user.ProfilePhotoUrl = photoUrl;
         user.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
 

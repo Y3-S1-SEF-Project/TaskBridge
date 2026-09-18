@@ -21,6 +21,7 @@ builder.Services.Configure<PasswordHasherOptions>(options => options.IterationCo
 builder.Services.AddScoped<AuthCrypto>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<IEmailOtpSender, EmailOtpSender>();
+builder.Services.AddSingleton<ICloudinaryImageService, CloudinaryImageService>();
 builder.Services.AddHttpClient<IOtpSender, NotifySmsSender>(client => client.Timeout = TimeSpan.FromSeconds(10));
 builder.Services.AddAuthentication("Session").AddScheme<AuthenticationSchemeOptions, SessionAuthenticationHandler>("Session", null);
 builder.Services.AddAuthorization();
