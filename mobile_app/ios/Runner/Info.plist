@@ -4,6 +4,10 @@
 <dict>
 	<key>NSAppTransportSecurity</key>
 	<dict><key>NSAllowsLocalNetworking</key><true/></dict>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>TaskBridge requires access to your photo library to select a profile picture.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>TaskBridge requires access to your camera to capture a profile picture.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

@@ -18,10 +18,10 @@ class AuthApi {
     final url = _configuredUrl.isNotEmpty
         ? _configuredUrl
         : kDebugMode
-            ? (defaultTargetPlatform == TargetPlatform.android
-                ? 'http://10.0.2.2:5298'
-                : 'http://localhost:5298')
-            : '';
+        ? (defaultTargetPlatform == TargetPlatform.android
+              ? 'http://10.0.2.2:5298'
+              : 'http://localhost:5298')
+        : '';
     final uri = Uri.tryParse(url);
     if (uri == null ||
         !uri.hasAuthority ||
@@ -45,14 +45,15 @@ class AuthApi {
         'Content-Type': 'application/json',
         if (_token != null) 'Authorization': 'Bearer $_token',
       };
-      final response = await (get
-              ? _client.get(uri, headers: headers)
-              : _client.post(
-                  uri,
-                  headers: headers,
-                  body: jsonEncode(body ?? {}),
-                ))
-          .timeout(const Duration(seconds: 25));
+      final response =
+          await (get
+                  ? _client.get(uri, headers: headers)
+                  : _client.post(
+                      uri,
+                      headers: headers,
+                      body: jsonEncode(body ?? {}),
+                    ))
+              .timeout(const Duration(seconds: 25));
 
       Map<String, dynamic> data = {};
       if (response.body.isNotEmpty) {
@@ -76,8 +77,8 @@ class AuthApi {
               (response.statusCode == 429
                   ? 'Too many attempts. Please wait and try again.'
                   : response.statusCode == 401
-                      ? 'Your session has expired. Please log in again.'
-                      : 'Unable to complete the request. Please try again.'),
+                  ? 'Your session has expired. Please log in again.'
+                  : 'Unable to complete the request. Please try again.'),
           status: response.statusCode,
         );
       }
@@ -119,10 +120,7 @@ class AuthApi {
   ) async {
     final result = await _request(
       'verify-otp',
-      body: {
-        'email': email.trim().toLowerCase(),
-        'code': code.trim(),
-      },
+      body: {'email': email.trim().toLowerCase(), 'code': code.trim()},
     );
 
     final token = result['accessToken'] as String;
@@ -149,10 +147,7 @@ class AuthApi {
   ) async {
     final result = await _request(
       'login',
-      body: {
-        'identifier': identifier.trim(),
-        'password': password,
-      },
+      body: {'identifier': identifier.trim(), 'password': password},
     );
 
     final token = result['accessToken'] as String;
@@ -173,7 +168,11 @@ class AuthApi {
   }
 
   // Resets password using the verification code.
-  Future<void> reset(String challengeId, String resetToken, String password) async {
+  Future<void> reset(
+    String challengeId,
+    String resetToken,
+    String password,
+  ) async {
     await _request(
       'reset-password',
       body: {
@@ -206,6 +205,58 @@ class AuthApi {
       await _saveSession(_token!, user);
     }
     return user;
+  }
+
+  // Uploads a profile picture file to Cloudinary and updates user profile.
+  Future<AuthUser> uploadProfilePhoto(String filePath, {String? userId}) async {
+    try {
+      if (_token == null) {
+        final prefs = await SharedPreferences.getInstance();
+        _token = prefs.getString(_tokenKey);
+      }
+
+      final uri = _base.resolve('/api/auth/profile/photo');
+      final request = http.MultipartRequest('POST', uri);
+
+      if (_token != null && _token!.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $_token';
+      }
+      if (userId != null && userId.isNotEmpty) {
+        request.fields['userId'] = userId;
+      }
+
+      final multipartFile = await http.MultipartFile.fromPath('file', filePath);
+      request.files.add(multipartFile);
+
+      final streamedResponse = await _client.send(request);
+      final response = await http.Response.fromStream(streamedResponse);
+      debugPrint(
+        'Upload photo response: ${response.statusCode} - ${response.body}',
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        final updatedUser = AuthUser.fromJson(json);
+        if (_token != null) {
+          await _saveSession(_token!, updatedUser);
+        }
+        return updatedUser;
+      } else {
+        String message = 'Failed to upload photo.';
+        try {
+          final err = jsonDecode(response.body);
+          message = err['detail'] ?? err['title'] ?? err['message'] ?? message;
+        } catch (_) {}
+        throw AuthException(
+          '$message (HTTP ${response.statusCode})',
+          status: response.statusCode,
+        );
+      }
+    } on AuthException {
+      rethrow;
+    } catch (e) {
+      throw AuthException('Failed to upload profile photo: $e');
+    }
   }
 
   // Restores user session from shared_preferences on splash screen.
