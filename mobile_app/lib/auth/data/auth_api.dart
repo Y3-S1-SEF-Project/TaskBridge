@@ -31,12 +31,13 @@ class AuthApi {
   }
 
   Uri get _base {
-    final url = _workingBaseUrl ??
+    final url =
+        _workingBaseUrl ??
         (_configuredUrl.isNotEmpty
             ? _configuredUrl
             : kDebugMode
-                ? 'http://localhost:5298'
-                : '');
+            ? 'http://localhost:5298'
+            : '');
     final uri = Uri.tryParse(url);
     if (uri == null ||
         !uri.hasAuthority ||
@@ -74,14 +75,15 @@ class AuthApi {
             ? const Duration(seconds: 25)
             : const Duration(seconds: 3);
 
-        final response = await (get
-                ? _client.get(uri, headers: headers)
-                : _client.post(
-                    uri,
-                    headers: headers,
-                    body: jsonEncode(body ?? {}),
-                  ))
-            .timeout(timeout);
+        final response =
+            await (get
+                    ? _client.get(uri, headers: headers)
+                    : _client.post(
+                        uri,
+                        headers: headers,
+                        body: jsonEncode(body ?? {}),
+                      ))
+                .timeout(timeout);
 
         // Success connecting to this host!
         _workingBaseUrl = candidate;
@@ -325,7 +327,10 @@ class AuthApi {
   }
 
   // Uploads a certification document or photo to Cloudflare R2.
-  Future<AuthUser> uploadCertification(String filePath, {String? userId}) async {
+  Future<AuthUser> uploadCertification(
+    String filePath, {
+    String? userId,
+  }) async {
     try {
       if (_token == null) {
         final prefs = await SharedPreferences.getInstance();
