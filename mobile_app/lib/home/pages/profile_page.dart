@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../auth/data/auth_api.dart';
 import '../../auth/data/auth_models.dart';
 import '../../auth/pages/login_page.dart';
@@ -8,6 +10,8 @@ import '../../auth/pages/profile_setup_page.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../provider/pages/provider_main_page.dart';
+import '../../provider/pages/provider_setup_page.dart';
 import '../widgets/taskbridge_bottom_nav.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -233,6 +237,84 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  void _confirmLogout() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.r16),
+        ),
+        title: const Text(
+          'Log out',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        content: const Text(
+          'Are you sure you want to log out of your TaskBridge account?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.r12),
+              ),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final api = widget.api ?? AuthApi();
+              await api.logout();
+              if (!mounted) return;
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => LoginPage(api: api)),
+                (_) => false,
+              );
+            },
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _switchToProvider() async {
+    if (_currentUser == null || widget.api == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please wait while user details are loaded.')),
+      );
+      return;
+    }
+
+    if (!_currentUser!.isProvider) {
+      // First time: navigate to Provider Setup screen P10
+      final updated = await Navigator.push<AuthUser>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ProviderSetupPage(user: _currentUser!, api: widget.api!),
+        ),
+      );
+      if (updated != null && mounted) {
+        setState(() => _currentUser = updated);
+      }
+    } else {
+      // Already a provider: switch directly to Provider Mode!
+      final updated = await Navigator.push<AuthUser>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ProviderMainPage(user: _currentUser!, api: widget.api!),
+        ),
+      );
+      if (updated != null && mounted) {
+        setState(() => _currentUser = updated);
+      }
+    }
+  }
+
   void _showFeatureNotice(String featureName) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -285,6 +367,64 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  Future<bool> _ensurePermission(ImageSource source) async {
+    if (source == ImageSource.camera) {
+      final status = await Permission.camera.request();
+      if (!status.isGranted && !status.isLimited) {
+        if (status.isPermanentlyDenied && mounted) {
+          _showSettingsDialog('Camera');
+        }
+        return false;
+      }
+      return true;
+    } else {
+      PermissionStatus status;
+      if (Platform.isAndroid) {
+        status = await Permission.photos.request();
+        if (status.isDenied) {
+          status = await Permission.storage.request();
+        }
+      } else {
+        status = await Permission.photos.request();
+      }
+
+      if (!status.isGranted && !status.isLimited) {
+        if (status.isPermanentlyDenied && mounted) {
+          _showSettingsDialog('Photos & Media');
+        }
+        return false;
+      }
+      return true;
+    }
+  }
+
+  void _showSettingsDialog(String permissionName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('$permissionName Permission Required'),
+        content: Text(
+          '$permissionName permission is permanently denied. Please enable it in system settings to upload your profile photo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+            onPressed: () {
+              Navigator.pop(ctx);
+              openAppSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showPhotoOptions() {
     showModalBottomSheet(
       context: context,
@@ -322,8 +462,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
                 subtitle: const Text('Use camera to capture a new picture'),
-                onTap: () {
+                onTap: () async {
                   Navigator.pop(ctx);
+                  final allowed = await _ensurePermission(ImageSource.camera);
+                  if (!allowed) return;
                   _pickAndUploadPhoto(ImageSource.camera);
                 },
               ),
@@ -340,9 +482,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   'Choose from gallery',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
-                subtitle: const Text('Select a photo from your device library'),
-                onTap: () {
+                subtitle: const Text(
+                  'Select a photo from device gallery & media',
+                ),
+                onTap: () async {
                   Navigator.pop(ctx);
+                  final allowed = await _ensurePermission(ImageSource.gallery);
+                  if (!allowed) return;
                   _pickAndUploadPhoto(ImageSource.gallery);
                 },
               ),
@@ -590,6 +736,13 @@ class _ProfilePageState extends State<ProfilePage> {
                 title: 'Settings',
                 onTap: _openSettings,
               ),
+              _MenuItemRow(
+                icon: Icons.logout_rounded,
+                title: 'Log out',
+                iconColor: AppColors.error,
+                textColor: AppColors.error,
+                onTap: _confirmLogout,
+              ),
               const SizedBox(height: 24),
 
               // ── Switch to Provider Button ──
@@ -605,16 +758,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       borderRadius: BorderRadius.circular(AppRadius.r16),
                     ),
                   ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Provider Mode coming soon! Use your same account to offer services.',
-                        ),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  },
+                  onPressed: _switchToProvider,
                   child: const Text(
                     'Switch to Provider',
                     style: TextStyle(
@@ -658,11 +802,15 @@ class _MenuItemRow extends StatelessWidget {
   final IconData icon;
   final String title;
   final VoidCallback onTap;
+  final Color? iconColor;
+  final Color? textColor;
 
   const _MenuItemRow({
     required this.icon,
     required this.title,
     required this.onTap,
+    this.iconColor,
+    this.textColor,
   });
 
   @override
@@ -674,15 +822,15 @@ class _MenuItemRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
         child: Row(
           children: [
-            Icon(icon, size: 24, color: AppColors.primaryDark),
+            Icon(icon, size: 24, color: iconColor ?? AppColors.primaryDark),
             const SizedBox(width: 16),
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: textColor ?? AppColors.textPrimary,
                 ),
               ),
             ),
