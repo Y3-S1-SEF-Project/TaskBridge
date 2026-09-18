@@ -1,9 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "C+WoN0wPAJM=",
+  "dgSpecHash": "QpKeF8rpQr0=",
   "success": true,
   "projectFilePath": "/Users/kavindualwis/SLIIT/Y3_S1/SEF/Assignment/Project/TaskBridge/backend.Api/backend.Api.csproj",
   "expectedPackageFiles": [
+    "/Users/kavindualwis/.nuget/packages/awssdk.core/4.0.102.6/awssdk.core.4.0.102.6.nupkg.sha512",
+    "/Users/kavindualwis/.nuget/packages/awssdk.s3/4.0.103.3/awssdk.s3.4.0.103.3.nupkg.sha512",
     "/Users/kavindualwis/.nuget/packages/cloudinarydotnet/1.29.3/cloudinarydotnet.1.29.3.nupkg.sha512",
     "/Users/kavindualwis/.nuget/packages/microsoft.aspnetcore.openapi/10.0.10/microsoft.aspnetcore.openapi.10.0.10.nupkg.sha512",
     "/Users/kavindualwis/.nuget/packages/microsoft.entityframeworkcore/10.0.4/microsoft.entityframeworkcore.10.0.4.nupkg.sha512",
