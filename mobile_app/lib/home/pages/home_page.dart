@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../auth/data/auth_api.dart';
 import '../../auth/data/auth_models.dart';
-import '../../auth/pages/login_page.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_spacing.dart';
@@ -10,16 +9,13 @@ import '../widgets/category_card.dart';
 import '../widgets/taskbridge_bottom_nav.dart';
 import '../widgets/taskbridge_search_bar.dart';
 import 'all_categories_page.dart';
+import 'profile_page.dart';
 
 class HomePage extends StatefulWidget {
   final AuthUser? user;
   final AuthApi? api;
 
-  const HomePage({
-    super.key,
-    this.user,
-    this.api,
-  });
+  const HomePage({super.key, this.user, this.api});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -44,86 +40,23 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _showProfileSheet() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      backgroundColor: AppColors.surface,
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.s24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  const CircleAvatar(
-                    radius: 26,
-                    backgroundColor: AppColors.primaryLight,
-                    child: Icon(AppIcons.profile, color: AppColors.primary, size: 28),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.user?.fullName ?? 'Kavindu Alwis',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          widget.user?.phone != null ? '+${widget.user!.phone}' : 'Account active',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  if (widget.api != null) {
-                    await widget.api!.logout();
-                    if (!mounted) return;
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (_) => LoginPage(api: widget.api!)),
-                      (_) => false,
-                    );
-                  }
-                },
-                child: const Text('Log out', style: TextStyle(fontWeight: FontWeight.w600)),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    if (_currentNavIndex == 3) {
+      return ProfilePage(
+        user: widget.user,
+        api: widget.api,
+        onBackToHome: () => setState(() => _currentNavIndex = 0),
+        onTabChange: (index) {
+          if (index == 1) {
+            _openAllCategories();
+          } else {
+            setState(() => _currentNavIndex = index);
+          }
+        },
+      );
+    }
+
     // Top 3 featured categories matching C11
     final topCategories = ServiceCategory.allCategories.take(3).toList();
 
@@ -435,8 +368,6 @@ class _HomePageState extends State<HomePage> {
         onTap: (index) {
           if (index == 1) {
             _openAllCategories();
-          } else if (index == 3) {
-            _showProfileSheet();
           } else {
             setState(() => _currentNavIndex = index);
           }
