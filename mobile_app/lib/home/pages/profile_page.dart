@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../auth/data/auth_api.dart';
 import '../../auth/data/auth_models.dart';
 import '../../auth/pages/login_page.dart';
@@ -28,6 +30,8 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   late AuthUser? _currentUser;
+  final ImagePicker _picker = ImagePicker();
+  bool _isUploadingPhoto = false;
 
   @override
   void initState() {
@@ -238,6 +242,161 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  Future<void> _pickAndUploadPhoto(ImageSource source) async {
+    try {
+      final picked = await _picker.pickImage(
+        source: source,
+        maxWidth: 1000,
+        maxHeight: 1000,
+        imageQuality: 85,
+      );
+      if (picked == null) return;
+
+      setState(() => _isUploadingPhoto = true);
+
+      final api = widget.api ?? AuthApi();
+      final updated = await api.uploadProfilePhoto(
+        picked.path,
+        userId: _currentUser?.id,
+      );
+
+      if (mounted) {
+        setState(() {
+          _currentUser = updated;
+          _isUploadingPhoto = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile photo updated successfully!'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isUploadingPhoto = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not upload photo: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showPhotoOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      backgroundColor: Colors.white,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Profile Photo',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const CircleAvatar(
+                  backgroundColor: AppColors.primaryLight,
+                  child: Icon(
+                    Icons.camera_alt_outlined,
+                    color: AppColors.primary,
+                  ),
+                ),
+                title: const Text(
+                  'Take photo',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text('Use camera to capture a new picture'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickAndUploadPhoto(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const CircleAvatar(
+                  backgroundColor: AppColors.primaryLight,
+                  child: Icon(
+                    Icons.photo_library_outlined,
+                    color: AppColors.primary,
+                  ),
+                ),
+                title: const Text(
+                  'Choose from gallery',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text('Select a photo from your device library'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickAndUploadPhoto(ImageSource.gallery);
+                },
+              ),
+              if (_currentUser?.profilePhotoUrl != null &&
+                  _currentUser!.profilePhotoUrl!.isNotEmpty) ...[
+                const Divider(),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    backgroundColor: AppColors.error.withValues(alpha: 0.1),
+                    child: const Icon(
+                      Icons.delete_outline,
+                      color: AppColors.error,
+                    ),
+                  ),
+                  title: const Text(
+                    'Remove photo',
+                    style: TextStyle(
+                      color: AppColors.error,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    try {
+                      setState(() => _isUploadingPhoto = true);
+                      final api = widget.api ?? AuthApi();
+                      final updated = await api.updateProfile(
+                        profilePhotoUrl: '',
+                      );
+                      if (mounted) {
+                        setState(() {
+                          _currentUser = updated.copyWith(profilePhotoUrl: '');
+                          _isUploadingPhoto = false;
+                        });
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        setState(() => _isUploadingPhoto = false);
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                      }
+                    }
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
@@ -301,27 +460,75 @@ class _ProfilePageState extends State<ProfilePage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Profile photo in circle center
-                    CircleAvatar(
-                      radius: 38,
-                      backgroundColor: AppColors.mint.withValues(alpha: 0.7),
-                      backgroundImage:
-                          (_currentUser?.profilePhotoUrl != null &&
-                              _currentUser!.profilePhotoUrl!.isNotEmpty)
-                          ? NetworkImage(_currentUser!.profilePhotoUrl!)
-                          : null,
-                      child:
-                          (_currentUser?.profilePhotoUrl == null ||
-                              _currentUser!.profilePhotoUrl!.isEmpty)
-                          ? Text(
-                              _initials,
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primaryDark,
+                    // Profile photo in circle center with tap-to-upload & camera badge
+                    GestureDetector(
+                      onTap: _isUploadingPhoto ? null : _showPhotoOptions,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          CircleAvatar(
+                            radius: 42,
+                            backgroundColor: AppColors.mint.withValues(
+                              alpha: 0.7,
+                            ),
+                            backgroundImage:
+                                (_currentUser?.profilePhotoUrl != null &&
+                                    _currentUser!.profilePhotoUrl!.isNotEmpty)
+                                ? CachedNetworkImageProvider(
+                                    _currentUser!.profilePhotoUrl!,
+                                  )
+                                : null,
+                            child: _isUploadingPhoto
+                                ? const SizedBox.square(
+                                    dimension: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        AppColors.primary,
+                                      ),
+                                    ),
+                                  )
+                                : (_currentUser?.profilePhotoUrl == null ||
+                                      _currentUser!.profilePhotoUrl!.isEmpty)
+                                ? Text(
+                                    _initials,
+                                    style: const TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.primaryDark,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.15),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
-                            )
-                          : null,
+                              child: const Icon(
+                                Icons.camera_alt_rounded,
+                                size: 14,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 14),
 
