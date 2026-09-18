@@ -21,6 +21,17 @@ public sealed class AppUser
     public DateTimeOffset? LockedUntil { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAt { get; set; }
+
+    // Provider mode profile details
+    public bool IsProvider { get; set; }
+    public string? ProviderSkills { get; set; }
+    public string? ProviderServices { get; set; }
+    public string? ProviderExperience { get; set; }
+    public string? ProviderCertifications { get; set; }
+    public string? ProviderServiceAreas { get; set; }
+    public string? ProviderAvailability { get; set; }
+    public string? ProviderBio { get; set; }
+    public decimal? ProviderEarnings { get; set; } = 54000m;
 }
 
 public sealed record RegisterRequest(
@@ -55,6 +66,15 @@ public sealed record ProfileUpdateRequest(
     string? Preferences,
     string? ProfilePhotoUrl);
 
+public sealed record ProviderSetupRequest(
+    string? Skills,
+    string? Services,
+    string? Experience,
+    string? Certifications,
+    string? ServiceAreas,
+    string? Availability,
+    string? Bio);
+
 public sealed record ChallengeResponse(
     string Email,
     DateTimeOffset ExpiresAt,
@@ -68,7 +88,16 @@ public sealed record UserResponse(
     string? Address,
     string? Location,
     string? Preferences,
-    string? ProfilePhotoUrl);
+    string? ProfilePhotoUrl,
+    bool IsProvider = false,
+    string? ProviderSkills = null,
+    string? ProviderServices = null,
+    string? ProviderExperience = null,
+    string? ProviderCertifications = null,
+    string? ProviderServiceAreas = null,
+    string? ProviderAvailability = null,
+    string? ProviderBio = null,
+    decimal? ProviderEarnings = null);
 
 public sealed record AuthResponse(
     string AccessToken,

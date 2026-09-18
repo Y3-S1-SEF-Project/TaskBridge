@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using TaskBridge.Api.Data;
@@ -8,7 +9,7 @@ public sealed class AuthService(
     AuthDbContext db,
     IPasswordHasher<AppUser> hasher,
     IEmailOtpSender emailSender,
-    ICloudinaryImageService cloudinary,
+    IProfileImageService imageService,
     ILogger<AuthService> logger)
 {
     public async Task<ChallengeResponse> Register(RegisterRequest request, CancellationToken ct)
@@ -19,12 +20,30 @@ public sealed class AuthService(
 
         var email = request.Email.Trim().ToLowerInvariant();
         var phone = request.Phone.Trim();
+        var cleanPhone = Regex.Replace(phone, @"[\s()+-]", "");
+        var localPhone = cleanPhone.StartsWith("94") ? "0" + cleanPhone[2..] : cleanPhone;
+        var intlPhone = cleanPhone.StartsWith("0") ? "94" + cleanPhone[1..] : cleanPhone;
 
-        var existing = await db.Users.SingleOrDefaultAsync(x => x.Email == email, ct);
-        if (existing is not null && existing.IsEmailVerified)
-            throw new AuthProblem(400, "An account with this email address already exists. Please log in.");
+        var existingEmail = await db.Users.SingleOrDefaultAsync(x => x.Email == email, ct);
+        var existingPhone = await db.Users.FirstOrDefaultAsync(
+            x => x.IsEmailVerified && (x.Phone == phone || x.Phone == localPhone || x.Phone == intlPhone || x.Phone == cleanPhone), ct);
 
-        var user = existing ?? new AppUser
+        if (existingEmail is not null && existingEmail.IsEmailVerified && existingPhone is not null && existingPhone.Id != existingEmail.Id)
+        {
+            throw new AuthProblem(400, "This email address and mobile number are already in use. Please use a different email or mobile number.");
+        }
+
+        if (existingEmail is not null && existingEmail.IsEmailVerified)
+        {
+            throw new AuthProblem(400, "This email address is already in use. Please use a different email address.");
+        }
+
+        if (existingPhone is not null && (existingEmail is null || existingPhone.Id != existingEmail.Id))
+        {
+            throw new AuthProblem(400, "This mobile number is already in use. Please use a different mobile number.");
+        }
+
+        var user = existingEmail ?? new AppUser
         {
             FullName = name,
             Email = email,
@@ -42,7 +61,7 @@ public sealed class AuthService(
         user.EmailOtpExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10);
         user.UpdatedAt = DateTimeOffset.UtcNow;
 
-        if (existing is null)
+        if (existingEmail is null)
             db.Users.Add(user);
 
         await db.SaveChangesAsync(ct);
@@ -114,8 +133,22 @@ public sealed class AuthService(
     public async Task<AuthResponse> Login(LoginRequest request, CancellationToken ct)
     {
         var id = request.Identifier.Trim();
-        var user = await db.Users.SingleOrDefaultAsync(
-            x => x.Email.ToLower() == id.ToLower() || x.Phone == id, ct);
+        var idLower = id.ToLowerInvariant();
+        var clean = Regex.Replace(id, @"[\s()+-]", "");
+        var local = clean.StartsWith("94") ? "0" + clean[2..] : clean;
+        var intl = clean.StartsWith("0") ? "94" + clean[1..] : clean;
+
+        var users = await db.Users
+            .Where(x => x.Email.ToLower() == idLower ||
+                        x.Phone == id ||
+                        x.Phone == local ||
+                        x.Phone == intl ||
+                        x.Phone == clean)
+            .OrderByDescending(x => x.IsEmailVerified)
+            .ThenByDescending(x => x.CreatedAt)
+            .ToListAsync(ct);
+
+        var user = users.FirstOrDefault();
 
         if (user is null)
             throw new AuthProblem(401, "The email/phone or password you entered is incorrect.");
@@ -180,7 +213,7 @@ public sealed class AuthService(
         var user = await db.Users.FindAsync([userId], ct);
         if (user is null) throw new AuthProblem(404, "User not found.");
 
-        var photoUrl = await cloudinary.UploadProfilePhotoAsync(file, userId, ct);
+        var photoUrl = await imageService.UploadProfilePhotoAsync(file, userId, ct);
         user.ProfilePhotoUrl = photoUrl;
         user.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
@@ -205,6 +238,40 @@ public sealed class AuthService(
         }
     }
 
+    public async Task<UserResponse> UpdateProviderProfile(Guid userId, ProviderSetupRequest req, CancellationToken ct)
+    {
+        var user = await db.Users.FindAsync([userId], ct);
+        if (user is null) throw new AuthProblem(404, "User not found.");
+
+        user.IsProvider = true;
+        if (req.Skills != null) user.ProviderSkills = req.Skills.Trim();
+        if (req.Services != null) user.ProviderServices = req.Services.Trim();
+        if (req.Experience != null) user.ProviderExperience = req.Experience.Trim();
+        if (req.Certifications != null) user.ProviderCertifications = req.Certifications.Trim();
+        if (req.ServiceAreas != null) user.ProviderServiceAreas = req.ServiceAreas.Trim();
+        if (req.Availability != null) user.ProviderAvailability = req.Availability.Trim();
+        if (req.Bio != null) user.ProviderBio = req.Bio.Trim();
+        user.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await db.SaveChangesAsync(ct);
+        return MapUser(user);
+    }
+
+    public async Task<UserResponse> UploadCertification(Guid userId, IFormFile file, CancellationToken ct)
+    {
+        var user = await db.Users.FindAsync([userId], ct);
+        if (user is null) throw new AuthProblem(404, "User not found.");
+
+        var certUrl = await imageService.UploadProfilePhotoAsync(file, userId, ct);
+        user.ProviderCertifications = string.IsNullOrWhiteSpace(user.ProviderCertifications)
+            ? certUrl
+            : $"{user.ProviderCertifications},{certUrl}";
+        user.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await db.SaveChangesAsync(ct);
+        return MapUser(user);
+    }
+
     public static UserResponse MapUser(AppUser u) => new(
         u.Id,
         u.FullName,
@@ -213,5 +280,14 @@ public sealed class AuthService(
         u.Address,
         u.Location,
         u.Preferences,
-        u.ProfilePhotoUrl);
+        u.ProfilePhotoUrl,
+        u.IsProvider,
+        u.ProviderSkills,
+        u.ProviderServices,
+        u.ProviderExperience,
+        u.ProviderCertifications,
+        u.ProviderServiceAreas,
+        u.ProviderAvailability,
+        u.ProviderBio,
+        u.ProviderEarnings);
 }

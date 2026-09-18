@@ -50,7 +50,7 @@ public sealed class AuthController(AuthService auth, AuthDbContext db) : Control
         return Ok(updated);
     }
 
-    // Uploads a profile photo to Cloudinary and updates the user's ProfilePhotoUrl.
+    // Uploads a profile photo to Cloudflare R2 and updates the user's ProfilePhotoUrl.
     [HttpPost("profile/photo")]
     [Consumes("multipart/form-data")]
     public async Task<ActionResult<UserResponse>> UploadProfilePhoto(
@@ -58,34 +58,60 @@ public sealed class AuthController(AuthService auth, AuthDbContext db) : Control
         [FromForm] Guid? userId,
         CancellationToken ct)
     {
-        Guid id;
+        var id = await ResolveUserId(userId, ct);
+        if (!id.HasValue) return Unauthorized();
+
+        var updated = await auth.UploadProfilePhoto(id.Value, file, ct);
+        return Ok(updated);
+    }
+
+    // Sets up or updates the user's provider profile and enables Provider Mode.
+    [HttpPost("provider/setup")]
+    public async Task<ActionResult<UserResponse>> SetupProvider(
+        [FromBody] ProviderSetupRequest req,
+        [FromQuery] Guid? userId,
+        CancellationToken ct)
+    {
+        var id = await ResolveUserId(userId, ct);
+        if (!id.HasValue) return Unauthorized();
+
+        var updated = await auth.UpdateProviderProfile(id.Value, req, ct);
+        return Ok(updated);
+    }
+
+    // Uploads a certification file (image or document) to Cloudflare R2 and links to provider profile.
+    [HttpPost("provider/certification")]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<UserResponse>> UploadCertification(
+        IFormFile file,
+        [FromForm] Guid? userId,
+        CancellationToken ct)
+    {
+        var id = await ResolveUserId(userId, ct);
+        if (!id.HasValue) return Unauthorized();
+
+        var updated = await auth.UploadCertification(id.Value, file, ct);
+        return Ok(updated);
+    }
+
+    private async Task<Guid?> ResolveUserId(Guid? explicitId, CancellationToken ct)
+    {
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!string.IsNullOrEmpty(claim) && Guid.TryParse(claim, out var parsed))
+            return parsed;
+
+        if (explicitId.HasValue)
+            return explicitId.Value;
+
+        var header = Request.Headers.Authorization.ToString();
+        if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
-            id = parsed;
-        }
-        else if (userId.HasValue)
-        {
-            id = userId.Value;
-        }
-        else
-        {
-            var header = Request.Headers.Authorization.ToString();
-            if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            {
-                var token = header[7..].Trim();
-                var u = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.SessionToken == token, ct);
-                if (u is not null) id = u.Id;
-                else return Unauthorized();
-            }
-            else
-            {
-                return Unauthorized();
-            }
+            var token = header[7..].Trim();
+            var u = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.SessionToken == token, ct);
+            if (u is not null) return u.Id;
         }
 
-        var updated = await auth.UploadProfilePhoto(id, file, ct);
-        return Ok(updated);
+        return null;
     }
 
     // Revokes the current session token.
