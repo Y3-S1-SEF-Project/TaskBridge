@@ -8,6 +8,15 @@ class AuthUser {
     this.location,
     this.preferences,
     this.profilePhotoUrl,
+    this.isProvider = false,
+    this.providerSkills,
+    this.providerServices,
+    this.providerExperience,
+    this.providerCertifications,
+    this.providerServiceAreas,
+    this.providerAvailability,
+    this.providerBio,
+    this.providerEarnings,
   });
 
   final String id;
@@ -18,6 +27,15 @@ class AuthUser {
   final String? location;
   final String? preferences;
   final String? profilePhotoUrl;
+  final bool isProvider;
+  final String? providerSkills;
+  final String? providerServices;
+  final String? providerExperience;
+  final String? providerCertifications;
+  final String? providerServiceAreas;
+  final String? providerAvailability;
+  final String? providerBio;
+  final double? providerEarnings;
 
   AuthUser copyWith({
     String? fullName,
@@ -27,6 +45,15 @@ class AuthUser {
     String? location,
     String? preferences,
     String? profilePhotoUrl,
+    bool? isProvider,
+    String? providerSkills,
+    String? providerServices,
+    String? providerExperience,
+    String? providerCertifications,
+    String? providerServiceAreas,
+    String? providerAvailability,
+    String? providerBio,
+    double? providerEarnings,
   }) =>
       AuthUser(
         id: id,
@@ -37,6 +64,18 @@ class AuthUser {
         location: location ?? this.location,
         preferences: preferences ?? this.preferences,
         profilePhotoUrl: profilePhotoUrl ?? this.profilePhotoUrl,
+        isProvider: isProvider ?? this.isProvider,
+        providerSkills: providerSkills ?? this.providerSkills,
+        providerServices: providerServices ?? this.providerServices,
+        providerExperience: providerExperience ?? this.providerExperience,
+        providerCertifications:
+            providerCertifications ?? this.providerCertifications,
+        providerServiceAreas:
+            providerServiceAreas ?? this.providerServiceAreas,
+        providerAvailability:
+            providerAvailability ?? this.providerAvailability,
+        providerBio: providerBio ?? this.providerBio,
+        providerEarnings: providerEarnings ?? this.providerEarnings,
       );
 
   factory AuthUser.fromJson(Map<String, dynamic> json) => AuthUser(
@@ -48,6 +87,17 @@ class AuthUser {
         location: json['location'] as String?,
         preferences: json['preferences'] as String?,
         profilePhotoUrl: json['profilePhotoUrl'] as String?,
+        isProvider: (json['isProvider'] as bool?) ?? false,
+        providerSkills: json['providerSkills'] as String?,
+        providerServices: json['providerServices'] as String?,
+        providerExperience: json['providerExperience'] as String?,
+        providerCertifications: json['providerCertifications'] as String?,
+        providerServiceAreas: json['providerServiceAreas'] as String?,
+        providerAvailability: json['providerAvailability'] as String?,
+        providerBio: json['providerBio'] as String?,
+        providerEarnings: (json['providerEarnings'] is num)
+            ? (json['providerEarnings'] as num).toDouble()
+            : 54000.0,
       );
 
   Map<String, dynamic> toJson() => {
@@ -59,6 +109,15 @@ class AuthUser {
         'location': location,
         'preferences': preferences,
         'profilePhotoUrl': profilePhotoUrl,
+        'isProvider': isProvider,
+        'providerSkills': providerSkills,
+        'providerServices': providerServices,
+        'providerExperience': providerExperience,
+        'providerCertifications': providerCertifications,
+        'providerServiceAreas': providerServiceAreas,
+        'providerAvailability': providerAvailability,
+        'providerBio': providerBio,
+        'providerEarnings': providerEarnings,
       };
 }
 

@@ -12,16 +12,31 @@ class AuthApi {
   static const _tokenKey = 'taskbridge.token';
   static const _userKey = 'taskbridge.user';
   static const _configuredUrl = String.fromEnvironment('TASKBRIDGE_API_URL');
+  static String? _workingBaseUrl;
   String? _token;
 
+  List<String> get _candidateUrls {
+    if (_configuredUrl.isNotEmpty) return [_configuredUrl];
+    if (!kDebugMode) return const [''];
+    if (_workingBaseUrl != null) return [_workingBaseUrl!];
+
+    // Priority 1: localhost (works instantly for USB-connected real phone with adb reverse & desktop)
+    // Priority 2: 10.0.2.2 (works on Android emulator)
+    // Priority 3: Mac LAN Wi-Fi IP (works for real mobile on same Wi-Fi)
+    return const [
+      'http://localhost:5298',
+      'http://10.0.2.2:5298',
+      'http://192.168.1.2:5298',
+    ];
+  }
+
   Uri get _base {
-    final url = _configuredUrl.isNotEmpty
-        ? _configuredUrl
-        : kDebugMode
-        ? (defaultTargetPlatform == TargetPlatform.android
-              ? 'http://10.0.2.2:5298'
-              : 'http://localhost:5298')
-        : '';
+    final url = _workingBaseUrl ??
+        (_configuredUrl.isNotEmpty
+            ? _configuredUrl
+            : kDebugMode
+                ? 'http://localhost:5298'
+                : '');
     final uri = Uri.tryParse(url);
     if (uri == null ||
         !uri.hasAuthority ||
@@ -39,59 +54,82 @@ class AuthApi {
     Map<String, dynamic>? body,
     bool get = false,
   }) async {
-    try {
-      final uri = _base.resolve('/api/auth/$path');
-      final headers = <String, String>{
-        'Content-Type': 'application/json',
-        if (_token != null) 'Authorization': 'Bearer $_token',
-      };
-      final response =
-          await (get
-                  ? _client.get(uri, headers: headers)
-                  : _client.post(
-                      uri,
-                      headers: headers,
-                      body: jsonEncode(body ?? {}),
-                    ))
-              .timeout(const Duration(seconds: 25));
+    final candidates = _candidateUrls;
+    Exception? lastNetworkError;
 
-      Map<String, dynamic> data = {};
-      if (response.body.isNotEmpty) {
-        try {
-          final decoded = jsonDecode(response.body);
-          if (decoded is Map<String, dynamic>) data = decoded;
-        } on FormatException {
-          /* Non-JSON upstream errors use the fallback below. */
+    for (int i = 0; i < candidates.length; i++) {
+      final candidate = candidates[i];
+      final baseUri = Uri.tryParse(candidate);
+      if (baseUri == null || !baseUri.hasAuthority) continue;
+
+      try {
+        final uri = baseUri.resolve('/api/auth/$path');
+        final headers = <String, String>{
+          'Content-Type': 'application/json',
+          if (_token != null) 'Authorization': 'Bearer $_token',
+        };
+        // Short timeout during discovery if candidate isn't proven yet
+        final isProven = _workingBaseUrl != null || candidates.length == 1;
+        final timeout = isProven
+            ? const Duration(seconds: 25)
+            : const Duration(seconds: 3);
+
+        final response = await (get
+                ? _client.get(uri, headers: headers)
+                : _client.post(
+                    uri,
+                    headers: headers,
+                    body: jsonEncode(body ?? {}),
+                  ))
+            .timeout(timeout);
+
+        // Success connecting to this host!
+        _workingBaseUrl = candidate;
+
+        Map<String, dynamic> data = {};
+        if (response.body.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(response.body);
+            if (decoded is Map<String, dynamic>) data = decoded;
+          } on FormatException {
+            /* Non-JSON upstream errors use the fallback below. */
+          }
         }
-      }
 
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        final errors = data['errors'];
-        final validation = errors is Map
-            ? errors.values.expand((v) => v is List ? v : [v]).join(' ')
-            : null;
-        throw AuthException(
-          (data['detail'] as String?) ??
-              (data['message'] as String?) ??
-              validation ??
-              (response.statusCode == 429
-                  ? 'Too many attempts. Please wait and try again.'
-                  : response.statusCode == 401
-                  ? 'Your session has expired. Please log in again.'
-                  : 'Unable to complete the request. Please try again.'),
-          status: response.statusCode,
-        );
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          final errors = data['errors'];
+          final validation = errors is Map
+              ? errors.values.expand((v) => v is List ? v : [v]).join(' ')
+              : null;
+          throw AuthException(
+            (data['detail'] as String?) ??
+                (data['message'] as String?) ??
+                validation ??
+                (response.statusCode == 429
+                    ? 'Too many attempts. Please wait and try again.'
+                    : response.statusCode == 401
+                    ? 'Your session has expired. Please log in again.'
+                    : 'Unable to complete the request. Please try again.'),
+            status: response.statusCode,
+          );
+        }
+        return data;
+      } on AuthException {
+        rethrow;
+      } catch (e) {
+        lastNetworkError = e is Exception ? e : Exception(e.toString());
+        if (i < candidates.length - 1) continue;
       }
-      return data;
-    } on TimeoutException {
+    }
+
+    if (lastNetworkError is TimeoutException) {
       throw const AuthException(
         'The request timed out. Check your connection and try again.',
       );
-    } on http.ClientException {
-      throw const AuthException(
-        'Cannot reach TaskBridge. Check your connection and the API address.',
-      );
     }
+    throw const AuthException(
+      'Cannot reach TaskBridge. Check your connection and the API address.',
+    );
   }
 
   // Registers a new user and sends email OTP.
@@ -207,7 +245,7 @@ class AuthApi {
     return user;
   }
 
-  // Uploads a profile picture file to Cloudinary and updates user profile.
+  // Uploads a profile picture file to Cloudflare R2 and updates user profile.
   Future<AuthUser> uploadProfilePhoto(String filePath, {String? userId}) async {
     try {
       if (_token == null) {
@@ -256,6 +294,82 @@ class AuthApi {
       rethrow;
     } catch (e) {
       throw AuthException('Failed to upload profile photo: $e');
+    }
+  }
+
+  // Sets up or updates the user's provider profile and activates provider mode.
+  Future<AuthUser> saveProviderProfile({
+    String? skills,
+    String? services,
+    String? experience,
+    String? certifications,
+    String? serviceAreas,
+    String? availability,
+    String? bio,
+  }) async {
+    final body = <String, dynamic>{};
+    if (skills != null) body['skills'] = skills;
+    if (services != null) body['services'] = services;
+    if (experience != null) body['experience'] = experience;
+    if (certifications != null) body['certifications'] = certifications;
+    if (serviceAreas != null) body['serviceAreas'] = serviceAreas;
+    if (availability != null) body['availability'] = availability;
+    if (bio != null) body['bio'] = bio;
+
+    final result = await _request('provider/setup', body: body);
+    final user = AuthUser.fromJson(result);
+    if (_token != null) {
+      await _saveSession(_token!, user);
+    }
+    return user;
+  }
+
+  // Uploads a certification document or photo to Cloudflare R2.
+  Future<AuthUser> uploadCertification(String filePath, {String? userId}) async {
+    try {
+      if (_token == null) {
+        final prefs = await SharedPreferences.getInstance();
+        _token = prefs.getString(_tokenKey);
+      }
+
+      final uri = _base.resolve('/api/auth/provider/certification');
+      final request = http.MultipartRequest('POST', uri);
+
+      if (_token != null && _token!.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $_token';
+      }
+      if (userId != null && userId.isNotEmpty) {
+        request.fields['userId'] = userId;
+      }
+
+      final multipartFile = await http.MultipartFile.fromPath('file', filePath);
+      request.files.add(multipartFile);
+
+      final streamedResponse = await _client.send(request);
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        final updatedUser = AuthUser.fromJson(json);
+        if (_token != null) {
+          await _saveSession(_token!, updatedUser);
+        }
+        return updatedUser;
+      } else {
+        String message = 'Failed to upload certification.';
+        try {
+          final err = jsonDecode(response.body);
+          message = err['detail'] ?? err['title'] ?? err['message'] ?? message;
+        } catch (_) {}
+        throw AuthException(
+          '$message (HTTP ${response.statusCode})',
+          status: response.statusCode,
+        );
+      }
+    } on AuthException {
+      rethrow;
+    } catch (e) {
+      throw AuthException('Failed to upload certification: $e');
     }
   }
 

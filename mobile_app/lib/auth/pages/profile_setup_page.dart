@@ -1,4 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_spacing.dart';
@@ -13,11 +17,7 @@ class ProfileSetupPage extends StatefulWidget {
   final AuthApi api;
   final AuthUser user;
 
-  const ProfileSetupPage({
-    super.key,
-    required this.api,
-    required this.user,
-  });
+  const ProfileSetupPage({super.key, required this.api, required this.user});
 
   @override
   State<ProfileSetupPage> createState() => _ProfileSetupPageState();
@@ -26,11 +26,16 @@ class ProfileSetupPage extends StatefulWidget {
 class _ProfileSetupPageState extends State<ProfileSetupPage> {
   late final TextEditingController _nameController;
   final TextEditingController _addressController = TextEditingController();
-  final TextEditingController _locationController =
-      TextEditingController(text: 'Colombo 05');
-  final TextEditingController _preferencesController =
-      TextEditingController(text: 'Home maintenance · IT services');
+  final TextEditingController _locationController = TextEditingController(
+    text: 'Colombo 05',
+  );
+  final TextEditingController _preferencesController = TextEditingController(
+    text: 'Home maintenance · IT services',
+  );
 
+  final ImagePicker _picker = ImagePicker();
+  String? _profilePhotoUrl;
+  bool _uploadingPhoto = false;
   bool _busy = false;
   String? _error;
 
@@ -38,6 +43,7 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.user.fullName);
+    _profilePhotoUrl = widget.user.profilePhotoUrl;
   }
 
   @override
@@ -49,11 +55,196 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
     super.dispose();
   }
 
+  Future<bool> _ensurePermission(ImageSource source) async {
+    if (source == ImageSource.camera) {
+      final status = await Permission.camera.request();
+      if (!status.isGranted && !status.isLimited) {
+        if (status.isPermanentlyDenied && mounted) {
+          _showSettingsDialog('Camera');
+        }
+        return false;
+      }
+      return true;
+    } else {
+      PermissionStatus status;
+      if (Platform.isAndroid) {
+        status = await Permission.photos.request();
+        if (status.isDenied) {
+          status = await Permission.storage.request();
+        }
+      } else {
+        status = await Permission.photos.request();
+      }
+
+      if (!status.isGranted && !status.isLimited) {
+        if (status.isPermanentlyDenied && mounted) {
+          _showSettingsDialog('Photos & Media');
+        }
+        return false;
+      }
+      return true;
+    }
+  }
+
+  void _showSettingsDialog(String permissionName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('$permissionName Permission Required'),
+        content: Text(
+          '$permissionName permission is permanently denied. Please enable it in system settings to upload your profile photo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+            onPressed: () {
+              Navigator.pop(ctx);
+              openAppSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickAndUploadPhoto(ImageSource source) async {
+    try {
+      final picked = await _picker.pickImage(
+        source: source,
+        maxWidth: 1000,
+        maxHeight: 1000,
+        imageQuality: 85,
+      );
+      if (picked == null) return;
+
+      setState(() => _uploadingPhoto = true);
+
+      final updated = await widget.api.uploadProfilePhoto(
+        picked.path,
+        userId: widget.user.id,
+      );
+
+      if (mounted) {
+        setState(() {
+          _profilePhotoUrl = updated.profilePhotoUrl;
+          _uploadingPhoto = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile photo uploaded!'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _uploadingPhoto = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e.toString().contains('denied')
+                  ? 'Permission denied: Please enable gallery/media access in Settings.'
+                  : 'Could not upload photo: $e',
+            ),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showPhotoOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      backgroundColor: Colors.white,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Profile Photo',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const CircleAvatar(
+                  backgroundColor: AppColors.primaryLight,
+                  child: Icon(
+                    Icons.camera_alt_outlined,
+                    color: AppColors.primary,
+                  ),
+                ),
+                title: const Text(
+                  'Take photo',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text('Use camera to capture a new picture'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final allowed = await _ensurePermission(ImageSource.camera);
+                  if (!allowed) return;
+                  _pickAndUploadPhoto(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const CircleAvatar(
+                  backgroundColor: AppColors.primaryLight,
+                  child: Icon(
+                    Icons.photo_library_outlined,
+                    color: AppColors.primary,
+                  ),
+                ),
+                title: const Text(
+                  'Choose from gallery',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text(
+                  'Select a photo from device gallery & media',
+                ),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final allowed = await _ensurePermission(ImageSource.gallery);
+                  if (!allowed) return;
+                  _pickAndUploadPhoto(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _skip() {
+    final userWithPhoto = widget.user.copyWith(
+      profilePhotoUrl: _profilePhotoUrl,
+    );
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context, userWithPhoto);
+      return;
+    }
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
-        builder: (_) => HomePage(user: widget.user, api: widget.api),
+        builder: (_) => HomePage(user: userWithPhoto, api: widget.api),
       ),
       (_) => false,
     );
@@ -80,6 +271,7 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
         preferences: _preferencesController.text.trim().isNotEmpty
             ? _preferencesController.text.trim()
             : null,
+        profilePhotoUrl: _profilePhotoUrl,
       );
 
       if (!mounted) return;
@@ -110,7 +302,9 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
                 vertical: AppSpacing.s16,
               ),
               child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight - 32),
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - 32,
+                ),
                 child: Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 480),
@@ -170,38 +364,136 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
                         const SizedBox(height: AppSpacing.s20),
 
                         // ── Profile Photo Box ──
-                        Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: AppColors.border, width: 1),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 24),
-                          child: Column(
-                            children: const [
-                              Icon(
-                                Icons.camera_alt_outlined,
-                                size: 30,
-                                color: AppColors.primary,
+                        InkWell(
+                          onTap: _uploadingPhoto ? null : _showPhotoOptions,
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color:
+                                    _profilePhotoUrl != null &&
+                                        _profilePhotoUrl!.isNotEmpty
+                                    ? AppColors.primary
+                                    : AppColors.border,
+                                width:
+                                    _profilePhotoUrl != null &&
+                                        _profilePhotoUrl!.isNotEmpty
+                                    ? 1.5
+                                    : 1,
                               ),
-                              SizedBox(height: 8),
-                              Text(
-                                'Add profile photo',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                'Help providers recognize you',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 20,
+                              horizontal: 16,
+                            ),
+                            child: _uploadingPhoto
+                                ? const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          SizedBox.square(
+                                            dimension: 28,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.5,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                    AppColors.primary,
+                                                  ),
+                                            ),
+                                          ),
+                                          SizedBox(height: 10),
+                                          Text(
+                                            'Uploading photo…',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                : (_profilePhotoUrl != null &&
+                                      _profilePhotoUrl!.isNotEmpty)
+                                ? Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 32,
+                                        backgroundColor: AppColors.mint,
+                                        backgroundImage:
+                                            CachedNetworkImageProvider(
+                                              _profilePhotoUrl!,
+                                            ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      const Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.check_circle_rounded,
+                                                color: AppColors.primary,
+                                                size: 18,
+                                              ),
+                                              SizedBox(width: 6),
+                                              Text(
+                                                'Photo uploaded',
+                                                style: TextStyle(
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: AppColors.textPrimary,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          SizedBox(height: 4),
+                                          Text(
+                                            'Tap to change photo',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: AppColors.primary,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  )
+                                : Column(
+                                    children: const [
+                                      Icon(
+                                        Icons.camera_alt_outlined,
+                                        size: 30,
+                                        color: AppColors.primary,
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        'Add profile photo',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        'Help providers recognize you',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                           ),
                         ),
                         const SizedBox(height: AppSpacing.s20),
