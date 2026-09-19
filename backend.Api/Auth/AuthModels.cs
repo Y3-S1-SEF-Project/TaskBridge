@@ -73,7 +73,8 @@ public sealed record ProviderSetupRequest(
     string? Certifications,
     string? ServiceAreas,
     string? Availability,
-    string? Bio);
+    string? Bio,
+    string? Location = null);
 
 public sealed record ChallengeResponse(
     string Email,

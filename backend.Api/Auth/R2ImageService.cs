@@ -46,12 +46,13 @@ public sealed class R2ImageService : IProfileImageService
         if (file.Length > 10 * 1024 * 1024)
             throw new AuthProblem(400, "Image size exceeds maximum allowed limit (10MB).");
 
-        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".heic" };
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".heic", ".pdf", ".doc", ".docx" };
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
         if (string.IsNullOrEmpty(ext) || !allowedExtensions.Contains(ext))
             ext = ".jpg";
 
-        var key = $"profiles/user_{userId}_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}{ext}";
+        var folder = (ext == ".pdf" || ext == ".doc" || ext == ".docx") ? "certifications" : "profiles";
+        var key = $"{folder}/user_{userId}_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}{ext}";
 
         await using var stream = file.OpenReadStream();
         var contentType = ext switch
@@ -59,6 +60,9 @@ public sealed class R2ImageService : IProfileImageService
             ".png" => "image/png",
             ".webp" => "image/webp",
             ".heic" => "image/heic",
+            ".pdf" => "application/pdf",
+            ".doc" => "application/msword",
+            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             _ => "image/jpeg"
         };
 

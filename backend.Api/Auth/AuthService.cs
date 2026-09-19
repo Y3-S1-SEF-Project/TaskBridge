@@ -251,6 +251,7 @@ public sealed class AuthService(
         if (req.ServiceAreas != null) user.ProviderServiceAreas = req.ServiceAreas.Trim();
         if (req.Availability != null) user.ProviderAvailability = req.Availability.Trim();
         if (req.Bio != null) user.ProviderBio = req.Bio.Trim();
+        if (req.Location != null) user.Location = req.Location.Trim();
         user.UpdatedAt = DateTimeOffset.UtcNow;
 
         await db.SaveChangesAsync(ct);
