@@ -1,40 +1,51 @@
 import 'package:flutter/material.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
-/// Material Icons used throughout the app. Only icons actually referenced
-/// in source are kept here — add new entries as features grow.
+/// Centralized modern Iconsax design tokens used throughout TaskBridge.
 abstract final class AppIcons {
-  static const home = Icons.home_rounded;
-  static const searchNormal = Icons.search_rounded;
-  static const calendar = Icons.calendar_today_rounded;
-  static const message = Icons.chat_bubble_outline_rounded;
-  static const profile = Icons.person_outline_rounded;
+  // Navigation & Core Actions (Iconsax)
+  static const home = Iconsax.home;
+  static const homeBold = Iconsax.home_copy;
+  static const searchNormal = Iconsax.search_normal;
+  static const calendar = Iconsax.calendar;
+  static const calendarBold = Iconsax.calendar_copy;
+  static const message = Iconsax.message;
+  static const messageBold = Iconsax.message_copy;
+  static const profile = Iconsax.user;
+  static const profileBold = Iconsax.user_copy;
   static const arrowLeft = Icons.arrow_back_rounded;
-  static const clock = Icons.access_time_rounded;
-  static const verify = Icons.verified_rounded;
-  static const tickCircle = Icons.check_circle_rounded;
-  static const warning_2 = Icons.warning_rounded;
-  static const shieldTick = Icons.verified_user_rounded;
-  static const briefcase = Icons.work_rounded;
-  static const chart = Icons.bar_chart_rounded;
-  static const star = Icons.star_rounded;
-  static const magicpen = Icons.auto_fix_high_rounded;
-  static const drop = Icons.water_drop_rounded;
-  static const notification = Icons.notifications_none_rounded;
-  static const location = Icons.location_on_outlined;
+  static const clock = Iconsax.clock;
+  static const verify = Iconsax.verify;
+  static const tickCircle = Iconsax.tick_circle;
+  static const warning_2 = Iconsax.warning_2;
+  static const shieldTick = Iconsax.shield_tick;
+  static const briefcase = Iconsax.briefcase;
+  static const briefcaseBold = Iconsax.briefcase_copy;
+  static const chart = Iconsax.chart;
+  static const chartBold = Iconsax.chart_copy;
+  static const star = Iconsax.star;
+  static const drop = Iconsax.drop;
+  static const notification = Iconsax.notification;
+  static const location = Iconsax.location;
+  static const send = Iconsax.send_1;
+  static const closeCircle = Iconsax.close_circle;
+  static const trendUp = Iconsax.trend_up;
+  static const switchMode = Iconsax.repeat;
+  static const magicpen = Iconsax.magicpen;
 
-  // Category icons (Material Icons matching Figma C11 & C12)
-  static const plumbing = Icons.water_drop_outlined;
-  static const electrical = Icons.bolt_rounded;
-  static const hvac = Icons.air_rounded;
-  static const cleaning = Icons.cleaning_services_outlined;
-  static const carRepair = Icons.directions_car_outlined;
-  static const itServices = Icons.computer_rounded;
-  static const painting = Icons.format_paint_outlined;
-  static const gardening = Icons.park_outlined;
-  static const moving = Icons.inventory_2_outlined;
-  static const beauty = Icons.brush_outlined;
-  static const appliances = Icons.memory_rounded;
-  static const other = Icons.grid_view_rounded;
+  // Category Icons (Iconsax)
+  static const plumbing = Iconsax.drop;
+  static const electrical = Iconsax.flash;
+  static const hvac = Iconsax.wind;
+  static const cleaning = Iconsax.brush;
+  static const carRepair = Iconsax.car;
+  static const itServices = Iconsax.monitor;
+  static const painting = Iconsax.brush;
+  static const gardening = Iconsax.tree;
+  static const moving = Iconsax.box;
+  static const beauty = Iconsax.brush;
+  static const appliances = Iconsax.cpu;
+  static const other = Iconsax.category;
 
   static const all = <String, IconData>{
     'home': home,
@@ -51,7 +62,6 @@ abstract final class AppIcons {
     'briefcase': briefcase,
     'chart': chart,
     'star': star,
-    'magicpen': magicpen,
     'drop': drop,
     'notification': notification,
     'location': location,

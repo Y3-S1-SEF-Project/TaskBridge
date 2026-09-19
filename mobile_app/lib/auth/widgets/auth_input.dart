@@ -15,6 +15,8 @@ class AuthInput extends StatefulWidget {
     this.autofillHints,
     this.formatters,
     this.maxLength,
+    this.minLines,
+    this.maxLines = 1,
     this.onSubmitted,
   });
   final String label;
@@ -26,6 +28,8 @@ class AuthInput extends StatefulWidget {
   final Iterable<String>? autofillHints;
   final List<TextInputFormatter>? formatters;
   final int? maxLength;
+  final int? minLines;
+  final int? maxLines;
   final VoidCallback? onSubmitted;
 
   // Creates the field state for password visibility.
@@ -52,9 +56,13 @@ class _AuthInputState extends State<AuthInput> {
       inputFormatters: widget.formatters,
       maxLength: widget.maxLength,
       validator: widget.validator,
-      textInputAction: widget.onSubmitted == null
-          ? TextInputAction.next
-          : TextInputAction.done,
+      minLines: widget.minLines,
+      maxLines: widget.password ? 1 : widget.maxLines,
+      textInputAction: (widget.maxLines != null && widget.maxLines! > 1)
+          ? TextInputAction.newline
+          : (widget.onSubmitted == null
+              ? TextInputAction.next
+              : TextInputAction.done),
       onFieldSubmitted: (_) => widget.onSubmitted?.call(),
       decoration: InputDecoration(
         labelText: widget.label,

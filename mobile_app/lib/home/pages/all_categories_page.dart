@@ -184,8 +184,8 @@ class _AllCategoriesPageState extends State<AllCategoriesPage> {
       bottomNavigationBar: TaskBridgeBottomNav(
         currentIndex: _currentNavIndex,
         onTap: (index) {
-          if (index == 0 && Navigator.canPop(context)) {
-            Navigator.pop(context);
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context, index);
           } else {
             setState(() => _currentNavIndex = index);
           }
