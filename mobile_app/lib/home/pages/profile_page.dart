@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../../auth/data/auth_api.dart';
 import '../../auth/data/auth_models.dart';
 import '../../auth/pages/login_page.dart';
@@ -10,6 +11,7 @@ import '../../auth/pages/profile_setup_page.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/services/user_mode_service.dart';
 import '../../provider/pages/provider_main_page.dart';
 import '../../provider/pages/provider_setup_page.dart';
 import '../widgets/taskbridge_bottom_nav.dart';
@@ -19,6 +21,7 @@ class ProfilePage extends StatefulWidget {
   final AuthApi? api;
   final VoidCallback? onBackToHome;
   final ValueChanged<int>? onTabChange;
+  final bool showBottomNav;
 
   const ProfilePage({
     super.key,
@@ -26,6 +29,7 @@ class ProfilePage extends StatefulWidget {
     this.api,
     this.onBackToHome,
     this.onTabChange,
+    this.showBottomNav = true,
   });
 
   @override
@@ -285,17 +289,26 @@ class _ProfilePageState extends State<ProfilePage> {
   void _switchToProvider() async {
     if (_currentUser == null || widget.api == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please wait while user details are loaded.')),
+        const SnackBar(
+          content: Text('Please wait while user details are loaded.'),
+        ),
       );
       return;
     }
 
     if (!_currentUser!.isProvider) {
+      final hasDetails =
+          (_currentUser!.providerSkills?.trim().isNotEmpty == true) ||
+          (_currentUser!.providerServices?.trim().isNotEmpty == true);
       // First time: navigate to Provider Setup screen P10
       final updated = await Navigator.push<AuthUser>(
         context,
         MaterialPageRoute(
-          builder: (_) => ProviderSetupPage(user: _currentUser!, api: widget.api!),
+          builder: (_) => ProviderSetupPage(
+            user: _currentUser!,
+            api: widget.api!,
+            isFirstTime: !hasDetails,
+          ),
         ),
       );
       if (updated != null && mounted) {
@@ -303,12 +316,16 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     } else {
       // Already a provider: switch directly to Provider Mode!
+      await UserModeService.setMode(UserMode.provider);
+      if (!mounted) return;
       final updated = await Navigator.push<AuthUser>(
         context,
         MaterialPageRoute(
-          builder: (_) => ProviderMainPage(user: _currentUser!, api: widget.api!),
+          builder: (_) =>
+              ProviderMainPage(user: _currentUser!, api: widget.api!),
         ),
       );
+      await UserModeService.setMode(UserMode.customer);
       if (updated != null && mounted) {
         setState(() => _currentUser = updated);
       }
@@ -559,18 +576,6 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── Header Tag ──
-              const Text(
-                'CUSTOMER MODE',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.s4),
-
               // ── Title ──
               const Text(
                 'Your profile',
@@ -583,40 +588,18 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(height: 20),
 
-              // ── Profile Card: Centered Circle Photo, Name, and Mobile Number ──
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  vertical: 24,
-                  horizontal: 20,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(AppRadius.r20),
-                  border: Border.all(color: AppColors.border, width: 1.2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
+              // ── Profile Info (Clean, no box container) ──
+              Center(
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Profile photo in circle center with tap-to-upload & camera badge
                     GestureDetector(
                       onTap: _isUploadingPhoto ? null : _showPhotoOptions,
                       child: Stack(
                         clipBehavior: Clip.none,
                         children: [
                           CircleAvatar(
-                            radius: 42,
-                            backgroundColor: AppColors.mint.withValues(
-                              alpha: 0.7,
-                            ),
+                            radius: 46,
+                            backgroundColor: AppColors.primaryLight,
                             backgroundImage:
                                 (_currentUser?.profilePhotoUrl != null &&
                                     _currentUser!.profilePhotoUrl!.isNotEmpty)
@@ -639,7 +622,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                 ? Text(
                                     _initials,
                                     style: const TextStyle(
-                                      fontSize: 24,
+                                      fontSize: 26,
                                       fontWeight: FontWeight.w700,
                                       color: AppColors.primaryDark,
                                     ),
@@ -656,7 +639,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                 shape: BoxShape.circle,
                                 border: Border.all(
                                   color: Colors.white,
-                                  width: 2,
+                                  width: 2.5,
                                 ),
                                 boxShadow: [
                                   BoxShadow(
@@ -676,9 +659,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 14),
-
-                    // Name center below profile circle
+                    const SizedBox(height: 12),
                     Text(
                       _currentUser?.fullName ?? 'Kavindu Alwis',
                       textAlign: TextAlign.center,
@@ -689,8 +670,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                     const SizedBox(height: 4),
-
-                    // Mobile number center below name
                     Text(
                       _formattedPhone,
                       textAlign: TextAlign.center,
@@ -705,138 +684,334 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(height: 24),
 
-              // ── Menu Options List ──
-              _MenuItemRow(
-                icon: Icons.person_outline_rounded,
-                title: 'Edit profile',
-                onTap: _openEditProfile,
+              // ── Group 1: Account & Services ──
+              _buildSectionLabel('ACCOUNT & SERVICES'),
+              _MenuCard(
+                children: [
+                  _SleekMenuTile(
+                    icon: Iconsax.user_edit,
+                    title: 'Personal details',
+                    subtitle: 'Name, phone & profile picture',
+                    iconBgColor: AppColors.primaryLight,
+                    iconColor: AppColors.primary,
+                    onTap: _openEditProfile,
+                  ),
+                  _SleekMenuTile(
+                    icon: Iconsax.location,
+                    title: 'Saved addresses',
+                    subtitle:
+                        _currentUser?.address != null &&
+                            _currentUser!.address!.isNotEmpty
+                        ? _currentUser!.address!
+                        : 'Delivery and service locations',
+                    iconBgColor: const Color(0xFFEBF3FF),
+                    iconColor: const Color(0xFF2563EB),
+                    onTap: _openSavedAddresses,
+                  ),
+                  _SleekMenuTile(
+                    icon: Iconsax.wallet_2,
+                    title: 'Payment methods',
+                    subtitle: 'Cards, payment preferences & history',
+                    iconBgColor: const Color(0xFFEDFAF1),
+                    iconColor: const Color(0xFF16A34A),
+                    onTap: () => _showFeatureNotice('Payment methods'),
+                  ),
+                  _SleekMenuTile(
+                    icon: Iconsax.star,
+                    title: 'My reviews',
+                    subtitle: 'Ratings & feedback given to specialists',
+                    iconBgColor: const Color(0xFFFEF9C3),
+                    iconColor: const Color(0xFFCA8A04),
+                    showDivider: false,
+                    onTap: () => _showFeatureNotice('My reviews'),
+                  ),
+                ],
               ),
-              _MenuItemRow(
-                icon: Icons.location_on_outlined,
-                title: 'Saved addresses',
-                onTap: _openSavedAddresses,
+              const SizedBox(height: 20),
+
+              // ── Switch Mode Section (Below My reviews) ──
+              _buildSectionLabel('SWITCH MODE'),
+              _MenuCard(
+                children: [
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _switchToProvider,
+                      borderRadius: BorderRadius.circular(AppRadius.r16),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryLight,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Center(
+                                child: Icon(
+                                  Iconsax.repeat,
+                                  size: 20,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Provider mode',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textPrimary,
+                                      letterSpacing: -0.2,
+                                    ),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'Switch to provider dashboard',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch.adaptive(
+                              value: false,
+                              activeTrackColor: AppColors.primary,
+                              activeThumbColor: Colors.white,
+                              onChanged: (val) {
+                                if (val) _switchToProvider();
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              _MenuItemRow(
-                icon: Icons.shopping_bag_outlined,
-                title: 'Payment methods',
-                onTap: () => _showFeatureNotice('Payment methods'),
+              const SizedBox(height: 20),
+
+              // ── Group 2: Preferences ──
+              _buildSectionLabel('PREFERENCES'),
+              _MenuCard(
+                children: [
+                  _SleekMenuTile(
+                    icon: Iconsax.notification,
+                    title: 'Notifications',
+                    subtitle: 'Alerts, booking updates & reminders',
+                    iconBgColor: const Color(0xFFF3E8FF),
+                    iconColor: const Color(0xFF9333EA),
+                    onTap: () => _showFeatureNotice('Notifications'),
+                  ),
+                  _SleekMenuTile(
+                    icon: Iconsax.setting_2,
+                    title: 'Settings & Privacy',
+                    subtitle: 'App preferences, security & terms',
+                    iconBgColor: const Color(0xFFF1F5F9),
+                    iconColor: const Color(0xFF475569),
+                    showDivider: false,
+                    onTap: _openSettings,
+                  ),
+                ],
               ),
-              _MenuItemRow(
-                icon: Icons.star_border_rounded,
-                title: 'My reviews',
-                onTap: () => _showFeatureNotice('My reviews'),
-              ),
-              _MenuItemRow(
-                icon: Icons.notifications_none_rounded,
-                title: 'Notifications',
-                onTap: () => _showFeatureNotice('Notifications'),
-              ),
-              _MenuItemRow(
-                icon: Icons.settings_outlined,
-                title: 'Settings',
-                onTap: _openSettings,
-              ),
-              _MenuItemRow(
-                icon: Icons.logout_rounded,
-                title: 'Log out',
-                iconColor: AppColors.error,
-                textColor: AppColors.error,
-                onTap: _confirmLogout,
+              const SizedBox(height: 20),
+
+              // ── Group 3: Account Actions ──
+              _buildSectionLabel('ACCOUNT ACTIONS'),
+              _MenuCard(
+                children: [
+                  _SleekMenuTile(
+                    icon: Iconsax.logout,
+                    title: 'Log out',
+                    subtitle: 'Safely sign out from this device',
+                    iconBgColor: const Color(0xFFFEE2E2),
+                    iconColor: AppColors.error,
+                    textColor: AppColors.error,
+                    trailing: const Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 18,
+                      color: AppColors.error,
+                    ),
+                    showDivider: false,
+                    onTap: _confirmLogout,
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
 
-              // ── Switch to Provider Button ──
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.r16),
-                    ),
-                  ),
-                  onPressed: _switchToProvider,
-                  child: const Text(
-                    'Switch to Provider',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // ── Caption below button ──
-              const Text(
-                'Same account. A different way to use your skills.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-              ),
               SizedBox(height: bottomInset > 0 ? bottomInset + 16 : 24),
             ],
           ),
         ),
       ),
-      bottomNavigationBar: TaskBridgeBottomNav(
-        currentIndex: 3,
-        onTap: (index) {
-          if (index == 0) {
-            _handleBack();
-          } else if (widget.onTabChange != null) {
-            widget.onTabChange!(index);
-          } else if (index == 0) {
-            _handleBack();
-          }
-        },
+      bottomNavigationBar: widget.showBottomNav
+          ? TaskBridgeBottomNav(
+              currentIndex: 3,
+              onTap: (index) {
+                if (widget.onTabChange != null) {
+                  widget.onTabChange!(index);
+                } else if (index == 0) {
+                  _handleBack();
+                }
+              },
+            )
+          : null,
+    );
+  }
+
+  Widget _buildSectionLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.9,
+          color: AppColors.textSecondary,
+        ),
       ),
     );
   }
 }
 
-class _MenuItemRow extends StatelessWidget {
+class _MenuCard extends StatelessWidget {
+  final List<Widget> children;
+
+  const _MenuCard({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.r16),
+        border: Border.all(color: AppColors.border, width: 1.1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: children),
+    );
+  }
+}
+
+class _SleekMenuTile extends StatelessWidget {
   final IconData icon;
   final String title;
+  final String? subtitle;
   final VoidCallback onTap;
   final Color? iconColor;
+  final Color? iconBgColor;
   final Color? textColor;
+  final Widget? trailing;
+  final bool showDivider;
 
-  const _MenuItemRow({
+  const _SleekMenuTile({
     required this.icon,
     required this.title,
+    this.subtitle,
     required this.onTap,
     this.iconColor,
+    this.iconBgColor,
     this.textColor,
+    this.trailing,
+    this.showDivider = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.r12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-        child: Row(
-          children: [
-            Icon(icon, size: 24, color: iconColor ?? AppColors.primaryDark),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: textColor ?? AppColors.textPrimary,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.r16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: iconBgColor ?? AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      icon,
+                      size: 20,
+                      color: iconColor ?? AppColors.primary,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: textColor ?? AppColors.textPrimary,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                trailing ??
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 20,
+                      color: AppColors.textSecondary,
+                    ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
+        if (showDivider)
+          Padding(
+            padding: const EdgeInsets.only(left: 68, right: 14),
+            child: Divider(
+              height: 1,
+              thickness: 0.8,
+              color: AppColors.border.withValues(alpha: 0.6),
+            ),
+          ),
+      ],
     );
   }
 }

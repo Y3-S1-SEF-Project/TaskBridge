@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../auth/data/auth_api.dart';
 import '../../auth/data/auth_models.dart';
+import '../../core/services/user_mode_service.dart';
+import '../../home/pages/home_page.dart';
 import '../widgets/provider_bottom_nav.dart';
 import 'provider_chat_page.dart';
 import 'provider_dashboard_page.dart';
@@ -29,10 +31,22 @@ class _ProviderMainPageState extends State<ProviderMainPage> {
   void initState() {
     super.initState();
     _currentUser = widget.user;
+    UserModeService.setMode(UserMode.provider);
   }
 
-  void _switchToCustomer() {
-    Navigator.pop(context, _currentUser);
+  void _switchToCustomer() async {
+    await UserModeService.setMode(UserMode.customer);
+    if (!mounted) return;
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context, _currentUser);
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => HomePage(user: _currentUser, api: widget.api),
+        ),
+      );
+    }
   }
 
   @override

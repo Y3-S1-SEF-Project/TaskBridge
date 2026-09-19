@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../auth/data/auth_api.dart';
 import '../../auth/data/auth_models.dart';
+import '../../core/services/location_service.dart';
+import '../../core/services/user_mode_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_spacing.dart';
@@ -9,6 +11,9 @@ import '../widgets/category_card.dart';
 import '../widgets/taskbridge_bottom_nav.dart';
 import '../widgets/taskbridge_search_bar.dart';
 import 'all_categories_page.dart';
+import 'customer_bookings_page.dart';
+import 'customer_chat_page.dart';
+import 'location_picker_page.dart';
 import 'profile_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -23,7 +28,59 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _currentNavIndex = 0;
-  final String _location = 'Colombo 05';
+  UserLocation _userLocation = UserLocation.defaultLocation;
+  bool _isLoadingLocation = false;
+
+  @override
+  void initState() {
+    super.initState();
+    UserModeService.setMode(UserMode.customer);
+    _initializeLocation();
+  }
+
+  Future<void> _initializeLocation() async {
+    // 1. Load saved/cached location
+    final cached = await LocationService.getSavedLocation();
+    if (cached != null && mounted) {
+      setState(() => _userLocation = cached);
+    }
+
+    // 2. Fetch live GPS position on startup
+    if (mounted) setState(() => _isLoadingLocation = true);
+    try {
+      final live = await LocationService.determineCurrentPosition();
+      if (live != null && mounted) {
+        setState(() {
+          _userLocation = live;
+          _isLoadingLocation = false;
+        });
+      } else if (mounted) {
+        setState(() => _isLoadingLocation = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingLocation = false);
+    }
+  }
+
+  Future<void> _changeLocation() async {
+    final selected = await Navigator.push<UserLocation>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LocationPickerPage(initialLocation: _userLocation),
+      ),
+    );
+
+    if (selected != null && mounted) {
+      setState(() => _userLocation = selected);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Location updated to ${selected.shortName}'),
+          backgroundColor: AppColors.primary,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
 
   String get _userName {
     final name = widget.user?.fullName.trim();
@@ -33,37 +90,53 @@ class _HomePageState extends State<HomePage> {
     return 'Kavindu';
   }
 
-  void _openAllCategories() {
-    Navigator.push(
+  void _openAllCategories() async {
+    final targetIndex = await Navigator.push<int>(
       context,
       MaterialPageRoute(builder: (_) => const AllCategoriesPage()),
     );
+    if (targetIndex != null && mounted) {
+      setState(() => _currentNavIndex = targetIndex);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_currentNavIndex == 3) {
-      return ProfilePage(
+    final topCategories = ServiceCategory.allCategories.take(3).toList();
+
+    final pages = [
+      _buildHomeContent(topCategories),
+      CustomerBookingsPage(
+        onSwitchTab: (index) => setState(() => _currentNavIndex = index),
+      ),
+      const CustomerChatPage(),
+      ProfilePage(
         user: widget.user,
         api: widget.api,
+        showBottomNav: false,
         onBackToHome: () => setState(() => _currentNavIndex = 0),
-        onTabChange: (index) {
-          if (index == 1) {
-            _openAllCategories();
-          } else {
-            setState(() => _currentNavIndex = index);
-          }
-        },
-      );
-    }
-
-    // Top 3 featured categories matching C11
-    final topCategories = ServiceCategory.allCategories.take(3).toList();
+        onTabChange: (index) => setState(() => _currentNavIndex = index),
+      ),
+    ];
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
+      body: IndexedStack(
+        index: _currentNavIndex,
+        children: pages,
+      ),
+      bottomNavigationBar: TaskBridgeBottomNav(
+        currentIndex: _currentNavIndex,
+        onTap: (index) {
+          setState(() => _currentNavIndex = index);
+        },
+      ),
+    );
+  }
+
+  Widget _buildHomeContent(List<ServiceCategory> topCategories) {
+    return SafeArea(
+      child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.s20,
             vertical: AppSpacing.s16,
@@ -111,38 +184,62 @@ class _HomePageState extends State<HomePage> {
               ),
               const SizedBox(height: AppSpacing.s12),
 
-              // ── Location Row ──
-              Row(
-                children: [
-                  const Icon(
-                    AppIcons.location,
-                    color: AppColors.primary,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    '$_location · ',
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      // Location selector dialog / action
-                    },
-                    child: const Text(
-                      'Change',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        decoration: TextDecoration.underline,
+              // ── Location Center Row ──
+              InkWell(
+                onTap: _changeLocation,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        AppIcons.location,
+                        color: AppColors.primary,
+                        size: 18,
                       ),
-                    ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          _isLoadingLocation
+                              ? 'Locating you… · '
+                              : '${_userLocation.shortName} · ',
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (_isLoadingLocation)
+                        const Padding(
+                          padding: EdgeInsets.only(right: 6),
+                          child: SizedBox.square(
+                            dimension: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.8,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      GestureDetector(
+                        onTap: _changeLocation,
+                        child: const Text(
+                          'Change',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
               const SizedBox(height: AppSpacing.s20),
 
@@ -362,17 +459,6 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
         ),
-      ),
-      bottomNavigationBar: TaskBridgeBottomNav(
-        currentIndex: _currentNavIndex,
-        onTap: (index) {
-          if (index == 1) {
-            _openAllCategories();
-          } else {
-            setState(() => _currentNavIndex = index);
-          }
-        },
-      ),
-    );
+      );
   }
 }

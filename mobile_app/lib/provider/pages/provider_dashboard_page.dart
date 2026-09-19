@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../auth/data/auth_models.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 
@@ -66,7 +67,7 @@ class ProviderDashboardPage extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
                     onPressed: onSwitchToCustomer,
-                    icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                    icon: const Icon(AppIcons.switchMode, size: 18),
                     label: const Text('Customer', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                   ),
                 ],
@@ -80,7 +81,7 @@ class ProviderDashboardPage extends StatelessWidget {
                     child: _MetricCard(
                       label: 'This Month',
                       value: 'Rs. ${(user.providerEarnings ?? 54000).toStringAsFixed(0)}',
-                      icon: Icons.trending_up_rounded,
+                      icon: AppIcons.trendUp,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -88,7 +89,7 @@ class ProviderDashboardPage extends StatelessWidget {
                     child: _MetricCard(
                       label: 'Active Jobs',
                       value: '3 Pending',
-                      icon: Icons.business_center_outlined,
+                      icon: AppIcons.briefcase,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -96,7 +97,7 @@ class ProviderDashboardPage extends StatelessWidget {
                     child: _MetricCard(
                       label: 'Rating',
                       value: '4.9 ★',
-                      icon: Icons.star_rounded,
+                      icon: AppIcons.star,
                     ),
                   ),
                 ],
@@ -254,7 +255,7 @@ class _JobCard extends StatelessWidget {
           const SizedBox(height: 6),
           Row(
             children: [
-              const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textSecondary),
+              const Icon(AppIcons.location, size: 14, color: AppColors.textSecondary),
               const SizedBox(width: 4),
               Text(location, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
             ],
@@ -262,7 +263,7 @@ class _JobCard extends StatelessWidget {
           const SizedBox(height: 4),
           Row(
             children: [
-              const Icon(Icons.access_time_outlined, size: 14, color: AppColors.textSecondary),
+              const Icon(AppIcons.clock, size: 14, color: AppColors.textSecondary),
               const SizedBox(width: 4),
               Text(time, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
             ],

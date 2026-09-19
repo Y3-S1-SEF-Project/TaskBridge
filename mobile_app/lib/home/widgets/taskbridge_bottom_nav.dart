@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_icons.dart';
 
 class TaskBridgeBottomNav extends StatelessWidget {
   final int currentIndex;
@@ -31,29 +32,29 @@ class TaskBridgeBottomNav extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _NavItem(
-            icon: Icons.home_outlined,
-            activeIcon: Icons.home_rounded,
+            icon: AppIcons.home,
+            activeIcon: AppIcons.homeBold,
             label: 'Home',
             isSelected: currentIndex == 0,
             onTap: () => onTap(0),
           ),
           _NavItem(
-            icon: Icons.calendar_today_outlined,
-            activeIcon: Icons.calendar_today_rounded,
+            icon: AppIcons.calendar,
+            activeIcon: AppIcons.calendarBold,
             label: 'Bookings',
             isSelected: currentIndex == 1,
             onTap: () => onTap(1),
           ),
           _NavItem(
-            icon: Icons.chat_bubble_outline_rounded,
-            activeIcon: Icons.chat_bubble_rounded,
+            icon: AppIcons.message,
+            activeIcon: AppIcons.messageBold,
             label: 'Chat',
             isSelected: currentIndex == 2,
             onTap: () => onTap(2),
           ),
           _NavItem(
-            icon: Icons.person_outline_rounded,
-            activeIcon: Icons.person_rounded,
+            icon: AppIcons.profile,
+            activeIcon: AppIcons.profileBold,
             label: 'Profile',
             isSelected: currentIndex == 3,
             onTap: () => onTap(3),

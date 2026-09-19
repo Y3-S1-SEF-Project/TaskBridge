@@ -1,10 +1,10 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../../auth/data/auth_api.dart';
 import '../../auth/data/auth_models.dart';
 import '../../auth/pages/login_page.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import 'provider_setup_page.dart';
@@ -36,7 +36,10 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
 
   String get _initials {
     final name = _currentUser.fullName.trim();
-    final parts = name.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+    final parts = name
+        .split(RegExp(r'\s+'))
+        .where((s) => s.isNotEmpty)
+        .toList();
     if (parts.length >= 2) {
       return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     } else if (parts.isNotEmpty) {
@@ -59,7 +62,11 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
     final updated = await Navigator.push<AuthUser>(
       context,
       MaterialPageRoute(
-        builder: (_) => ProviderSetupPage(user: _currentUser, api: widget.api),
+        builder: (_) => ProviderSetupPage(
+          user: _currentUser,
+          api: widget.api,
+          isFirstTime: false,
+        ),
       ),
     );
     if (updated != null && mounted) {
@@ -96,7 +103,10 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                   children: [
                     const Text(
                       'Total Earned This Month',
-                      style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     Text(
@@ -112,7 +122,10 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
               ),
               const SizedBox(height: 16),
               const ListTile(
-                leading: Icon(Icons.check_circle_outline, color: AppColors.primary),
+                leading: Icon(
+                  Icons.check_circle_outline,
+                  color: AppColors.primary,
+                ),
                 title: Text('14 Completed Jobs'),
                 subtitle: Text('Average rating 4.9 ★'),
                 contentPadding: EdgeInsets.zero,
@@ -145,7 +158,10 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
               const SizedBox(height: 16),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.edit_outlined, color: AppColors.primary),
+                leading: const Icon(
+                  Icons.edit_outlined,
+                  color: AppColors.primary,
+                ),
                 title: const Text('Edit Provider Profile'),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -155,7 +171,10 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
               const Divider(),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.swap_horiz_rounded, color: AppColors.primary),
+                leading: const Icon(
+                  Icons.swap_horiz_rounded,
+                  color: AppColors.primary,
+                ),
                 title: const Text('Switch to Customer Mode'),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -165,15 +184,26 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
               const Divider(),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.logout_rounded, color: AppColors.error),
-                title: const Text('Log out', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600)),
+                leading: const Icon(
+                  Icons.logout_rounded,
+                  color: AppColors.error,
+                ),
+                title: const Text(
+                  'Log out',
+                  style: TextStyle(
+                    color: AppColors.error,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 onTap: () async {
                   Navigator.pop(ctx);
                   await widget.api.logout();
                   if (!mounted) return;
                   Navigator.pushAndRemoveUntil(
                     context,
-                    MaterialPageRoute(builder: (_) => LoginPage(api: widget.api)),
+                    MaterialPageRoute(
+                      builder: (_) => LoginPage(api: widget.api),
+                    ),
                     (_) => false,
                   );
                 },
@@ -183,6 +213,42 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
         ),
       ),
     );
+  }
+
+  void _confirmLogout() {
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.r16),
+        ),
+        title: const Text('Log out'),
+        content: const Text(
+          'Are you sure you want to log out of your provider account?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+    ).then((confirmed) async {
+      if (confirmed == true && mounted) {
+        await widget.api.logout();
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => LoginPage(api: widget.api)),
+          (_) => false,
+        );
+      }
+    });
   }
 
   @override
@@ -200,178 +266,259 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── Header: PROVIDER MODE & Title ──
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          'PROVIDER MODE',
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.1,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Provider profile',
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(AppIcons.arrowLeft),
-                    onPressed: widget.onSwitchToCustomer,
-                    tooltip: 'Back to Customer',
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.s20),
-
-              // ── White Profile Card (P43) ──
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(AppRadius.r20),
-                  border: Border.all(color: AppColors.border, width: 1),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+              // ── Header Title ──
+              const Text(
+                'Provider profile',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                  letterSpacing: -0.5,
                 ),
-                padding: const EdgeInsets.all(AppSpacing.s20),
+              ),
+              const SizedBox(height: 20),
+
+              // ── Profile Info (Clean, no box container) ──
+              Center(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    CircleAvatar(
+                      radius: 46,
+                      backgroundColor: AppColors.mint,
+                      backgroundImage:
+                          (_currentUser.profilePhotoUrl != null &&
+                              _currentUser.profilePhotoUrl!.isNotEmpty)
+                          ? CachedNetworkImageProvider(
+                              _currentUser.profilePhotoUrl!,
+                            )
+                          : null,
+                      child:
+                          (_currentUser.profilePhotoUrl == null ||
+                              _currentUser.profilePhotoUrl!.isEmpty)
+                          ? Text(
+                              _initials,
+                              style: const TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primaryDark,
+                              ),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
                     Text(
-                      _currentUser.fullName.isNotEmpty ? _currentUser.fullName : 'Kamal Perera',
+                      _currentUser.fullName.isNotEmpty
+                          ? _currentUser.fullName
+                          : 'Kamal Perera',
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 20,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       _providerTitle,
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 14,
-                        color: AppColors.textSecondary,
                         fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondary,
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    CircleAvatar(
-                      radius: 36,
-                      backgroundColor: AppColors.mint,
-                      backgroundImage: (_currentUser.profilePhotoUrl != null &&
-                              _currentUser.profilePhotoUrl!.isNotEmpty)
-                          ? CachedNetworkImageProvider(_currentUser.profilePhotoUrl!)
-                          : null,
-                      child: (_currentUser.profilePhotoUrl == null ||
-                              _currentUser.profilePhotoUrl!.isEmpty)
-                          ? Text(
-                              _initials,
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.primary,
-                              ),
-                            )
-                          : null,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.s24),
-
-              // ── Details Menu List (P43) ──
-              _ProviderDetailTile(
-                icon: Icons.business_center_outlined,
-                title: 'Skills & services',
-                subtitle: _currentUser.providerSkills != null && _currentUser.providerSkills!.isNotEmpty
-                    ? '${_currentUser.providerSkills} · ${_currentUser.providerServices ?? ""}'
-                    : 'Plumbing · Tap repair',
-                onTap: _editProviderDetails,
-              ),
-              _ProviderDetailTile(
-                icon: Icons.file_upload_outlined,
-                title: 'Certifications',
-                subtitle: _currentUser.providerCertifications != null &&
-                        _currentUser.providerCertifications!.isNotEmpty
-                    ? 'Uploaded · Verified'
-                    : 'NVQ Plumbing',
-                onTap: _editProviderDetails,
-              ),
-              _ProviderDetailTile(
-                icon: Icons.location_on_outlined,
-                title: 'Service areas',
-                subtitle: _currentUser.providerServiceAreas != null &&
-                        _currentUser.providerServiceAreas!.isNotEmpty
-                    ? _currentUser.providerServiceAreas!
-                    : 'Colombo and Nugegoda',
-                onTap: _editProviderDetails,
-              ),
-              _ProviderDetailTile(
-                icon: Icons.access_time_outlined,
-                title: 'Availability',
-                subtitle: _currentUser.providerAvailability != null &&
-                        _currentUser.providerAvailability!.isNotEmpty
-                    ? _currentUser.providerAvailability!
-                    : 'Mon–Sat · 8 AM–6 PM',
-                onTap: _editProviderDetails,
-              ),
-              _ProviderDetailTile(
-                icon: Icons.account_balance_wallet_outlined,
-                title: 'Earnings',
-                subtitle: 'Rs. ${(_currentUser.providerEarnings ?? 54000).toStringAsFixed(0)} this month',
-                onTap: _showEarningsSheet,
-              ),
-              _ProviderDetailTile(
-                icon: Icons.settings_outlined,
-                title: 'Settings',
-                subtitle: 'Account and notifications',
-                onTap: _showSettingsSheet,
-              ),
               const SizedBox(height: 24),
 
-              // ── Switch to Customer Button (P43) ──
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
+              // ── Group 1: Services & Work Details ──
+              _buildSectionLabel('SERVICES & WORK DETAILS'),
+              _MenuCard(
+                children: [
+                  _SleekMenuTile(
+                    icon: Iconsax.briefcase,
+                    title: 'Skills & services',
+                    subtitle:
+                        (_currentUser.providerServices != null &&
+                            _currentUser.providerServices!.trim().isNotEmpty)
+                        ? _currentUser.providerServices!
+                        : ((_currentUser.providerSkills != null &&
+                                  _currentUser.providerSkills!
+                                      .trim()
+                                      .isNotEmpty)
+                              ? _currentUser.providerSkills!
+                              : 'Tap to add services'),
+                    iconBgColor: AppColors.primaryLight,
+                    iconColor: AppColors.primary,
+                    onTap: _editProviderDetails,
+                  ),
+                  _SleekMenuTile(
+                    icon: Iconsax.shield_tick,
+                    title: 'Certifications',
+                    subtitle:
+                        _currentUser.providerCertifications != null &&
+                            _currentUser.providerCertifications!.isNotEmpty
+                        ? 'Uploaded · Verified'
+                        : 'Tap to upload certificates',
+                    iconBgColor: const Color(0xFFEBF3FF),
+                    iconColor: const Color(0xFF2563EB),
+                    onTap: _editProviderDetails,
+                  ),
+                  _SleekMenuTile(
+                    icon: Iconsax.location,
+                    title: 'Location & service radius',
+                    subtitle:
+                        (_currentUser.providerServiceAreas != null &&
+                            _currentUser.providerServiceAreas!
+                                .trim()
+                                .isNotEmpty)
+                        ? _currentUser.providerServiceAreas!
+                        : ((_currentUser.location != null &&
+                                  _currentUser.location!.trim().isNotEmpty)
+                              ? _currentUser.location!
+                              : 'Tap to set location and radius'),
+                    iconBgColor: const Color(0xFFEDFAF1),
+                    iconColor: const Color(0xFF16A34A),
+                    onTap: _editProviderDetails,
+                  ),
+                  _SleekMenuTile(
+                    icon: Iconsax.clock,
+                    title: 'Availability',
+                    subtitle:
+                        _currentUser.providerAvailability != null &&
+                            _currentUser.providerAvailability!.trim().isNotEmpty
+                        ? _currentUser.providerAvailability!
+                        : 'Set working hours',
+                    iconBgColor: const Color(0xFFFEF9C3),
+                    iconColor: const Color(0xFFCA8A04),
+                    onTap: _editProviderDetails,
+                  ),
+                  _SleekMenuTile(
+                    icon: Iconsax.wallet_2,
+                    title: 'Earnings overview',
+                    subtitle:
+                        'Rs. ${(_currentUser.providerEarnings ?? 54000).toStringAsFixed(0)} this month',
+                    iconBgColor: const Color(0xFFF3E8FF),
+                    iconColor: const Color(0xFF9333EA),
+                    showDivider: false,
+                    onTap: _showEarningsSheet,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ── Switch Mode Section (Below Earnings overview) ──
+              _buildSectionLabel('SWITCH MODE'),
+              _MenuCard(
+                children: [
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: widget.onSwitchToCustomer,
                       borderRadius: BorderRadius.circular(AppRadius.r16),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryLight,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Center(
+                                child: Icon(
+                                  Iconsax.repeat,
+                                  size: 20,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Customer mode',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textPrimary,
+                                      letterSpacing: -0.2,
+                                    ),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'Switch to customer dashboard',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch.adaptive(
+                              value: false,
+                              activeTrackColor: AppColors.primary,
+                              activeThumbColor: Colors.white,
+                              onChanged: (val) {
+                                if (val) widget.onSwitchToCustomer();
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                  onPressed: widget.onSwitchToCustomer,
-                  child: const Text(
-                    'Switch to Customer',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ── Group 2: Preferences ──
+              _buildSectionLabel('PREFERENCES'),
+              _MenuCard(
+                children: [
+                  _SleekMenuTile(
+                    icon: Iconsax.setting_2,
+                    title: 'Settings',
+                    subtitle: 'Account, notifications and security',
+                    iconBgColor: const Color(0xFFF1F5F9),
+                    iconColor: const Color(0xFF475569),
+                    showDivider: false,
+                    onTap: _showSettingsSheet,
                   ),
-                ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ── Group 3: Account Actions ──
+              _buildSectionLabel('ACCOUNT ACTIONS'),
+              _MenuCard(
+                children: [
+                  _SleekMenuTile(
+                    icon: Iconsax.logout,
+                    title: 'Log out',
+                    subtitle: 'Safely sign out from provider account',
+                    iconBgColor: const Color(0xFFFEE2E2),
+                    iconColor: AppColors.error,
+                    textColor: AppColors.error,
+                    trailing: const Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 18,
+                      color: AppColors.error,
+                    ),
+                    showDivider: false,
+                    onTap: _confirmLogout,
+                  ),
+                ],
               ),
               SizedBox(height: bottomInset > 0 ? bottomInset + 16 : 24),
             ],
@@ -380,67 +527,148 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
       ),
     );
   }
+
+  Widget _buildSectionLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.9,
+          color: AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
 }
 
-class _ProviderDetailTile extends StatelessWidget {
+class _MenuCard extends StatelessWidget {
+  final List<Widget> children;
+
+  const _MenuCard({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.r16),
+        border: Border.all(color: AppColors.border, width: 1.1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: children),
+    );
+  }
+}
+
+class _SleekMenuTile extends StatelessWidget {
   final IconData icon;
   final String title;
-  final String subtitle;
+  final String? subtitle;
   final VoidCallback onTap;
+  final Color? iconColor;
+  final Color? iconBgColor;
+  final Color? textColor;
+  final Widget? trailing;
+  final bool showDivider;
 
-  const _ProviderDetailTile({
+  const _SleekMenuTile({
     required this.icon,
     required this.title,
-    required this.subtitle,
+    this.subtitle,
     required this.onTap,
+    this.iconColor,
+    this.iconBgColor,
+    this.textColor,
+    this.trailing,
+    this.showDivider = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.r12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppColors.primaryLight,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: AppColors.primary, size: 22),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.r16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: iconBgColor ?? AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      icon,
+                      size: 20,
+                      color: iconColor ?? AppColors.primary,
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 13,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: textColor ?? AppColors.textPrimary,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                trailing ??
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 20,
                       color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w500,
                     ),
-                  ),
-                ],
-              ),
+              ],
             ),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 20),
-          ],
+          ),
         ),
-      ),
+        if (showDivider)
+          Padding(
+            padding: const EdgeInsets.only(left: 68, right: 14),
+            child: Divider(
+              height: 1,
+              thickness: 0.8,
+              color: AppColors.border.withValues(alpha: 0.6),
+            ),
+          ),
+      ],
     );
   }
 }
