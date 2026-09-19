@@ -21,8 +21,8 @@ abstract final class AppIcons {
   static const shieldTick = Iconsax.shield_tick;
   static const briefcase = Iconsax.briefcase;
   static const briefcaseBold = Iconsax.briefcase_copy;
-  static const chart = Iconsax.chart;
-  static const chartBold = Iconsax.chart_copy;
+  static const chart = Iconsax.chart_square;
+  static const chartBold = Iconsax.chart_square_copy;
   static const star = Iconsax.star;
   static const drop = Iconsax.drop;
   static const notification = Iconsax.notification;

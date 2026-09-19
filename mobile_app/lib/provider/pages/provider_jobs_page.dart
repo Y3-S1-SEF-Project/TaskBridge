@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 
@@ -8,8 +8,10 @@ class ProviderJobsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: palette.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -19,22 +21,22 @@ class ProviderJobsPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
+              Text(
                 'PROVIDER MODE',
                 style: TextStyle(
-                  color: AppColors.primary,
+                  color: palette.primary,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.1,
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Your Jobs & Bookings',
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+                  color: palette.text,
                   letterSpacing: -0.5,
                 ),
               ),
@@ -46,15 +48,15 @@ class ProviderJobsPage extends StatelessWidget {
                     children: [
                       Container(
                         decoration: BoxDecoration(
-                          color: AppColors.surface,
+                          color: palette.surface,
                           borderRadius: BorderRadius.circular(AppRadius.r12),
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(color: palette.border),
                         ),
-                        child: const TabBar(
-                          indicatorColor: AppColors.primary,
-                          labelColor: AppColors.primary,
-                          unselectedLabelColor: AppColors.textSecondary,
-                          tabs: [
+                        child: TabBar(
+                          indicatorColor: palette.primary,
+                          labelColor: palette.primary,
+                          unselectedLabelColor: palette.muted,
+                          tabs: const [
                             Tab(text: 'Active (2)'),
                             Tab(text: 'Scheduled (3)'),
                             Tab(text: 'Past (14)'),
@@ -68,41 +70,41 @@ class ProviderJobsPage extends StatelessWidget {
                             ListView(
                               children: const [
                                 _JobItem(
-                                  title: 'Kitchen Sink Tap Replacement',
-                                  customer: 'Saman Jayasinghe',
-                                  location: 'Colombo 05',
+                                  title: 'Kitchen Sink Leak Repair',
+                                  customer: 'Anura Wickramasinghe',
+                                  location: 'Colombo 07',
                                   status: 'In Progress',
                                   price: 'Rs. 3,500',
                                 ),
                                 SizedBox(height: 12),
                                 _JobItem(
-                                  title: 'Overhead Tank Float Valve Repair',
-                                  customer: 'Nilmini Perera',
-                                  location: 'Nugegoda',
-                                  status: 'On the way',
-                                  price: 'Rs. 4,800',
-                                ),
-                              ],
-                            ),
-                            ListView(
-                              children: const [
-                                _JobItem(
-                                  title: 'Bathroom Pipeline Diagnostic',
-                                  customer: 'Rohan Silva',
-                                  location: 'Battaramulla',
-                                  status: 'Tomorrow 9:00 AM',
-                                  price: 'Rs. 5,000',
-                                ),
-                              ],
-                            ),
-                            ListView(
-                              children: const [
-                                _JobItem(
-                                  title: 'Shower Mixer Replacement',
-                                  customer: 'Anura Wickrama',
-                                  location: 'Colombo 07',
-                                  status: 'Completed',
+                                  title: 'Bathroom Shower Pipe Fixed',
+                                  customer: 'Dilani Perera',
+                                  location: 'Rajagiriya',
+                                  status: 'En Route',
                                   price: 'Rs. 4,200',
+                                ),
+                              ],
+                            ),
+                            ListView(
+                              children: const [
+                                _JobItem(
+                                  title: 'Water Filter Cartridge Swap',
+                                  customer: 'Chathura Fernando',
+                                  location: 'Nawala',
+                                  status: 'Tomorrow, 9:00 AM',
+                                  price: 'Rs. 2,800',
+                                ),
+                              ],
+                            ),
+                            ListView(
+                              children: const [
+                                _JobItem(
+                                  title: 'Full Plumbing Inspection',
+                                  customer: 'Kasun Jayawardena',
+                                  location: 'Battaramulla',
+                                  status: 'Completed',
+                                  price: 'Rs. 8,500',
                                 ),
                               ],
                             ),
@@ -138,12 +140,14 @@ class _JobItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: palette.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: palette.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,15 +158,19 @@ class _JobItem extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    color: palette.text,
+                  ),
                 ),
               ),
               Text(
                 price,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 15,
-                  color: AppColors.primary,
+                  color: palette.primary,
                 ),
               ),
             ],
@@ -170,21 +178,21 @@ class _JobItem extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             '$customer · $location',
-            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            style: TextStyle(fontSize: 13, color: palette.muted),
           ),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: AppColors.primaryLight,
+              color: palette.soft,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               status,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: AppColors.primary,
+                color: palette.primary,
               ),
             ),
           ),

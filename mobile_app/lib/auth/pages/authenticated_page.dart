@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/services/user_mode_service.dart';
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_palette.dart';
 import '../../home/pages/home_page.dart';
 import '../../provider/pages/provider_main_page.dart';
 import '../data/auth_api.dart';
@@ -27,13 +27,14 @@ class AuthenticatedPage extends StatelessWidget {
       return HomePage(user: user, api: api);
     }
 
+    final p = AppPalette.of(context);
     return FutureBuilder<UserMode>(
       future: UserModeService.getMode(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const Scaffold(
-            backgroundColor: AppColors.background,
-            body: Center(child: CircularProgressIndicator()),
+          return Scaffold(
+            backgroundColor: p.background,
+            body: Center(child: CircularProgressIndicator(color: p.primary)),
           );
         }
         if (snapshot.data == UserMode.provider && user.isProvider) {

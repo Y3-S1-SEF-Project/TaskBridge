@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'auth/data/auth_api.dart';
 import 'auth/pages/splash_page.dart';
+import 'core/services/theme_service.dart';
 import 'core/theme/app_theme.dart';
 
-// Starts TaskBridge with the authentication entry flow.
-void main() => runApp(const MyApp());
+// Starts TaskBridge with initialized services and authentication entry flow.
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await ThemeService.instance.init();
+  runApp(const MyApp());
+}
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -24,14 +30,33 @@ class _MyAppState extends State<MyApp> {
     super.dispose();
   }
 
-  // Applies the shared TaskBridge theme to the authentication flow.
+  // Applies the shared TaskBridge theme and status bar style.
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'TaskBridge',
-    debugShowCheckedModeBanner: false,
-    theme: AppTheme.light,
-    darkTheme: AppTheme.dark,
-    themeMode: ThemeMode.system,
-    home: SplashPage(api: api),
-  );
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeService.instance.themeModeNotifier,
+      builder: (context, themeMode, _) {
+        final platformBrightness =
+            MediaQuery.maybePlatformBrightnessOf(context) ??
+            WidgetsBinding.instance.platformDispatcher.platformBrightness;
+        final isDark = themeMode == ThemeMode.dark ||
+            (themeMode == ThemeMode.system &&
+                platformBrightness == Brightness.dark);
+
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: AppTheme.systemOverlayStyle(
+            isDark ? Brightness.dark : Brightness.light,
+          ),
+          child: MaterialApp(
+            title: 'TaskBridge',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light,
+            darkTheme: AppTheme.dark,
+            themeMode: themeMode,
+            home: SplashPage(api: api),
+          ),
+        );
+      },
+    );
+  }
 }

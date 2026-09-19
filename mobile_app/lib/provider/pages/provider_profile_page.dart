@@ -4,7 +4,9 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../../auth/data/auth_api.dart';
 import '../../auth/data/auth_models.dart';
 import '../../auth/pages/login_page.dart';
+import '../../core/services/theme_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import 'provider_setup_page.dart';
@@ -75,12 +77,13 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
   }
 
   void _showEarningsSheet() {
+    final palette = AppPalette.of(context);
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: palette.surface,
       builder: (ctx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.s24),
@@ -88,46 +91,56 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
+              Text(
                 'Earnings Overview',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: palette.text,
+                ),
               ),
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
+                  color: palette.soft,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(
                   children: [
-                    const Text(
+                    Text(
                       'Total Earned This Month',
                       style: TextStyle(
                         fontSize: 13,
-                        color: AppColors.textSecondary,
+                        color: palette.muted,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       'Rs. ${(_currentUser.providerEarnings ?? 54000).toStringAsFixed(0)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
+                        color: palette.primary,
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
-              const ListTile(
+              ListTile(
                 leading: Icon(
                   Icons.check_circle_outline,
-                  color: AppColors.primary,
+                  color: palette.primary,
                 ),
-                title: Text('14 Completed Jobs'),
-                subtitle: Text('Average rating 4.9 ★'),
+                title: Text(
+                  '14 Completed Jobs',
+                  style: TextStyle(color: palette.text),
+                ),
+                subtitle: Text(
+                  'Average rating 4.9 ★',
+                  style: TextStyle(color: palette.muted),
+                ),
                 contentPadding: EdgeInsets.zero,
               ),
             ],
@@ -138,79 +151,124 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
   }
 
   void _showSettingsSheet() {
+    final palette = AppPalette.of(context);
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      backgroundColor: Colors.white,
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.s24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'Provider Settings',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(
-                  Icons.edit_outlined,
-                  color: AppColors.primary,
-                ),
-                title: const Text('Edit Provider Profile'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _editProviderDetails();
-                },
-              ),
-              const Divider(),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(
-                  Icons.swap_horiz_rounded,
-                  color: AppColors.primary,
-                ),
-                title: const Text('Switch to Customer Mode'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  widget.onSwitchToCustomer();
-                },
-              ),
-              const Divider(),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(
-                  Icons.logout_rounded,
-                  color: AppColors.error,
-                ),
-                title: const Text(
-                  'Log out',
-                  style: TextStyle(
-                    color: AppColors.error,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  await widget.api.logout();
-                  if (!mounted) return;
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => LoginPage(api: widget.api),
+      backgroundColor: palette.surface,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          final sheetIsDark = ThemeService.instance.isDarkMode(ctx);
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.s24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Provider Settings',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: palette.text,
                     ),
-                    (_) => false,
-                  );
-                },
+                  ),
+                  const SizedBox(height: 16),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      sheetIsDark ? Iconsax.moon : Iconsax.sun_1,
+                      color: palette.primary,
+                    ),
+                    title: Text(
+                      'Dark Mode',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: palette.text,
+                      ),
+                    ),
+                    subtitle: Text(
+                      sheetIsDark ? 'Dark theme enabled' : 'Light theme enabled',
+                      style: TextStyle(color: palette.muted, fontSize: 13),
+                    ),
+                    trailing: Switch.adaptive(
+                      value: sheetIsDark,
+                      activeTrackColor: palette.primary,
+                      activeThumbColor: Colors.white,
+                      onChanged: (val) async {
+                        await ThemeService.instance.toggleTheme(context);
+                        setSheetState(() {});
+                      },
+                    ),
+                  ),
+                  const Divider(),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.edit_outlined,
+                      color: palette.primary,
+                    ),
+                    title: Text(
+                      'Edit Provider Profile',
+                      style: TextStyle(color: palette.text),
+                    ),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _editProviderDetails();
+                    },
+                  ),
+                  const Divider(),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.swap_horiz_rounded,
+                      color: palette.primary,
+                    ),
+                    title: Text(
+                      'Switch to Customer Mode',
+                      style: TextStyle(color: palette.text),
+                    ),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      widget.onSwitchToCustomer();
+                    },
+                  ),
+                  const Divider(),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(
+                      Icons.logout_rounded,
+                      color: AppColors.error,
+                    ),
+                    title: const Text(
+                      'Log out',
+                      style: TextStyle(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      await widget.api.logout();
+                      if (!mounted) return;
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => LoginPage(api: widget.api),
+                        ),
+                        (_) => false,
+                      );
+                    },
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -253,10 +311,12 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final isDark = ThemeService.instance.isDarkMode(context);
     final bottomInset = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: palette.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(
@@ -267,12 +327,12 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // ── Header Title ──
-              const Text(
+              Text(
                 'Provider profile',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+                  color: palette.text,
                   letterSpacing: -0.5,
                 ),
               ),
@@ -284,7 +344,7 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                   children: [
                     CircleAvatar(
                       radius: 46,
-                      backgroundColor: AppColors.mint,
+                      backgroundColor: palette.soft,
                       backgroundImage:
                           (_currentUser.profilePhotoUrl != null &&
                               _currentUser.profilePhotoUrl!.isNotEmpty)
@@ -297,10 +357,10 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                               _currentUser.profilePhotoUrl!.isEmpty)
                           ? Text(
                               _initials,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 26,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.primaryDark,
+                                color: palette.primary,
                               ),
                             )
                           : null,
@@ -311,20 +371,20 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                           ? _currentUser.fullName
                           : 'Kamal Perera',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: palette.text,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       _providerTitle,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary,
+                        color: palette.muted,
                       ),
                     ),
                   ],
@@ -333,7 +393,7 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
               const SizedBox(height: 24),
 
               // ── Group 1: Services & Work Details ──
-              _buildSectionLabel('SERVICES & WORK DETAILS'),
+              _buildSectionLabel('SERVICES & WORK DETAILS', palette),
               _MenuCard(
                 children: [
                   _SleekMenuTile(
@@ -349,8 +409,8 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                                       .isNotEmpty)
                               ? _currentUser.providerSkills!
                               : 'Tap to add services'),
-                    iconBgColor: AppColors.primaryLight,
-                    iconColor: AppColors.primary,
+                    iconBgColor: palette.soft,
+                    iconColor: palette.primary,
                     onTap: _editProviderDetails,
                   ),
                   _SleekMenuTile(
@@ -409,7 +469,7 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
               const SizedBox(height: 20),
 
               // ── Switch Mode Section (Below Earnings overview) ──
-              _buildSectionLabel('SWITCH MODE'),
+              _buildSectionLabel('SWITCH MODE', palette),
               _MenuCard(
                 children: [
                   Material(
@@ -428,19 +488,19 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: AppColors.primaryLight,
+                                color: palette.soft,
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Center(
+                              child: Center(
                                 child: Icon(
                                   Iconsax.repeat,
                                   size: 20,
-                                  color: AppColors.primary,
+                                  color: palette.primary,
                                 ),
                               ),
                             ),
                             const SizedBox(width: 14),
-                            const Expanded(
+                            Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -449,17 +509,17 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                                     style: TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
+                                      color: palette.text,
                                       letterSpacing: -0.2,
                                     ),
                                   ),
-                                  SizedBox(height: 2),
+                                  const SizedBox(height: 2),
                                   Text(
                                     'Switch to customer dashboard',
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w500,
-                                      color: AppColors.textSecondary,
+                                      color: palette.muted,
                                     ),
                                   ),
                                 ],
@@ -467,7 +527,7 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                             ),
                             Switch.adaptive(
                               value: false,
-                              activeTrackColor: AppColors.primary,
+                              activeTrackColor: palette.primary,
                               activeThumbColor: Colors.white,
                               onChanged: (val) {
                                 if (val) widget.onSwitchToCustomer();
@@ -483,9 +543,32 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
               const SizedBox(height: 20),
 
               // ── Group 2: Preferences ──
-              _buildSectionLabel('PREFERENCES'),
+              _buildSectionLabel('PREFERENCES', palette),
               _MenuCard(
                 children: [
+                  _SleekMenuTile(
+                    icon: isDark ? Iconsax.moon : Iconsax.sun_1,
+                    title: 'Dark mode',
+                    subtitle:
+                        isDark ? 'Dark theme enabled' : 'Light theme enabled',
+                    iconBgColor: isDark
+                        ? const Color(0xFF1E2E25)
+                        : const Color(0xFFFEF3C7),
+                    iconColor: isDark
+                        ? const Color(0xFF34D399)
+                        : const Color(0xFFD97706),
+                    trailing: Switch.adaptive(
+                      value: isDark,
+                      activeTrackColor: palette.primary,
+                      activeThumbColor: Colors.white,
+                      onChanged: (val) {
+                        ThemeService.instance.toggleTheme(context);
+                      },
+                    ),
+                    onTap: () {
+                      ThemeService.instance.toggleTheme(context);
+                    },
+                  ),
                   _SleekMenuTile(
                     icon: Iconsax.setting_2,
                     title: 'Settings',
@@ -500,7 +583,7 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
               const SizedBox(height: 20),
 
               // ── Group 3: Account Actions ──
-              _buildSectionLabel('ACCOUNT ACTIONS'),
+              _buildSectionLabel('ACCOUNT ACTIONS', palette),
               _MenuCard(
                 children: [
                   _SleekMenuTile(
@@ -528,16 +611,16 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
     );
   }
 
-  Widget _buildSectionLabel(String label) {
+  Widget _buildSectionLabel(String label, AppPalette palette) {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 8),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.9,
-          color: AppColors.textSecondary,
+          color: palette.muted,
         ),
       ),
     );
@@ -551,14 +634,15 @@ class _MenuCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.r16),
-        border: Border.all(color: AppColors.border, width: 1.1),
+        border: Border.all(color: palette.border, width: 1.1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -594,6 +678,7 @@ class _SleekMenuTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -608,14 +693,14 @@ class _SleekMenuTile extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: iconBgColor ?? AppColors.primaryLight,
+                    color: iconBgColor ?? palette.soft,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Center(
                     child: Icon(
                       icon,
                       size: 20,
-                      color: iconColor ?? AppColors.primary,
+                      color: iconColor ?? palette.primary,
                     ),
                   ),
                 ),
@@ -629,7 +714,7 @@ class _SleekMenuTile extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: textColor ?? AppColors.textPrimary,
+                          color: textColor ?? palette.text,
                           letterSpacing: -0.2,
                         ),
                       ),
@@ -637,10 +722,10 @@ class _SleekMenuTile extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           subtitle!,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.textSecondary,
+                            color: palette.muted,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -650,10 +735,10 @@ class _SleekMenuTile extends StatelessWidget {
                   ),
                 ),
                 trailing ??
-                    const Icon(
+                    Icon(
                       Icons.chevron_right_rounded,
                       size: 20,
-                      color: AppColors.textSecondary,
+                      color: palette.muted,
                     ),
               ],
             ),
@@ -665,7 +750,7 @@ class _SleekMenuTile extends StatelessWidget {
             child: Divider(
               height: 1,
               thickness: 0.8,
-              color: AppColors.border.withValues(alpha: 0.6),
+              color: palette.border.withValues(alpha: 0.6),
             ),
           ),
       ],

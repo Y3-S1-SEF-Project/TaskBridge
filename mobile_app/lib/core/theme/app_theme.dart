@@ -5,6 +5,8 @@ import 'app_radius.dart';
 import 'app_spacing.dart';
 import 'app_typography.dart';
 
+import 'package:flutter/services.dart';
+
 /// Source: https://www.figma.com/design/vyFvCE5DxjCFs1TAS3qVf8 (page 0:1).
 /// Light primitives, type, geometry and zero elevation preserve Figma.
 /// Dark roles are derived in AppPalette, not an authored Figma dark mode.
@@ -12,6 +14,19 @@ import 'app_typography.dart';
 abstract final class AppTheme {
   static ThemeData get light => _build(Brightness.light, AppPalette.light);
   static ThemeData get dark => _build(Brightness.dark, AppPalette.dark);
+
+  static SystemUiOverlayStyle systemOverlayStyle(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    return SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+      systemNavigationBarColor: isDark ? const Color(0xFF101713) : Colors.white,
+      systemNavigationBarIconBrightness:
+          isDark ? Brightness.light : Brightness.dark,
+      systemNavigationBarDividerColor: Colors.transparent,
+    );
+  }
 
   static ThemeData _build(Brightness brightness, AppPalette p) {
     final type = AppTypography.textTheme(p.text);
@@ -90,6 +105,7 @@ abstract final class AppTheme {
       colorScheme: scheme,
       extensions: [p],
       textTheme: type,
+      cardColor: p.surface,
       scaffoldBackgroundColor: p.background,
       dividerColor: p.border,
       disabledColor: p.muted,
@@ -99,6 +115,7 @@ abstract final class AppTheme {
         foregroundColor: p.text,
         elevation: 0,
         scrolledUnderElevation: 0,
+        systemOverlayStyle: systemOverlayStyle(brightness),
         titleTextStyle: type.headlineMedium,
         surfaceTintColor: Colors.transparent,
       ),

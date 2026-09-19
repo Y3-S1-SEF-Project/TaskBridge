@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_spacing.dart';
 
 class ProviderChatPage extends StatelessWidget {
@@ -7,8 +7,9 @@ class ProviderChatPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: p.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -18,22 +19,22 @@ class ProviderChatPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
+              Text(
                 'PROVIDER MODE',
                 style: TextStyle(
-                  color: AppColors.primary,
+                  color: p.primary,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.1,
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Customer Messages',
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+                  color: p.textPrimary,
                   letterSpacing: -0.5,
                 ),
               ),
@@ -41,21 +42,21 @@ class ProviderChatPage extends StatelessWidget {
               Expanded(
                 child: ListView(
                   children: [
-                    _ChatTile(
+                    const _ChatTile(
                       name: 'Saman Jayasinghe',
                       lastMessage: 'Are you available to check the leak at 2 PM today?',
                       time: '10:45 AM',
                       unread: 1,
                     ),
-                    const Divider(),
-                    _ChatTile(
+                    Divider(color: p.border),
+                    const _ChatTile(
                       name: 'Nilmini Perera',
                       lastMessage: 'Thank you! The tap replacement works great.',
                       time: 'Yesterday',
                       unread: 0,
                     ),
-                    const Divider(),
-                    _ChatTile(
+                    Divider(color: p.border),
+                    const _ChatTile(
                       name: 'Rohan Silva',
                       lastMessage: 'Can you bring extra 1/2 inch copper fittings?',
                       time: 'Thu',
@@ -87,22 +88,26 @@ class _ChatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: CircleAvatar(
-        backgroundColor: AppColors.primaryLight,
+        backgroundColor: p.pillBackground,
         child: Text(
           name.isNotEmpty ? name[0] : 'U',
-          style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary),
+          style: TextStyle(fontWeight: FontWeight.w700, color: p.primary),
         ),
       ),
-      title: Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
+      title: Text(
+        name,
+        style: TextStyle(fontWeight: FontWeight.w700, color: p.textPrimary),
+      ),
       subtitle: Text(
         lastMessage,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          color: unread > 0 ? AppColors.textPrimary : AppColors.textSecondary,
+          color: unread > 0 ? p.textPrimary : p.textSecondary,
           fontWeight: unread > 0 ? FontWeight.w600 : FontWeight.w400,
         ),
       ),
@@ -110,12 +115,12 @@ class _ChatTile extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text(time, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          Text(time, style: TextStyle(fontSize: 12, color: p.textSecondary)),
           if (unread > 0) ...[
             const SizedBox(height: 4),
             CircleAvatar(
               radius: 9,
-              backgroundColor: AppColors.primary,
+              backgroundColor: p.primary,
               child: Text(
                 '$unread',
                 style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w700),
@@ -126,7 +131,10 @@ class _ChatTile extends StatelessWidget {
       ),
       onTap: () {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Chat with $name opened.')),
+          SnackBar(
+            backgroundColor: p.surface,
+            content: Text('Chat with $name opened.', style: TextStyle(color: p.textPrimary)),
+          ),
         );
       },
     );

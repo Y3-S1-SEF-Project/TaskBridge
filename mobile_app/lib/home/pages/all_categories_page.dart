@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_icons.dart';
+import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_spacing.dart';
 import '../models/service_category.dart';
 import '../widgets/category_card.dart';
@@ -10,10 +10,7 @@ import '../widgets/taskbridge_search_bar.dart';
 class AllCategoriesPage extends StatefulWidget {
   final int initialNavIndex;
 
-  const AllCategoriesPage({
-    super.key,
-    this.initialNavIndex = 0,
-  });
+  const AllCategoriesPage({super.key, this.initialNavIndex = 0});
 
   @override
   State<AllCategoriesPage> createState() => _AllCategoriesPageState();
@@ -52,8 +49,9 @@ class _AllCategoriesPageState extends State<AllCategoriesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: p.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(
@@ -66,8 +64,8 @@ class _AllCategoriesPageState extends State<AllCategoriesPage> {
               // ── Header Tag ──
               Text(
                 'FIND THE RIGHT SPECIALIST',
-                style: const TextStyle(
-                  color: AppColors.primary,
+                style: TextStyle(
+                  color: p.primary,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.1,
@@ -81,28 +79,28 @@ class _AllCategoriesPageState extends State<AllCategoriesPage> {
                 children: [
                   if (Navigator.canPop(context)) ...[
                     IconButton(
-                      icon: const Icon(AppIcons.arrowLeft),
+                      icon: Icon(AppIcons.arrowLeft, color: p.textPrimary),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                       onPressed: () => Navigator.pop(context),
                     ),
                     const SizedBox(width: AppSpacing.s12),
                   ],
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'All categories',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
+                        color: p.textPrimary,
                         letterSpacing: -0.5,
                       ),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       AppIcons.notification,
-                      color: AppColors.textPrimary,
+                      color: p.textPrimary,
                       size: 26,
                     ),
                     onPressed: () {},
@@ -149,27 +147,28 @@ class _AllCategoriesPageState extends State<AllCategoriesPage> {
               // ── Bottom Help Banner ──
               Container(
                 decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
+                  color: p.pillBackground,
                   borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: p.border),
                 ),
                 padding: const EdgeInsets.all(AppSpacing.s20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
                       'Need a hand choosing?',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: p.textPrimary,
                       ),
                     ),
-                    SizedBox(height: 6),
+                    const SizedBox(height: 6),
                     Text(
                       'Tell us what\u2019s wrong and we\u2019ll help identify the right service.',
                       style: TextStyle(
                         fontSize: 14,
-                        color: AppColors.textSecondary,
+                        color: p.textSecondary,
                         height: 1.35,
                       ),
                     ),

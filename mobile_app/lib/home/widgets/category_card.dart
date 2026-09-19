@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_palette.dart';
 import '../models/service_category.dart';
 
 class CategoryCard extends StatelessWidget {
@@ -14,8 +14,9 @@ class CategoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Material(
-      color: AppColors.surface,
+      color: palette.surface,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -23,7 +24,7 @@ class CategoryCard extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border, width: 1),
+            border: Border.all(color: palette.border, width: 1),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
           child: Column(
@@ -33,15 +34,15 @@ class CategoryCard extends StatelessWidget {
               Icon(
                 category.icon,
                 size: 28,
-                color: AppColors.primary,
+                color: palette.primary,
               ),
               const SizedBox(height: 8),
               Text(
                 category.name,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: palette.text,
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 1,

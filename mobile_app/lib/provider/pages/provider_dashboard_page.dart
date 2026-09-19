@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../auth/data/auth_models.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_icons.dart';
+import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 
@@ -17,8 +17,10 @@ class ProviderDashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: palette.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(
@@ -35,10 +37,10 @@ class ProviderDashboardPage extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'PROVIDER DASHBOARD',
                         style: TextStyle(
-                          color: AppColors.primary,
+                          color: palette.primary,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.1,
@@ -47,10 +49,10 @@ class ProviderDashboardPage extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         'Welcome back,\n${user.fullName.split(' ').first}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
+                          color: palette.text,
                           letterSpacing: -0.5,
                           height: 1.2,
                         ),
@@ -59,16 +61,25 @@ class ProviderDashboardPage extends StatelessWidget {
                   ),
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primary),
+                      foregroundColor: palette.primary,
+                      side: BorderSide(color: palette.primary),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                     ),
                     onPressed: onSwitchToCustomer,
                     icon: const Icon(AppIcons.switchMode, size: 18),
-                    label: const Text('Customer', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                    label: const Text(
+                      'Customer',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -80,7 +91,8 @@ class ProviderDashboardPage extends StatelessWidget {
                   Expanded(
                     child: _MetricCard(
                       label: 'This Month',
-                      value: 'Rs. ${(user.providerEarnings ?? 54000).toStringAsFixed(0)}',
+                      value:
+                          'Rs. ${(user.providerEarnings ?? 54000).toStringAsFixed(0)}',
                       icon: AppIcons.trendUp,
                     ),
                   ),
@@ -107,13 +119,13 @@ class ProviderDashboardPage extends StatelessWidget {
               // ── Incoming Requests Section ──
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
+                children: [
                   Text(
                     'Incoming Requests',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
+                      color: palette.text,
                     ),
                   ),
                   Text(
@@ -121,28 +133,28 @@ class ProviderDashboardPage extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
+                      color: palette.primary,
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
 
-              _JobCard(
+              const _JobCard(
                 title: 'Bathroom Pipe Leak Repair',
                 location: 'Colombo 05 · 1.8 km away',
                 price: 'Rs. 4,500',
                 time: 'Today, 2:30 PM',
               ),
               const SizedBox(height: 12),
-              _JobCard(
+              const _JobCard(
                 title: 'Kitchen Sink Tap Replacement',
                 location: 'Nugegoda · 3.2 km away',
                 price: 'Rs. 3,000',
                 time: 'Tomorrow, 10:00 AM',
               ),
               const SizedBox(height: 12),
-              _JobCard(
+              const _JobCard(
                 title: 'Main Valve Inspection & Filter',
                 location: 'Rajagiriya · 4.5 km away',
                 price: 'Rs. 6,000',
@@ -169,32 +181,33 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.r16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: palette.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppColors.primary, size: 20),
+          Icon(icon, color: palette.primary, size: 20),
           const SizedBox(height: 8),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              color: palette.text,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
-              color: AppColors.textSecondary,
+              color: palette.muted,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -219,12 +232,13 @@ class _JobCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.s16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.r16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: palette.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -235,19 +249,19 @@ class _JobCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                    color: palette.text,
                   ),
                 ),
               ),
               Text(
                 price,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.primary,
+                  color: palette.primary,
                 ),
               ),
             ],
@@ -255,17 +269,17 @@ class _JobCard extends StatelessWidget {
           const SizedBox(height: 6),
           Row(
             children: [
-              const Icon(AppIcons.location, size: 14, color: AppColors.textSecondary),
+              Icon(AppIcons.location, size: 14, color: palette.muted),
               const SizedBox(width: 4),
-              Text(location, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+              Text(location, style: TextStyle(fontSize: 13, color: palette.muted)),
             ],
           ),
           const SizedBox(height: 4),
           Row(
             children: [
-              const Icon(AppIcons.clock, size: 14, color: AppColors.textSecondary),
+              Icon(AppIcons.clock, size: 14, color: palette.muted),
               const SizedBox(width: 4),
-              Text(time, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+              Text(time, style: TextStyle(fontSize: 13, color: palette.muted)),
             ],
           ),
           const SizedBox(height: 12),
@@ -274,7 +288,9 @@ class _JobCard extends StatelessWidget {
               Expanded(
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   onPressed: () {},
                   child: const Text('Decline'),
@@ -284,8 +300,11 @@ class _JobCard extends StatelessWidget {
               Expanded(
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    backgroundColor: palette.primary,
+                    foregroundColor: palette.onPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   onPressed: () {},
                   child: const Text('Accept Job'),

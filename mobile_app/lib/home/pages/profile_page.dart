@@ -8,10 +8,12 @@ import '../../auth/data/auth_api.dart';
 import '../../auth/data/auth_models.dart';
 import '../../auth/pages/login_page.dart';
 import '../../auth/pages/profile_setup_page.dart';
+import '../../core/services/theme_service.dart';
+import '../../core/services/user_mode_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
-import '../../core/services/user_mode_service.dart';
 import '../../provider/pages/provider_main_page.dart';
 import '../../provider/pages/provider_setup_page.dart';
 import '../widgets/taskbridge_bottom_nav.dart';
@@ -103,12 +105,13 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _openSavedAddresses() {
+    final palette = AppPalette.of(context);
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: palette.surface,
       builder: (ctx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.s24),
@@ -116,21 +119,21 @@ class _ProfilePageState extends State<ProfilePage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Saved addresses',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: palette.text,
                 ),
               ),
               const SizedBox(height: 16),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.home_outlined,
-                    color: AppColors.primary,
+                    color: palette.primary,
                     size: 24,
                   ),
                   const SizedBox(width: 12),
@@ -138,12 +141,12 @@ class _ProfilePageState extends State<ProfilePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Primary Home',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
+                            color: palette.text,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -152,9 +155,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                   _currentUser!.address!.isNotEmpty
                               ? '${_currentUser!.address}, ${_currentUser!.location ?? "Colombo"}'
                               : '754, Baseline Road, Colombo 05',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
-                            color: AppColors.textSecondary,
+                            color: palette.muted,
                           ),
                         ),
                       ],
@@ -171,72 +174,111 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _openSettings() {
+    final palette = AppPalette.of(context);
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      backgroundColor: Colors.white,
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.s24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'Settings & Account',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(
-                  Icons.info_outline,
-                  color: AppColors.primary,
-                ),
-                title: const Text('App Version'),
-                trailing: const Text(
-                  '1.0.0 (Build 4)',
-                  style: TextStyle(color: AppColors.textSecondary),
-                ),
-              ),
-              const Divider(),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(
-                  Icons.logout_rounded,
-                  color: AppColors.error,
-                ),
-                title: const Text(
-                  'Log out',
-                  style: TextStyle(
-                    color: AppColors.error,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  if (widget.api != null) {
-                    await widget.api!.logout();
-                  }
-                  if (!mounted) return;
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => LoginPage(api: widget.api ?? AuthApi()),
+      backgroundColor: palette.surface,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          final sheetIsDark = ThemeService.instance.isDarkMode(ctx);
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.s24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Settings & Account',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: palette.text,
                     ),
-                    (_) => false,
-                  );
-                },
+                  ),
+                  const SizedBox(height: 16),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      sheetIsDark ? Iconsax.moon : Iconsax.sun_1,
+                      color: palette.primary,
+                    ),
+                    title: Text(
+                      'Dark Mode',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: palette.text,
+                      ),
+                    ),
+                    subtitle: Text(
+                      sheetIsDark ? 'Dark theme enabled' : 'Light theme enabled',
+                      style: TextStyle(color: palette.muted, fontSize: 13),
+                    ),
+                    trailing: Switch.adaptive(
+                      value: sheetIsDark,
+                      activeTrackColor: palette.primary,
+                      activeThumbColor: Colors.white,
+                      onChanged: (val) async {
+                        await ThemeService.instance.toggleTheme(context);
+                        setSheetState(() {});
+                      },
+                    ),
+                  ),
+                  const Divider(),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.info_outline,
+                      color: palette.primary,
+                    ),
+                    title: Text(
+                      'App Version',
+                      style: TextStyle(color: palette.text),
+                    ),
+                    trailing: Text(
+                      '1.0.0 (Build 4)',
+                      style: TextStyle(color: palette.muted),
+                    ),
+                  ),
+                  const Divider(),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(
+                      Icons.logout_rounded,
+                      color: AppColors.error,
+                    ),
+                    title: const Text(
+                      'Log out',
+                      style: TextStyle(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      if (widget.api != null) {
+                        await widget.api!.logout();
+                      }
+                      if (!mounted) return;
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              LoginPage(api: widget.api ?? AuthApi()),
+                        ),
+                        (_) => false,
+                      );
+                    },
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -562,10 +604,12 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final isDark = ThemeService.instance.isDarkMode(context);
     final bottomInset = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: palette.background,
       body: SafeArea(
         bottom: false,
         child: SingleChildScrollView(
@@ -577,12 +621,12 @@ class _ProfilePageState extends State<ProfilePage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // ── Title ──
-              const Text(
+              Text(
                 'Your profile',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+                  color: palette.text,
                   letterSpacing: -0.5,
                 ),
               ),
@@ -599,7 +643,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         children: [
                           CircleAvatar(
                             radius: 46,
-                            backgroundColor: AppColors.primaryLight,
+                            backgroundColor: palette.soft,
                             backgroundImage:
                                 (_currentUser?.profilePhotoUrl != null &&
                                     _currentUser!.profilePhotoUrl!.isNotEmpty)
@@ -608,12 +652,12 @@ class _ProfilePageState extends State<ProfilePage> {
                                   )
                                 : null,
                             child: _isUploadingPhoto
-                                ? const SizedBox.square(
+                                ? SizedBox.square(
                                     dimension: 24,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2.5,
                                       valueColor: AlwaysStoppedAnimation<Color>(
-                                        AppColors.primary,
+                                        palette.primary,
                                       ),
                                     ),
                                   )
@@ -621,10 +665,10 @@ class _ProfilePageState extends State<ProfilePage> {
                                       _currentUser!.profilePhotoUrl!.isEmpty)
                                 ? Text(
                                     _initials,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 26,
                                       fontWeight: FontWeight.w700,
-                                      color: AppColors.primaryDark,
+                                      color: palette.primary,
                                     ),
                                   )
                                 : null,
@@ -635,10 +679,10 @@ class _ProfilePageState extends State<ProfilePage> {
                             child: Container(
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: AppColors.primary,
+                                color: palette.primary,
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: Colors.white,
+                                  color: palette.surface,
                                   width: 2.5,
                                 ),
                                 boxShadow: [
@@ -649,10 +693,10 @@ class _ProfilePageState extends State<ProfilePage> {
                                   ),
                                 ],
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.camera_alt_rounded,
                                 size: 14,
-                                color: Colors.white,
+                                color: palette.onPrimary,
                               ),
                             ),
                           ),
@@ -663,20 +707,20 @@ class _ProfilePageState extends State<ProfilePage> {
                     Text(
                       _currentUser?.fullName ?? 'Kavindu Alwis',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: palette.text,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       _formattedPhone,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary,
+                        color: palette.muted,
                       ),
                     ),
                   ],
@@ -685,15 +729,15 @@ class _ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 24),
 
               // ── Group 1: Account & Services ──
-              _buildSectionLabel('ACCOUNT & SERVICES'),
+              _buildSectionLabel('ACCOUNT & SERVICES', palette),
               _MenuCard(
                 children: [
                   _SleekMenuTile(
                     icon: Iconsax.user_edit,
                     title: 'Personal details',
                     subtitle: 'Name, phone & profile picture',
-                    iconBgColor: AppColors.primaryLight,
-                    iconColor: AppColors.primary,
+                    iconBgColor: palette.soft,
+                    iconColor: palette.primary,
                     onTap: _openEditProfile,
                   ),
                   _SleekMenuTile(
@@ -730,7 +774,7 @@ class _ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 20),
 
               // ── Switch Mode Section (Below My reviews) ──
-              _buildSectionLabel('SWITCH MODE'),
+              _buildSectionLabel('SWITCH MODE', palette),
               _MenuCard(
                 children: [
                   Material(
@@ -749,19 +793,19 @@ class _ProfilePageState extends State<ProfilePage> {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: AppColors.primaryLight,
+                                color: palette.soft,
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Center(
+                              child: Center(
                                 child: Icon(
                                   Iconsax.repeat,
                                   size: 20,
-                                  color: AppColors.primary,
+                                  color: palette.primary,
                                 ),
                               ),
                             ),
                             const SizedBox(width: 14),
-                            const Expanded(
+                            Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -770,17 +814,17 @@ class _ProfilePageState extends State<ProfilePage> {
                                     style: TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
+                                      color: palette.text,
                                       letterSpacing: -0.2,
                                     ),
                                   ),
-                                  SizedBox(height: 2),
+                                  const SizedBox(height: 2),
                                   Text(
                                     'Switch to provider dashboard',
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w500,
-                                      color: AppColors.textSecondary,
+                                      color: palette.muted,
                                     ),
                                   ),
                                 ],
@@ -788,7 +832,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             ),
                             Switch.adaptive(
                               value: false,
-                              activeTrackColor: AppColors.primary,
+                              activeTrackColor: palette.primary,
                               activeThumbColor: Colors.white,
                               onChanged: (val) {
                                 if (val) _switchToProvider();
@@ -804,9 +848,32 @@ class _ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 20),
 
               // ── Group 2: Preferences ──
-              _buildSectionLabel('PREFERENCES'),
+              _buildSectionLabel('PREFERENCES', palette),
               _MenuCard(
                 children: [
+                  _SleekMenuTile(
+                    icon: isDark ? Iconsax.moon : Iconsax.sun_1,
+                    title: 'Dark mode',
+                    subtitle:
+                        isDark ? 'Dark theme enabled' : 'Light theme enabled',
+                    iconBgColor: isDark
+                        ? const Color(0xFF1E2E25)
+                        : const Color(0xFFFEF3C7),
+                    iconColor: isDark
+                        ? const Color(0xFF34D399)
+                        : const Color(0xFFD97706),
+                    trailing: Switch.adaptive(
+                      value: isDark,
+                      activeTrackColor: palette.primary,
+                      activeThumbColor: Colors.white,
+                      onChanged: (val) {
+                        ThemeService.instance.toggleTheme(context);
+                      },
+                    ),
+                    onTap: () {
+                      ThemeService.instance.toggleTheme(context);
+                    },
+                  ),
                   _SleekMenuTile(
                     icon: Iconsax.notification,
                     title: 'Notifications',
@@ -829,7 +896,7 @@ class _ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 20),
 
               // ── Group 3: Account Actions ──
-              _buildSectionLabel('ACCOUNT ACTIONS'),
+              _buildSectionLabel('ACCOUNT ACTIONS', palette),
               _MenuCard(
                 children: [
                   _SleekMenuTile(
@@ -871,16 +938,16 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildSectionLabel(String label) {
+  Widget _buildSectionLabel(String label, AppPalette palette) {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 8),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.9,
-          color: AppColors.textSecondary,
+          color: palette.muted,
         ),
       ),
     );
@@ -894,14 +961,15 @@ class _MenuCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.r16),
-        border: Border.all(color: AppColors.border, width: 1.1),
+        border: Border.all(color: palette.border, width: 1.1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -937,6 +1005,7 @@ class _SleekMenuTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -951,14 +1020,14 @@ class _SleekMenuTile extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: iconBgColor ?? AppColors.primaryLight,
+                    color: iconBgColor ?? palette.soft,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Center(
                     child: Icon(
                       icon,
                       size: 20,
-                      color: iconColor ?? AppColors.primary,
+                      color: iconColor ?? palette.primary,
                     ),
                   ),
                 ),
@@ -972,7 +1041,7 @@ class _SleekMenuTile extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: textColor ?? AppColors.textPrimary,
+                          color: textColor ?? palette.text,
                           letterSpacing: -0.2,
                         ),
                       ),
@@ -980,10 +1049,10 @@ class _SleekMenuTile extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           subtitle!,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.textSecondary,
+                            color: palette.muted,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -993,10 +1062,10 @@ class _SleekMenuTile extends StatelessWidget {
                   ),
                 ),
                 trailing ??
-                    const Icon(
+                    Icon(
                       Icons.chevron_right_rounded,
                       size: 20,
-                      color: AppColors.textSecondary,
+                      color: palette.muted,
                     ),
               ],
             ),
@@ -1008,7 +1077,7 @@ class _SleekMenuTile extends StatelessWidget {
             child: Divider(
               height: 1,
               thickness: 0.8,
-              color: AppColors.border.withValues(alpha: 0.6),
+              color: palette.border.withValues(alpha: 0.6),
             ),
           ),
       ],

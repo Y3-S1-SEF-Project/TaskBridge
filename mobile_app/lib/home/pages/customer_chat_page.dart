@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_icons.dart';
+import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 
@@ -116,8 +116,9 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: p.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.only(
@@ -129,10 +130,10 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // ── Top Header Tag ──
-              const Text(
+              Text(
                 'MESSAGES & INQUIRIES',
                 style: TextStyle(
-                  color: AppColors.primary,
+                  color: p.primary,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.1,
@@ -141,12 +142,12 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
               const SizedBox(height: 4),
 
               // ── Title ──
-              const Text(
+              Text(
                 'Provider Chats',
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+                  color: p.textPrimary,
                   letterSpacing: -0.5,
                 ),
               ),
@@ -155,22 +156,23 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
               // ── Search Bar ──
               Container(
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: p.surface,
                   borderRadius: BorderRadius.circular(AppRadius.r12),
-                  border: Border.all(color: AppColors.border),
+                  border: Border.all(color: p.border),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 child: Row(
                   children: [
-                    const Icon(AppIcons.searchNormal, color: AppColors.textSecondary, size: 20),
+                    Icon(AppIcons.searchNormal, color: p.textSecondary, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
                         controller: _searchController,
-                        decoration: const InputDecoration(
+                        style: TextStyle(color: p.textPrimary, fontSize: 14),
+                        decoration: InputDecoration(
                           hintText: 'Search provider or messages...',
                           hintStyle: TextStyle(
-                            color: AppColors.textSecondary,
+                            color: p.textSecondary,
                             fontSize: 14,
                           ),
                           border: InputBorder.none,
@@ -180,7 +182,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                     if (_searchController.text.isNotEmpty)
                       GestureDetector(
                         onTap: () => _searchController.clear(),
-                        child: const Icon(AppIcons.closeCircle, size: 18, color: AppColors.textSecondary),
+                        child: Icon(AppIcons.closeCircle, size: 18, color: p.textSecondary),
                       ),
                   ],
                 ),
@@ -190,25 +192,25 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
               // ── Chat List ──
               Expanded(
                 child: _filteredChats.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'No conversations found.',
-                          style: TextStyle(color: AppColors.textSecondary),
-                        ),
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.only(bottom: 24),
-                        itemCount: _filteredChats.length,
-                        separatorBuilder: (context, index) => const Divider(
-                          height: 1,
-                          indent: 72,
-                          color: AppColors.border,
-                        ),
-                        itemBuilder: (context, index) {
-                          final chat = _filteredChats[index];
-                          return InkWell(
-                            onTap: () => _openChatDetail(chat),
-                            borderRadius: BorderRadius.circular(AppRadius.r12),
+                  ? Center(
+                      child: Text(
+                        'No conversations found.',
+                        style: TextStyle(color: p.textSecondary),
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      itemCount: _filteredChats.length,
+                      separatorBuilder: (context, index) => Divider(
+                        height: 1,
+                        indent: 72,
+                        color: p.border,
+                      ),
+                      itemBuilder: (context, index) {
+                        final chat = _filteredChats[index];
+                        return InkWell(
+                          onTap: () => _openChatDetail(chat),
+                          borderRadius: BorderRadius.circular(AppRadius.r12),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(
                                 vertical: 12,
@@ -221,7 +223,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                                     children: [
                                       CircleAvatar(
                                         radius: 26,
-                                        backgroundColor: AppColors.primaryDark,
+                                        backgroundColor: p.primary,
                                         child: Text(
                                           chat.providerName.substring(0, 1).toUpperCase(),
                                           style: const TextStyle(
@@ -239,10 +241,10 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                                             width: 13,
                                             height: 13,
                                             decoration: BoxDecoration(
-                                              color: AppColors.success,
+                                              color: const Color(0xFF10B981),
                                               shape: BoxShape.circle,
                                               border: Border.all(
-                                                color: AppColors.surface,
+                                                color: p.surface,
                                                 width: 2,
                                               ),
                                             ),
@@ -263,10 +265,10 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                                             Expanded(
                                               child: Text(
                                                 chat.providerName,
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                   fontSize: 15,
                                                   fontWeight: FontWeight.w700,
-                                                  color: AppColors.textPrimary,
+                                                  color: p.textPrimary,
                                                 ),
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
@@ -277,8 +279,8 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                                               style: TextStyle(
                                                 fontSize: 11,
                                                 color: chat.unread > 0
-                                                    ? AppColors.primary
-                                                    : AppColors.textSecondary,
+                                                    ? p.primary
+                                                    : p.textSecondary,
                                                 fontWeight: chat.unread > 0
                                                     ? FontWeight.w700
                                                     : FontWeight.w500,
@@ -289,9 +291,9 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                                         const SizedBox(height: 2),
                                         Text(
                                           chat.serviceCategory,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 11,
-                                            color: AppColors.primary,
+                                            color: p.primary,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
@@ -301,8 +303,8 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                                           style: TextStyle(
                                             fontSize: 13,
                                             color: chat.unread > 0
-                                                ? AppColors.textPrimary
-                                                : AppColors.textSecondary,
+                                                ? p.textPrimary
+                                                : p.textSecondary,
                                             fontWeight: chat.unread > 0
                                                 ? FontWeight.w600
                                                 : FontWeight.w400,
@@ -323,7 +325,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                                         vertical: 3,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: AppColors.primary,
+                                        color: p.primary,
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: Text(
@@ -387,11 +389,12 @@ class _ChatDetailSheetState extends State<_ChatDetailSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
     return Container(
       height: MediaQuery.of(context).size.height * 0.75,
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
         children: [
@@ -402,7 +405,7 @@ class _ChatDetailSheetState extends State<_ChatDetailSheet> {
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: AppColors.primaryDark,
+                  backgroundColor: p.primary,
                   child: Text(
                     widget.chat.providerName.substring(0, 1),
                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -415,17 +418,17 @@ class _ChatDetailSheetState extends State<_ChatDetailSheet> {
                     children: [
                       Text(
                         widget.chat.providerName,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
+                          color: p.textPrimary,
                         ),
                       ),
                       Text(
                         widget.chat.serviceCategory,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: AppColors.primary,
+                          color: p.primary,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -433,13 +436,13 @@ class _ChatDetailSheetState extends State<_ChatDetailSheet> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(AppIcons.closeCircle),
+                  icon: Icon(AppIcons.closeCircle, color: p.textSecondary),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
           ),
-          const Divider(height: 1, color: AppColors.border),
+          Divider(height: 1, color: p.border),
 
           // Messages
           Expanded(
@@ -457,14 +460,14 @@ class _ChatDetailSheetState extends State<_ChatDetailSheet> {
                       maxWidth: MediaQuery.of(context).size.width * 0.75,
                     ),
                     decoration: BoxDecoration(
-                      color: isMe ? AppColors.primary : AppColors.primaryLight,
+                      color: isMe ? p.primary : p.pillBackground,
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
                       _messages[index],
                       style: TextStyle(
                         fontSize: 14,
-                        color: isMe ? Colors.white : AppColors.textPrimary,
+                        color: isMe ? Colors.white : p.textPrimary,
                       ),
                     ),
                   ),
@@ -477,23 +480,25 @@ class _ChatDetailSheetState extends State<_ChatDetailSheet> {
           SafeArea(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: const BoxDecoration(
-                border: Border(top: BorderSide(color: AppColors.border)),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: p.border)),
               ),
               child: Row(
                 children: [
                   Expanded(
                     child: TextField(
                       controller: _msgController,
-                      decoration: const InputDecoration(
+                      style: TextStyle(color: p.textPrimary),
+                      decoration: InputDecoration(
                         hintText: 'Type a message...',
+                        hintStyle: TextStyle(color: p.textSecondary),
                         border: InputBorder.none,
                       ),
                       onSubmitted: (_) => _send(),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(AppIcons.send, color: AppColors.primary),
+                    icon: Icon(AppIcons.send, color: p.primary),
                     onPressed: _send,
                   ),
                 ],

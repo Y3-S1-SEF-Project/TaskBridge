@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_icons.dart';
+import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 
@@ -120,10 +121,12 @@ class CustomerBookingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: palette.background,
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.only(
@@ -135,10 +138,10 @@ class CustomerBookingsPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // ── Top Header Tag ──
-                const Text(
+                Text(
                   'YOUR RESERVATIONS',
                   style: TextStyle(
-                    color: AppColors.primary,
+                    color: palette.primary,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.1,
@@ -147,12 +150,12 @@ class CustomerBookingsPage extends StatelessWidget {
                 const SizedBox(height: 4),
 
                 // ── Title ──
-                const Text(
+                Text(
                   'My Bookings',
                   style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
+                    color: palette.text,
                     letterSpacing: -0.5,
                   ),
                 ),
@@ -161,19 +164,19 @@ class CustomerBookingsPage extends StatelessWidget {
                 // ── Tabs Header ──
                 Container(
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: palette.surface,
                     borderRadius: BorderRadius.circular(AppRadius.r12),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: palette.border),
                   ),
                   child: TabBar(
                     indicatorSize: TabBarIndicatorSize.tab,
                     indicator: BoxDecoration(
-                      color: AppColors.primaryLight,
+                      color: palette.soft,
                       borderRadius: BorderRadius.circular(AppRadius.r12 - 1),
                     ),
                     indicatorColor: Colors.transparent,
-                    labelColor: AppColors.primary,
-                    unselectedLabelColor: AppColors.textSecondary,
+                    labelColor: palette.primary,
+                    unselectedLabelColor: palette.muted,
                     labelStyle: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -289,6 +292,8 @@ class _BookingsList extends StatelessWidget {
       );
     }
 
+    final palette = AppPalette.of(context);
+
     return ListView.separated(
       padding: const EdgeInsets.only(bottom: 24),
       itemCount: bookings.length,
@@ -297,9 +302,9 @@ class _BookingsList extends StatelessWidget {
         final b = bookings[index];
         return Container(
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: palette.surface,
             borderRadius: BorderRadius.circular(AppRadius.r16),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: palette.border),
           ),
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -314,22 +319,22 @@ class _BookingsList extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryLight,
+                          color: palette.soft,
                           borderRadius: BorderRadius.circular(AppRadius.r8),
                         ),
                         child: Icon(
                           b.categoryIcon,
-                          color: AppColors.primary,
+                          color: palette.primary,
                           size: 18,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         b.category,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
+                          color: palette.primary,
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -360,10 +365,10 @@ class _BookingsList extends StatelessWidget {
               // ── Service Title ──
               Text(
                 b.serviceTitle,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: palette.text,
                   height: 1.25,
                 ),
               ),
@@ -374,12 +379,12 @@ class _BookingsList extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 12,
-                    backgroundColor: AppColors.primaryDark,
+                    backgroundColor: palette.soft,
                     child: Text(
                       b.providerName.substring(0, 1).toUpperCase(),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: Colors.white,
+                        color: palette.primary,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -387,10 +392,10 @@ class _BookingsList extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     b.providerName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: palette.text,
                     ),
                   ),
                   const SizedBox(width: 6),
@@ -398,41 +403,41 @@ class _BookingsList extends StatelessWidget {
                   const SizedBox(width: 2),
                   Text(
                     b.providerRating.toStringAsFixed(1),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
+                      color: palette.muted,
                     ),
                   ),
                   const Spacer(),
                   Text(
                     b.price,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.primary,
+                      color: palette.primary,
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              const Divider(height: 1, color: AppColors.border),
+              Divider(height: 1, color: palette.border),
               const SizedBox(height: 10),
 
               // ── Date & Time Info ──
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     AppIcons.clock,
                     size: 15,
-                    color: AppColors.textSecondary,
+                    color: palette.muted,
                   ),
                   const SizedBox(width: 6),
                   Text(
                     '${b.scheduledDate} · ${b.scheduledTime}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppColors.textSecondary,
+                      color: palette.muted,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -443,18 +448,18 @@ class _BookingsList extends StatelessWidget {
               // ── Address ──
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     AppIcons.location,
                     size: 15,
-                    color: AppColors.textSecondary,
+                    color: palette.muted,
                   ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       b.address,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.textSecondary,
+                        color: palette.muted,
                         fontWeight: FontWeight.w500,
                       ),
                       maxLines: 1,
@@ -474,8 +479,8 @@ class _BookingsList extends StatelessWidget {
                       icon: const Icon(AppIcons.message, size: 15),
                       label: const Text('Chat'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: AppColors.primary),
+                        foregroundColor: palette.primary,
+                        side: BorderSide(color: palette.primary),
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppRadius.r8),
@@ -500,13 +505,13 @@ class _BookingsList extends StatelessWidget {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor:
-                            isUpcoming ? AppColors.primary : AppColors.surface,
+                            isUpcoming ? palette.primary : palette.surface,
                         foregroundColor:
-                            isUpcoming ? Colors.white : AppColors.textPrimary,
+                            isUpcoming ? palette.onPrimary : palette.text,
                         elevation: isUpcoming ? 1 : 0,
                         side: isUpcoming
                             ? null
-                            : const BorderSide(color: AppColors.border),
+                            : BorderSide(color: palette.border),
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppRadius.r8),

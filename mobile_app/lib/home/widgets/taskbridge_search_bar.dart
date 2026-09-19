@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_palette.dart';
 
 class TaskBridgeSearchBar extends StatefulWidget {
   final String hintText;
@@ -42,14 +42,15 @@ class _TaskBridgeSearchBarState extends State<TaskBridgeSearchBar> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       height: 52,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: palette.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _isFocused ? AppColors.primary : AppColors.border,
+          color: _isFocused ? palette.primary : palette.border,
           width: _isFocused ? 1.5 : 1.0,
         ),
       ),
@@ -61,16 +62,16 @@ class _TaskBridgeSearchBarState extends State<TaskBridgeSearchBar> {
         readOnly: widget.readOnly,
         onTap: widget.onTap,
         onChanged: widget.onChanged,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 15,
           fontWeight: FontWeight.w500,
-          color: AppColors.textPrimary,
+          color: palette.text,
         ),
         textAlignVertical: TextAlignVertical.center,
         decoration: InputDecoration(
           hintText: widget.hintText,
-          hintStyle: const TextStyle(
-            color: AppColors.textSecondary,
+          hintStyle: TextStyle(
+            color: palette.muted,
             fontSize: 15,
             fontWeight: FontWeight.w400,
           ),
@@ -86,10 +87,10 @@ class _TaskBridgeSearchBarState extends State<TaskBridgeSearchBar> {
           suffixIcon: (widget.controller != null &&
                   widget.controller!.text.isNotEmpty)
               ? IconButton(
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.close_rounded,
                     size: 18,
-                    color: AppColors.textSecondary,
+                    color: palette.muted,
                   ),
                   onPressed: () {
                     widget.controller!.clear();
