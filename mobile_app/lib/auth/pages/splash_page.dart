@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/services/user_mode_service.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/widgets/design_system.dart';
@@ -36,12 +37,23 @@ class _SplashPageState extends State<SplashPage> {
     try {
       final user = await widget.api.restore();
       if (!mounted) return;
+      if (user == null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => OnboardingPage(api: widget.api)),
+        );
+        return;
+      }
+      final mode = await UserModeService.getMode();
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => user == null
-              ? OnboardingPage(api: widget.api)
-              : AuthenticatedPage(api: widget.api, user: user),
+          builder: (_) => AuthenticatedPage(
+            api: widget.api,
+            user: user,
+            initialMode: mode,
+          ),
         ),
       );
     } catch (e) {

@@ -30,7 +30,7 @@ class AuthApi {
     ];
   }
 
-  Uri get _base {
+  Uri get base {
     final url =
         _workingBaseUrl ??
         (_configuredUrl.isNotEmpty
@@ -247,56 +247,86 @@ class AuthApi {
     return user;
   }
 
+  Future<AuthUser> _uploadFile(
+    String path,
+    String filePath, {
+    String? userId,
+  }) async {
+    if (_token == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_tokenKey);
+    }
+
+    final candidates = _candidateUrls;
+    Exception? lastError;
+
+    for (int i = 0; i < candidates.length; i++) {
+      final candidate = candidates[i];
+      final baseUri = Uri.tryParse(candidate);
+      if (baseUri == null || !baseUri.hasAuthority) continue;
+
+      try {
+        final uri = baseUri.resolve('/api/auth/$path');
+        final request = http.MultipartRequest('POST', uri);
+
+        if (_token != null && _token!.isNotEmpty) {
+          request.headers['Authorization'] = 'Bearer $_token';
+        }
+        if (userId != null && userId.isNotEmpty) {
+          request.fields['userId'] = userId;
+        }
+
+        final multipartFile = await http.MultipartFile.fromPath(
+          'file',
+          filePath,
+        );
+        request.files.add(multipartFile);
+
+        final isProven = _workingBaseUrl != null || candidates.length == 1;
+        final timeout = isProven
+            ? const Duration(seconds: 40)
+            : const Duration(seconds: 4);
+
+        final streamedResponse = await _client.send(request).timeout(timeout);
+        final response = await http.Response.fromStream(streamedResponse);
+
+        _workingBaseUrl = candidate;
+
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          final json = jsonDecode(response.body) as Map<String, dynamic>;
+          final updatedUser = AuthUser.fromJson(json);
+          if (_token != null) {
+            await _saveSession(_token!, updatedUser);
+          }
+          return updatedUser;
+        } else {
+          String message = 'Failed to upload.';
+          try {
+            final err = jsonDecode(response.body);
+            message =
+                err['detail'] ?? err['title'] ?? err['message'] ?? message;
+          } catch (_) {}
+          throw AuthException(
+            '$message (HTTP ${response.statusCode})',
+            status: response.statusCode,
+          );
+        }
+      } on AuthException {
+        rethrow;
+      } catch (e) {
+        lastError = e is Exception ? e : Exception(e.toString());
+        if (i < candidates.length - 1) continue;
+      }
+    }
+
+    throw AuthException(
+      'Failed to upload file: ${lastError ?? "Cannot reach server"}',
+    );
+  }
+
   // Uploads a profile picture file to Cloudflare R2 and updates user profile.
   Future<AuthUser> uploadProfilePhoto(String filePath, {String? userId}) async {
-    try {
-      if (_token == null) {
-        final prefs = await SharedPreferences.getInstance();
-        _token = prefs.getString(_tokenKey);
-      }
-
-      final uri = _base.resolve('/api/auth/profile/photo');
-      final request = http.MultipartRequest('POST', uri);
-
-      if (_token != null && _token!.isNotEmpty) {
-        request.headers['Authorization'] = 'Bearer $_token';
-      }
-      if (userId != null && userId.isNotEmpty) {
-        request.fields['userId'] = userId;
-      }
-
-      final multipartFile = await http.MultipartFile.fromPath('file', filePath);
-      request.files.add(multipartFile);
-
-      final streamedResponse = await _client.send(request);
-      final response = await http.Response.fromStream(streamedResponse);
-      debugPrint(
-        'Upload photo response: ${response.statusCode} - ${response.body}',
-      );
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final json = jsonDecode(response.body) as Map<String, dynamic>;
-        final updatedUser = AuthUser.fromJson(json);
-        if (_token != null) {
-          await _saveSession(_token!, updatedUser);
-        }
-        return updatedUser;
-      } else {
-        String message = 'Failed to upload photo.';
-        try {
-          final err = jsonDecode(response.body);
-          message = err['detail'] ?? err['title'] ?? err['message'] ?? message;
-        } catch (_) {}
-        throw AuthException(
-          '$message (HTTP ${response.statusCode})',
-          status: response.statusCode,
-        );
-      }
-    } on AuthException {
-      rethrow;
-    } catch (e) {
-      throw AuthException('Failed to upload profile photo: $e');
-    }
+    return _uploadFile('profile/photo', filePath, userId: userId);
   }
 
   // Sets up or updates the user's provider profile and activates provider mode.
@@ -308,6 +338,7 @@ class AuthApi {
     String? serviceAreas,
     String? availability,
     String? bio,
+    String? location,
   }) async {
     final body = <String, dynamic>{};
     if (skills != null) body['skills'] = skills;
@@ -317,6 +348,7 @@ class AuthApi {
     if (serviceAreas != null) body['serviceAreas'] = serviceAreas;
     if (availability != null) body['availability'] = availability;
     if (bio != null) body['bio'] = bio;
+    if (location != null) body['location'] = location;
 
     final result = await _request('provider/setup', body: body);
     final user = AuthUser.fromJson(result);
@@ -331,51 +363,7 @@ class AuthApi {
     String filePath, {
     String? userId,
   }) async {
-    try {
-      if (_token == null) {
-        final prefs = await SharedPreferences.getInstance();
-        _token = prefs.getString(_tokenKey);
-      }
-
-      final uri = _base.resolve('/api/auth/provider/certification');
-      final request = http.MultipartRequest('POST', uri);
-
-      if (_token != null && _token!.isNotEmpty) {
-        request.headers['Authorization'] = 'Bearer $_token';
-      }
-      if (userId != null && userId.isNotEmpty) {
-        request.fields['userId'] = userId;
-      }
-
-      final multipartFile = await http.MultipartFile.fromPath('file', filePath);
-      request.files.add(multipartFile);
-
-      final streamedResponse = await _client.send(request);
-      final response = await http.Response.fromStream(streamedResponse);
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final json = jsonDecode(response.body) as Map<String, dynamic>;
-        final updatedUser = AuthUser.fromJson(json);
-        if (_token != null) {
-          await _saveSession(_token!, updatedUser);
-        }
-        return updatedUser;
-      } else {
-        String message = 'Failed to upload certification.';
-        try {
-          final err = jsonDecode(response.body);
-          message = err['detail'] ?? err['title'] ?? err['message'] ?? message;
-        } catch (_) {}
-        throw AuthException(
-          '$message (HTTP ${response.statusCode})',
-          status: response.statusCode,
-        );
-      }
-    } on AuthException {
-      rethrow;
-    } catch (e) {
-      throw AuthException('Failed to upload certification: $e');
-    }
+    return _uploadFile('provider/certification', filePath, userId: userId);
   }
 
   // Restores user session from shared_preferences on splash screen.

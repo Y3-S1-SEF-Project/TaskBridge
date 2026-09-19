@@ -8,6 +8,10 @@
 	<string>TaskBridge requires access to your photo library to select a profile picture.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>TaskBridge requires access to your camera to capture a profile picture.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>TaskBridge uses your location to show available services and nearby providers in your area.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>TaskBridge uses your location to show available services and nearby providers in your area.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
