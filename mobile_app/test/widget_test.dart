@@ -69,9 +69,9 @@ void main() {
 
     await tester.enterText(find.byType(TextFormField).at(0), 'kavindu@example.com');
     await tester.enterText(find.byType(TextFormField).at(1), 'LongPassword7');
-    await tester.ensureVisible(find.widgetWithText(AppButton, 'Login'));
     await tester.tap(find.widgetWithText(AppButton, 'Login'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
 
     expect(api.logins, 1);
     expect(find.byType(HomePage), findsOneWidget);

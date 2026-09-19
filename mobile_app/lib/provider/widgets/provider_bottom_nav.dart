@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_icons.dart';
 
 class ProviderBottomNav extends StatelessWidget {
   final int currentIndex;
@@ -31,29 +32,29 @@ class ProviderBottomNav extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _ProviderNavItem(
-            icon: Icons.bar_chart_rounded,
-            activeIcon: Icons.bar_chart_rounded,
+            icon: AppIcons.chart,
+            activeIcon: AppIcons.chartBold,
             label: 'Dashboard',
             isSelected: currentIndex == 0,
             onTap: () => onTap(0),
           ),
           _ProviderNavItem(
-            icon: Icons.business_center_outlined,
-            activeIcon: Icons.business_center_rounded,
+            icon: AppIcons.briefcase,
+            activeIcon: AppIcons.briefcaseBold,
             label: 'Jobs',
             isSelected: currentIndex == 1,
             onTap: () => onTap(1),
           ),
           _ProviderNavItem(
-            icon: Icons.chat_bubble_outline_rounded,
-            activeIcon: Icons.chat_bubble_rounded,
+            icon: AppIcons.message,
+            activeIcon: AppIcons.messageBold,
             label: 'Chat',
             isSelected: currentIndex == 2,
             onTap: () => onTap(2),
           ),
           _ProviderNavItem(
-            icon: Icons.person_outline_rounded,
-            activeIcon: Icons.person_rounded,
+            icon: AppIcons.profile,
+            activeIcon: AppIcons.profileBold,
             label: 'Profile',
             isSelected: currentIndex == 3,
             onTap: () => onTap(3),
