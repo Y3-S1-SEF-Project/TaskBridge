@@ -6,6 +6,7 @@ namespace TaskBridge.Api.Data;
 public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(options)
 {
     public DbSet<AppUser> Users => Set<AppUser>();
+    public DbSet<ProviderProfile> Providers => Set<ProviderProfile>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -21,6 +22,25 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
             entity.Property(x => x.Phone).HasMaxLength(24).IsRequired();
             entity.Property(x => x.PasswordHash).IsRequired();
             entity.Property(x => x.EmailOtp).HasMaxLength(10);
+        });
+
+        model.Entity<ProviderProfile>(entity =>
+        {
+            entity.ToTable("providers");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.UserId).IsUnique();
+            entity.HasIndex(x => x.Category);
+            entity.HasIndex(x => x.IsActive);
+            entity.Property(x => x.Category).IsRequired();
+            entity.Property(x => x.HourlyRate).HasColumnType("numeric(12,2)").HasDefaultValue(2500.00m);
+            entity.Property(x => x.Rating).HasDefaultValue(4.8);
+            entity.Property(x => x.ReviewCount).HasDefaultValue(12);
+            entity.Property(x => x.IsActive).HasDefaultValue(true);
+
+            entity.HasOne(x => x.User)
+                  .WithOne(x => x.ProviderProfile)
+                  .HasForeignKey<ProviderProfile>(x => x.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
     }
 
@@ -69,6 +89,48 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderEarnings"" numeric(12,2) NU
 CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (""Email"");
 CREATE INDEX IF NOT EXISTS ix_users_phone ON users (""Phone"");
 CREATE INDEX IF NOT EXISTS ix_users_session_token ON users (""SessionToken"");
+
+CREATE TABLE IF NOT EXISTS providers (
+    ""Id"" uuid PRIMARY KEY,
+    ""UserId"" uuid NOT NULL UNIQUE,
+    ""Category"" text NOT NULL DEFAULT 'General',
+    ""Skills"" text NULL,
+    ""Services"" text NULL,
+    ""Experience"" text NULL,
+    ""Certifications"" text NULL,
+    ""ServiceAreas"" text NULL,
+    ""Availability"" text NULL,
+    ""HourlyRate"" numeric(12,2) NOT NULL DEFAULT 2500.00,
+    ""Rating"" double precision NOT NULL DEFAULT 4.8,
+    ""ReviewCount"" integer NOT NULL DEFAULT 12,
+    ""IsActive"" boolean NOT NULL DEFAULT true,
+    ""Bio"" text NULL,
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
+    ""UpdatedAt"" timestamptz NULL,
+    CONSTRAINT fk_providers_user FOREIGN KEY (""UserId"") REFERENCES users (""Id"") ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS ix_providers_user_id ON providers (""UserId"");
+CREATE INDEX IF NOT EXISTS ix_providers_category ON providers (""Category"");
+CREATE INDEX IF NOT EXISTS ix_providers_is_active ON providers (""IsActive"");
+
+-- Automatically migrate all existing registered providers from users table into providers table
+INSERT INTO providers (""Id"" , ""UserId"", ""Category"", ""Skills"", ""Services"", ""Experience"", ""Certifications"", ""ServiceAreas"", ""Availability"", ""Bio"", ""CreatedAt"")
+SELECT 
+    gen_random_uuid(),
+    u.""Id"",
+    COALESCE(NULLIF(TRIM(u.""ProviderServices""), ''), NULLIF(TRIM(u.""ProviderSkills""), ''), 'General'),
+    u.""ProviderSkills"",
+    u.""ProviderServices"",
+    u.""ProviderExperience"",
+    u.""ProviderCertifications"",
+    COALESCE(NULLIF(TRIM(u.""ProviderServiceAreas""), ''), NULLIF(TRIM(u.""Location""), ''), 'Colombo'),
+    u.""ProviderAvailability"",
+    u.""ProviderBio"",
+    u.""CreatedAt""
+FROM users u
+WHERE u.""IsProvider"" = true
+  AND NOT EXISTS (SELECT 1 FROM providers p WHERE p.""UserId"" = u.""Id"");
 ";
         await Database.ExecuteSqlRawAsync(sql, ct);
     }
