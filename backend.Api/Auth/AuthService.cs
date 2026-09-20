@@ -254,6 +254,43 @@ public sealed class AuthService(
         if (req.Location != null) user.Location = req.Location.Trim();
         user.UpdatedAt = DateTimeOffset.UtcNow;
 
+        // Upsert into dedicated providers table
+        var provider = await db.Providers.SingleOrDefaultAsync(p => p.UserId == userId, ct);
+        if (provider is null)
+        {
+            provider = new ProviderProfile
+            {
+                UserId = userId,
+                Category = !string.IsNullOrWhiteSpace(req.Services) ? req.Services.Trim() : (!string.IsNullOrWhiteSpace(req.Skills) ? req.Skills.Trim() : "General"),
+                Skills = req.Skills?.Trim(),
+                Services = req.Services?.Trim(),
+                Experience = req.Experience?.Trim(),
+                Certifications = req.Certifications?.Trim(),
+                ServiceAreas = req.ServiceAreas?.Trim() ?? req.Location?.Trim(),
+                Availability = req.Availability?.Trim(),
+                Bio = req.Bio?.Trim(),
+                CreatedAt = DateTimeOffset.UtcNow,
+                IsActive = true
+            };
+            db.Providers.Add(provider);
+        }
+        else
+        {
+            if (req.Skills != null) provider.Skills = req.Skills.Trim();
+            if (req.Services != null)
+            {
+                provider.Services = req.Services.Trim();
+                provider.Category = req.Services.Trim();
+            }
+            if (req.Experience != null) provider.Experience = req.Experience.Trim();
+            if (req.Certifications != null) provider.Certifications = req.Certifications.Trim();
+            if (req.ServiceAreas != null) provider.ServiceAreas = req.ServiceAreas.Trim();
+            else if (req.Location != null) provider.ServiceAreas = req.Location.Trim();
+            if (req.Availability != null) provider.Availability = req.Availability.Trim();
+            if (req.Bio != null) provider.Bio = req.Bio.Trim();
+            provider.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
         await db.SaveChangesAsync(ct);
         return MapUser(user);
     }
