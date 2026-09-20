@@ -62,21 +62,21 @@ class AppPalette extends ThemeExtension<AppPalette> {
   );
 
   static const dark = AppPalette(
-    background: Color(0xFF101713),
-    surface: Color(0xFF18231D),
-    text: Color(0xFFF3F7F5),
-    muted: Color(0xFF90A197),
-    border: Color(0xFF26372D),
-    primary: Color(0xFF34D399),
-    pressed: Color(0xFF28A977),
-    onPrimary: Color(0xFF091710),
-    soft: Color(0xFF1D2E24),
-    onSoft: Color(0xFF6EE7B7),
-    success: Color(0xFF34D399),
+    background: Color(0xFF111412),
+    surface: Color(0xFF181C19),
+    text: Color(0xFFF3F5F4),
+    muted: Color(0xFF8B968E),
+    border: Color(0xFF262C28),
+    primary: Color(0xFF388E63),
+    pressed: Color(0xFF296D4B),
+    onPrimary: Color(0xFFFFFFFF),
+    soft: Color(0xFF1D2621),
+    onSoft: Color(0xFF5BAE83),
+    success: Color(0xFF388E63),
     warning: Color(0xFFFBBF24),
     error: Color(0xFFF87171),
     info: Color(0xFF60A5FA),
-    disabled: Color(0xFF212E26),
+    disabled: Color(0xFF242B26),
   );
 
   static AppPalette of(BuildContext context) =>
@@ -99,24 +99,23 @@ class AppPalette extends ThemeExtension<AppPalette> {
     Color? error,
     Color? info,
     Color? disabled,
-  }) =>
-      AppPalette(
-        background: background ?? this.background,
-        surface: surface ?? this.surface,
-        text: text ?? this.text,
-        muted: muted ?? this.muted,
-        border: border ?? this.border,
-        primary: primary ?? this.primary,
-        pressed: pressed ?? this.pressed,
-        onPrimary: onPrimary ?? this.onPrimary,
-        soft: soft ?? this.soft,
-        onSoft: onSoft ?? this.onSoft,
-        success: success ?? this.success,
-        warning: warning ?? this.warning,
-        error: error ?? this.error,
-        info: info ?? this.info,
-        disabled: disabled ?? this.disabled,
-      );
+  }) => AppPalette(
+    background: background ?? this.background,
+    surface: surface ?? this.surface,
+    text: text ?? this.text,
+    muted: muted ?? this.muted,
+    border: border ?? this.border,
+    primary: primary ?? this.primary,
+    pressed: pressed ?? this.pressed,
+    onPrimary: onPrimary ?? this.onPrimary,
+    soft: soft ?? this.soft,
+    onSoft: onSoft ?? this.onSoft,
+    success: success ?? this.success,
+    warning: warning ?? this.warning,
+    error: error ?? this.error,
+    info: info ?? this.info,
+    disabled: disabled ?? this.disabled,
+  );
 
   @override
   AppPalette lerp(covariant AppPalette? other, double t) {

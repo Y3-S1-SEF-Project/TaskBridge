@@ -131,11 +131,7 @@ class _ProfilePageState extends State<ProfilePage> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.home_outlined,
-                    color: palette.primary,
-                    size: 24,
-                  ),
+                  Icon(Icons.home_outlined, color: palette.primary, size: 24),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -155,10 +151,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                   _currentUser!.address!.isNotEmpty
                               ? '${_currentUser!.address}, ${_currentUser!.location ?? "Colombo"}'
                               : '754, Baseline Road, Colombo 05',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: palette.muted,
-                          ),
+                          style: TextStyle(fontSize: 14, color: palette.muted),
                         ),
                       ],
                     ),
@@ -215,7 +208,9 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                     subtitle: Text(
-                      sheetIsDark ? 'Dark theme enabled' : 'Light theme enabled',
+                      sheetIsDark
+                          ? 'Dark theme enabled'
+                          : 'Light theme enabled',
                       style: TextStyle(color: palette.muted, fontSize: 13),
                     ),
                     trailing: Switch.adaptive(
@@ -231,10 +226,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   const Divider(),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: Icon(
-                      Icons.info_outline,
-                      color: palette.primary,
-                    ),
+                    leading: Icon(Icons.info_outline, color: palette.primary),
                     title: Text(
                       'App Version',
                       style: TextStyle(color: palette.text),
@@ -854,13 +846,14 @@ class _ProfilePageState extends State<ProfilePage> {
                   _SleekMenuTile(
                     icon: isDark ? Iconsax.moon : Iconsax.sun_1,
                     title: 'Dark mode',
-                    subtitle:
-                        isDark ? 'Dark theme enabled' : 'Light theme enabled',
+                    subtitle: isDark
+                        ? 'Dark theme enabled'
+                        : 'Light theme enabled',
                     iconBgColor: isDark
-                        ? const Color(0xFF1E2E25)
+                        ? palette.soft
                         : const Color(0xFFFEF3C7),
                     iconColor: isDark
-                        ? const Color(0xFF34D399)
+                        ? palette.primary
                         : const Color(0xFFD97706),
                     trailing: Switch.adaptive(
                       value: isDark,

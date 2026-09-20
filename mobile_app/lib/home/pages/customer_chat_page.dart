@@ -241,7 +241,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                                             width: 13,
                                             height: 13,
                                             decoration: BoxDecoration(
-                                              color: const Color(0xFF10B981),
+                                              color: p.success,
                                               shape: BoxShape.circle,
                                               border: Border.all(
                                                 color: p.surface,

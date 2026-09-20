@@ -552,10 +552,10 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                     subtitle:
                         isDark ? 'Dark theme enabled' : 'Light theme enabled',
                     iconBgColor: isDark
-                        ? const Color(0xFF1E2E25)
+                        ? palette.soft
                         : const Color(0xFFFEF3C7),
                     iconColor: isDark
-                        ? const Color(0xFF34D399)
+                        ? palette.primary
                         : const Color(0xFFD97706),
                     trailing: Switch.adaptive(
                       value: isDark,

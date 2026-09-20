@@ -340,23 +340,30 @@ class _BookingsList extends StatelessWidget {
                       ),
                     ],
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: b.statusColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(AppRadius.r12),
-                    ),
-                    child: Text(
-                      b.status,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: b.statusColor,
-                      ),
-                    ),
+                  Builder(
+                    builder: (context) {
+                      final statusColor = b.status == 'Confirmed'
+                          ? palette.primary
+                          : (b.status == 'Completed' ? palette.success : b.statusColor);
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(AppRadius.r12),
+                        ),
+                        child: Text(
+                          b.status,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: statusColor,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
