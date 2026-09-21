@@ -339,6 +339,7 @@ class AuthApi {
     String? availability,
     String? bio,
     String? location,
+    double? hourlyRate,
   }) async {
     final body = <String, dynamic>{};
     if (skills != null) body['skills'] = skills;
@@ -349,6 +350,7 @@ class AuthApi {
     if (availability != null) body['availability'] = availability;
     if (bio != null) body['bio'] = bio;
     if (location != null) body['location'] = location;
+    if (hourlyRate != null) body['hourlyRate'] = hourlyRate;
 
     final result = await _request('provider/setup', body: body);
     final user = AuthUser.fromJson(result);
