@@ -252,6 +252,7 @@ public sealed class AuthService(
         if (req.Availability != null) user.ProviderAvailability = req.Availability.Trim();
         if (req.Bio != null) user.ProviderBio = req.Bio.Trim();
         if (req.Location != null) user.Location = req.Location.Trim();
+        if (req.HourlyRate.HasValue && req.HourlyRate.Value > 0) user.ProviderHourlyRate = req.HourlyRate.Value;
         user.UpdatedAt = DateTimeOffset.UtcNow;
 
         // Upsert into dedicated providers table
@@ -269,6 +270,7 @@ public sealed class AuthService(
                 ServiceAreas = req.ServiceAreas?.Trim() ?? req.Location?.Trim(),
                 Availability = req.Availability?.Trim(),
                 Bio = req.Bio?.Trim(),
+                HourlyRate = req.HourlyRate.HasValue && req.HourlyRate.Value > 0 ? req.HourlyRate.Value : (user.ProviderHourlyRate ?? 2500m),
                 CreatedAt = DateTimeOffset.UtcNow,
                 IsActive = true
             };
@@ -288,6 +290,7 @@ public sealed class AuthService(
             else if (req.Location != null) provider.ServiceAreas = req.Location.Trim();
             if (req.Availability != null) provider.Availability = req.Availability.Trim();
             if (req.Bio != null) provider.Bio = req.Bio.Trim();
+            if (req.HourlyRate.HasValue && req.HourlyRate.Value > 0) provider.HourlyRate = req.HourlyRate.Value;
             provider.UpdatedAt = DateTimeOffset.UtcNow;
         }
 
@@ -327,5 +330,6 @@ public sealed class AuthService(
         u.ProviderServiceAreas,
         u.ProviderAvailability,
         u.ProviderBio,
-        u.ProviderEarnings);
+        u.ProviderEarnings,
+        u.ProviderHourlyRate ?? 2500m);
 }
