@@ -73,7 +73,8 @@ CREATE TABLE IF NOT EXISTS users (
     ""ProviderServiceAreas"" text NULL,
     ""ProviderAvailability"" text NULL,
     ""ProviderBio"" text NULL,
-    ""ProviderEarnings"" numeric(12,2) NULL DEFAULT 54000.00
+    ""ProviderEarnings"" numeric(12,2) NULL DEFAULT 54000.00,
+    ""ProviderHourlyRate"" numeric(12,2) NULL DEFAULT 2500.00
 );
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""IsProvider"" boolean NOT NULL DEFAULT false;
@@ -85,6 +86,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderServiceAreas"" text NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderAvailability"" text NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderBio"" text NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderEarnings"" numeric(12,2) NULL DEFAULT 54000.00;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderHourlyRate"" numeric(12,2) NULL DEFAULT 2500.00;
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (""Email"");
 CREATE INDEX IF NOT EXISTS ix_users_phone ON users (""Phone"");
