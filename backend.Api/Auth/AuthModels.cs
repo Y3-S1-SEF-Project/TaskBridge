@@ -32,6 +32,7 @@ public sealed class AppUser
     public string? ProviderAvailability { get; set; }
     public string? ProviderBio { get; set; }
     public decimal? ProviderEarnings { get; set; } = 54000m;
+    public decimal? ProviderHourlyRate { get; set; } = 2500m;
 
     public ProviderProfile? ProviderProfile { get; set; }
 }
@@ -98,7 +99,8 @@ public sealed record ProviderSetupRequest(
     string? ServiceAreas,
     string? Availability,
     string? Bio,
-    string? Location = null);
+    string? Location = null,
+    decimal? HourlyRate = null);
 
 public sealed record ChallengeResponse(
     string Email,
@@ -122,7 +124,8 @@ public sealed record UserResponse(
     string? ProviderServiceAreas = null,
     string? ProviderAvailability = null,
     string? ProviderBio = null,
-    decimal? ProviderEarnings = null);
+    decimal? ProviderEarnings = null,
+    decimal? ProviderHourlyRate = null);
 
 public sealed record AuthResponse(
     string AccessToken,
