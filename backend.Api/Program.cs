@@ -23,6 +23,8 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<IEmailOtpSender, EmailOtpSender>();
 builder.Services.AddSingleton<IProfileImageService, R2ImageService>();
 builder.Services.AddHttpClient<IOtpSender, NotifySmsSender>(client => client.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddHttpClient<backend.Api.AI.PlanningAgentService>(client => client.Timeout = TimeSpan.FromSeconds(25));
+builder.Services.AddHttpClient<backend.Api.AI.MatchingAgentService>(client => client.Timeout = TimeSpan.FromSeconds(25));
 builder.Services.AddAuthentication("Session").AddScheme<AuthenticationSchemeOptions, SessionAuthenticationHandler>("Session", null);
 builder.Services.AddAuthorization();
 builder.Services.AddRateLimiter(options =>
