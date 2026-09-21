@@ -92,6 +92,17 @@ class _HomePageState extends State<HomePage> {
     return 'Kavindu';
   }
 
+  String get _greeting {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12) {
+      return 'Good morning';
+    } else if (hour >= 12 && hour < 17) {
+      return 'Good afternoon';
+    } else {
+      return 'Good evening';
+    }
+  }
+
   void _openAllCategories() async {
     final targetIndex = await Navigator.push<int>(
       context,
@@ -124,10 +135,7 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       backgroundColor: palette.background,
-      body: IndexedStack(
-        index: _currentNavIndex,
-        children: pages,
-      ),
+      body: IndexedStack(index: _currentNavIndex, children: pages),
       bottomNavigationBar: TaskBridgeBottomNav(
         currentIndex: _currentNavIndex,
         onTap: (index) {
@@ -168,7 +176,7 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Expanded(
                   child: Text(
-                    'Good morning,\n$_userName',
+                    '$_greeting,\n$_userName',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w800,
@@ -191,48 +199,47 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: AppSpacing.s12),
 
             // ── Location Center Row ──
-            InkWell(
-              onTap: _changeLocation,
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  children: [
-                    Icon(
-                      AppIcons.location,
-                      color: palette.primary,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        _isLoadingLocation
-                            ? 'Locating you… · '
-                            : '${_userLocation.shortName} · ',
-                        style: TextStyle(
-                          color: palette.muted,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  Icon(AppIcons.location, color: palette.primary, size: 18),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      _isLoadingLocation
+                          ? 'Locating you… · '
+                          : '${_userLocation.shortName} · ',
+                      style: TextStyle(
+                        color: palette.muted,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    if (_isLoadingLocation)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: SizedBox.square(
-                          dimension: 12,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 1.8,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              palette.primary,
-                            ),
+                  ),
+                  if (_isLoadingLocation)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: SizedBox.square(
+                        dimension: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.8,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            palette.primary,
                           ),
                         ),
                       ),
-                    GestureDetector(
-                      onTap: _changeLocation,
+                    ),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _changeLocation,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 4,
+                      ),
                       child: Text(
                         'Change',
                         style: TextStyle(
@@ -243,10 +250,11 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
+
             const SizedBox(height: AppSpacing.s20),
 
             // ── Search Bar ──
@@ -440,10 +448,7 @@ class _HomePageState extends State<HomePage> {
                         const SizedBox(height: 2),
                         Text(
                           'Master Plumber · 4.9 ★ (84 reviews)',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: palette.muted,
-                          ),
+                          style: TextStyle(fontSize: 13, color: palette.muted),
                         ),
                         const SizedBox(height: 2),
                         Text(
