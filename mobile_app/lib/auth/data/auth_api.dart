@@ -331,6 +331,7 @@ class AuthApi {
 
   // Sets up or updates the user's provider profile and activates provider mode.
   Future<AuthUser> saveProviderProfile({
+    String? category,
     String? skills,
     String? services,
     String? experience,
@@ -342,6 +343,7 @@ class AuthApi {
     double? hourlyRate,
   }) async {
     final body = <String, dynamic>{};
+    if (category != null) body['category'] = category;
     if (skills != null) body['skills'] = skills;
     if (services != null) body['services'] = services;
     if (experience != null) body['experience'] = experience;
