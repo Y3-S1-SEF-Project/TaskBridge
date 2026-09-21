@@ -174,6 +174,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
   late final TextEditingController _bioController;
   late final TextEditingController _hourlyRateController;
 
+  String? _selectedCategory;
   final List<String> _selectedServices = [];
   UserLocation? _providerLocation;
   int _selectedRadiusKm = 15;
@@ -189,6 +190,22 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
   bool _uploadingCert = false;
   bool _busy = false;
   String? _error;
+
+  String? _detectCategoryFromServices(Iterable<String> services) {
+    if (services.isEmpty) return null;
+    for (final cat in kPredefinedServiceCategories) {
+      for (final s in services) {
+        if (cat.services.any(
+          (cs) =>
+              cs.toLowerCase().contains(s.toLowerCase()) ||
+              s.toLowerCase().contains(cs.toLowerCase()),
+        )) {
+          return cat.categoryName;
+        }
+      }
+    }
+    return null;
+  }
 
   bool get _isExistingProvider {
     if (widget.isFirstTime != null) {
@@ -259,6 +276,12 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
           .map((s) => s.trim())
           .where((s) => s.isNotEmpty);
       _selectedServices.addAll(parsed.toSet());
+    }
+
+    // Populate primary category
+    _selectedCategory = widget.user.providerCategory;
+    if (_selectedCategory == null || _selectedCategory!.trim().isEmpty) {
+      _selectedCategory = _detectCategoryFromServices(_selectedServices);
     }
 
     // Populate location & radius
@@ -725,6 +748,100 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
     }
   }
 
+  void _openCategoryPicker() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: Colors.white,
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                const Text(
+                  'Select Primary Category',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Choose the main category that best represents your trade.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: kPredefinedServiceCategories.length,
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final cat = kPredefinedServiceCategories[index];
+                      final isSelected = _selectedCategory == cat.categoryName;
+                      return ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.primaryLight,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            cat.icon,
+                            size: 18,
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.primary,
+                          ),
+                        ),
+                        title: Text(
+                          cat.categoryName,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w600,
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.textPrimary,
+                          ),
+                        ),
+                        trailing: isSelected
+                            ? const Icon(
+                                Icons.check_circle,
+                                color: AppColors.primary,
+                              )
+                            : null,
+                        onTap: () {
+                          setState(() {
+                            _selectedCategory = cat.categoryName;
+                          });
+                          Navigator.pop(ctx);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _openServiceSelectionSheet() {
     final tempSelected = Set<String>.from(_selectedServices);
     String searchQuery = '';
@@ -761,17 +878,6 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
               builder: (context, scrollController) {
                 return Column(
                   children: [
-                    // Sheet grabber handle
-                    Container(
-                      margin: const EdgeInsets.only(top: 12, bottom: 8),
-                      width: 44,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppColors.border,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-
                     // Sheet Header
                     Padding(
                       padding: const EdgeInsets.symmetric(
@@ -1035,8 +1141,9 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                   return s.toLowerCase().contains(query);
                                 }).toList();
 
-                                if (services.isEmpty)
+                                if (services.isEmpty) {
                                   return const SizedBox.shrink();
+                                }
 
                                 return Padding(
                                   padding: const EdgeInsets.symmetric(
@@ -1203,6 +1310,15 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                               setState(() {
                                 _selectedServices.clear();
                                 _selectedServices.addAll(tempSelected);
+                                if (selectedCategoryFilter != null) {
+                                  _selectedCategory = selectedCategoryFilter;
+                                } else if (_selectedCategory == null ||
+                                    _selectedCategory!.isEmpty) {
+                                  _selectedCategory =
+                                      _detectCategoryFromServices(
+                                        _selectedServices,
+                                      );
+                                }
                                 if (_skillsController.text.trim().isEmpty &&
                                     _selectedServices.isNotEmpty) {
                                   _skillsController.text = _selectedServices
@@ -1246,6 +1362,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
           : widget.user.providerServiceAreas;
 
       final updated = await widget.api.saveProviderProfile(
+        category: _selectedCategory ?? widget.user.providerCategory,
         skills: widget.user.providerSkills,
         services: servicesString,
         experience: widget.user.providerExperience,
@@ -1317,6 +1434,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
           (widget.user.providerHourlyRate ?? 2500.0);
 
       final updated = await widget.api.saveProviderProfile(
+        category: _selectedCategory,
         skills: skillsText,
         services: servicesString,
         experience: _experienceController.text.trim(),
@@ -1425,6 +1543,76 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                           ],
                         ),
                         const SizedBox(height: AppSpacing.s20),
+
+                        // ── 0. Primary Trade Category ──
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Primary Trade Category',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            InkWell(
+                              onTap: _busy ? null : _openCategoryPicker,
+                              borderRadius: BorderRadius.circular(14),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: _selectedCategory != null
+                                        ? AppColors.primary
+                                        : AppColors.border,
+                                    width: _selectedCategory != null
+                                        ? 1.5
+                                        : 1.0,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.category_outlined,
+                                      color: _selectedCategory != null
+                                          ? AppColors.primary
+                                          : AppColors.textSecondary,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        _selectedCategory ??
+                                            'Select your primary trade category',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: _selectedCategory != null
+                                              ? FontWeight.w700
+                                              : FontWeight.normal,
+                                          color: _selectedCategory != null
+                                              ? AppColors.textPrimary
+                                              : AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ),
+                                    const Icon(
+                                      Icons.arrow_drop_down,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.s16),
 
                         // ── 1. Skills Field ──
                         AuthInput(

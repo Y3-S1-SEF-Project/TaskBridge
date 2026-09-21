@@ -16,6 +16,7 @@ import 'customer_bookings_page.dart';
 import 'customer_chat_page.dart';
 import 'location_picker_page.dart';
 import 'profile_page.dart';
+import '../../ai/widgets/ai_prompt_sheet.dart';
 
 class HomePage extends StatefulWidget {
   final AuthUser? user;
@@ -304,11 +305,9 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('AI Recommendation opening soon'),
-                            duration: Duration(seconds: 1),
-                          ),
+                        AiPromptSheet.show(
+                          context,
+                          currentLocation: _userLocation.shortName,
                         );
                       },
                       child: const Text(
