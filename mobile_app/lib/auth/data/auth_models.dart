@@ -17,6 +17,7 @@ class AuthUser {
     this.providerAvailability,
     this.providerBio,
     this.providerEarnings,
+    this.providerHourlyRate,
   });
 
   final String id;
@@ -36,6 +37,7 @@ class AuthUser {
   final String? providerAvailability;
   final String? providerBio;
   final double? providerEarnings;
+  final double? providerHourlyRate;
 
   AuthUser copyWith({
     String? fullName,
@@ -54,6 +56,7 @@ class AuthUser {
     String? providerAvailability,
     String? providerBio,
     double? providerEarnings,
+    double? providerHourlyRate,
   }) =>
       AuthUser(
         id: id,
@@ -76,6 +79,7 @@ class AuthUser {
             providerAvailability ?? this.providerAvailability,
         providerBio: providerBio ?? this.providerBio,
         providerEarnings: providerEarnings ?? this.providerEarnings,
+        providerHourlyRate: providerHourlyRate ?? this.providerHourlyRate,
       );
 
   factory AuthUser.fromJson(Map<String, dynamic> json) => AuthUser(
@@ -98,6 +102,9 @@ class AuthUser {
         providerEarnings: (json['providerEarnings'] is num)
             ? (json['providerEarnings'] as num).toDouble()
             : 54000.0,
+        providerHourlyRate: (json['providerHourlyRate'] is num)
+            ? (json['providerHourlyRate'] as num).toDouble()
+            : 2500.0,
       );
 
   Map<String, dynamic> toJson() => {
@@ -118,6 +125,7 @@ class AuthUser {
         'providerAvailability': providerAvailability,
         'providerBio': providerBio,
         'providerEarnings': providerEarnings,
+        'providerHourlyRate': providerHourlyRate,
       };
 }
 

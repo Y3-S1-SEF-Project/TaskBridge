@@ -172,6 +172,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
   late final TextEditingController _experienceController;
   late final TextEditingController _availabilityController;
   late final TextEditingController _bioController;
+  late final TextEditingController _hourlyRateController;
 
   final List<String> _selectedServices = [];
   UserLocation? _providerLocation;
@@ -240,6 +241,13 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
       ]),
     );
 
+    final initialRate =
+        widget.user.providerHourlyRate != null &&
+            widget.user.providerHourlyRate! > 0
+        ? widget.user.providerHourlyRate!.toInt().toString()
+        : '2500';
+    _hourlyRateController = TextEditingController(text: initialRate);
+
     // Populate selected services
     final servicesRaw = cleanMock(widget.user.providerServices, [
       'Tap repair',
@@ -258,12 +266,16 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
       'Colombo and Nugegoda',
       'Colombo 03, 04, 05, 06',
     ]);
-    final matchRadius = RegExp(r'Within\s+(\d+)\s*km', caseSensitive: false).firstMatch(areasRaw);
+    final matchRadius = RegExp(
+      r'Within\s+(\d+)\s*km',
+      caseSensitive: false,
+    ).firstMatch(areasRaw);
     if (matchRadius != null) {
       _selectedRadiusKm = int.tryParse(matchRadius.group(1) ?? '') ?? 15;
     }
 
-    if (widget.user.location != null && widget.user.location!.trim().isNotEmpty) {
+    if (widget.user.location != null &&
+        widget.user.location!.trim().isNotEmpty) {
       final locText = widget.user.location!.trim();
       _providerLocation = UserLocation(
         shortName: locText.split(',').first.trim(),
@@ -272,7 +284,9 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
         longitude: 79.8612,
       );
     } else if (areasRaw.isNotEmpty) {
-      final cleanName = areasRaw.replaceAll(RegExp(r'\(.*?\)', caseSensitive: false), '').trim();
+      final cleanName = areasRaw
+          .replaceAll(RegExp(r'\(.*?\)', caseSensitive: false), '')
+          .trim();
       if (cleanName.isNotEmpty) {
         _providerLocation = UserLocation(
           shortName: cleanName.split(',').first.trim(),
@@ -366,7 +380,10 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
         if (endH < startH || endH <= 7) endH += 12;
       }
 
-      _startTime = TimeOfDay(hour: startH.clamp(0, 23), minute: startM.clamp(0, 59));
+      _startTime = TimeOfDay(
+        hour: startH.clamp(0, 23),
+        minute: startM.clamp(0, 59),
+      );
       _endTime = TimeOfDay(hour: endH.clamp(0, 23), minute: endM.clamp(0, 59));
     }
   }
@@ -423,7 +440,6 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
     }
   }
 
-
   @override
   void dispose() {
     _miniMapController?.dispose();
@@ -431,6 +447,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
     _experienceController.dispose();
     _availabilityController.dispose();
     _bioController.dispose();
+    _hourlyRateController.dispose();
     super.dispose();
   }
 
@@ -679,7 +696,10 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
       _miniMapController!.animateCamera(
         CameraUpdate.newCameraPosition(
           CameraPosition(
-            target: LatLng(_providerLocation!.latitude, _providerLocation!.longitude),
+            target: LatLng(
+              _providerLocation!.latitude,
+              _providerLocation!.longitude,
+            ),
             zoom: _getZoomForRadius(_selectedRadiusKm),
           ),
         ),
@@ -724,7 +744,8 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
 
             // Filter categories and services
             final visibleCategories = kPredefinedServiceCategories.where((cat) {
-              if (selectedCategoryFilter != null && cat.categoryName != selectedCategoryFilter) {
+              if (selectedCategoryFilter != null &&
+                  cat.categoryName != selectedCategoryFilter) {
                 return false;
               }
               if (query.isEmpty) return true;
@@ -753,7 +774,10 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
 
                     // Sheet Header
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 8,
+                      ),
                       child: Row(
                         children: [
                           Expanded(
@@ -806,7 +830,10 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
 
                     // Search Field
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 6,
+                      ),
                       child: TextField(
                         autofocus: false,
                         decoration: InputDecoration(
@@ -815,10 +842,16 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                             fontSize: 14,
                             color: AppColors.textSecondary,
                           ),
-                          prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary),
+                          prefixIcon: const Icon(
+                            Icons.search_rounded,
+                            color: AppColors.textSecondary,
+                          ),
                           suffixIcon: query.isNotEmpty
                               ? IconButton(
-                                  icon: const Icon(Icons.clear_rounded, size: 18),
+                                  icon: const Icon(
+                                    Icons.clear_rounded,
+                                    size: 18,
+                                  ),
                                   onPressed: () {
                                     setSheetState(() => searchQuery = '');
                                   },
@@ -826,18 +859,28 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                               : null,
                           filled: true,
                           fillColor: AppColors.background,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 16,
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(14),
-                            borderSide: const BorderSide(color: AppColors.border),
+                            borderSide: const BorderSide(
+                              color: AppColors.border,
+                            ),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(14),
-                            borderSide: const BorderSide(color: AppColors.border),
+                            borderSide: const BorderSide(
+                              color: AppColors.border,
+                            ),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(14),
-                            borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                            borderSide: const BorderSide(
+                              color: AppColors.primary,
+                              width: 1.5,
+                            ),
                           ),
                         ),
                         onChanged: (val) {
@@ -851,7 +894,10 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                       height: 42,
                       child: ListView(
                         scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
                         children: [
                           Padding(
                             padding: const EdgeInsets.only(right: 6),
@@ -876,12 +922,15 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                 ),
                               ),
                               onSelected: (_) {
-                                setSheetState(() => selectedCategoryFilter = null);
+                                setSheetState(
+                                  () => selectedCategoryFilter = null,
+                                );
                               },
                             ),
                           ),
                           ...kPredefinedServiceCategories.map((cat) {
-                            final isSel = selectedCategoryFilter == cat.categoryName;
+                            final isSel =
+                                selectedCategoryFilter == cat.categoryName;
                             return Padding(
                               padding: const EdgeInsets.only(right: 6),
                               child: ChoiceChip(
@@ -890,19 +939,25 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                 labelStyle: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: isSel ? Colors.white : AppColors.textPrimary,
+                                  color: isSel
+                                      ? Colors.white
+                                      : AppColors.textPrimary,
                                 ),
                                 selectedColor: AppColors.primary,
                                 backgroundColor: AppColors.surface,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                   side: BorderSide(
-                                    color: isSel ? AppColors.primary : AppColors.border,
+                                    color: isSel
+                                        ? AppColors.primary
+                                        : AppColors.border,
                                   ),
                                 ),
                                 onSelected: (_) {
                                   setSheetState(() {
-                                    selectedCategoryFilter = isSel ? null : cat.categoryName;
+                                    selectedCategoryFilter = isSel
+                                        ? null
+                                        : cat.categoryName;
                                   });
                                 },
                               ),
@@ -952,11 +1007,18 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                         backgroundColor: AppColors.primary,
                                         foregroundColor: Colors.white,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(20),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
                                         ),
                                       ),
-                                      icon: const Icon(Icons.add_rounded, size: 18),
-                                      label: Text('Add "$searchQuery" as Custom Service'),
+                                      icon: const Icon(
+                                        Icons.add_rounded,
+                                        size: 18,
+                                      ),
+                                      label: Text(
+                                        'Add "$searchQuery" as Custom Service',
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -973,18 +1035,25 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                   return s.toLowerCase().contains(query);
                                 }).toList();
 
-                                if (services.isEmpty) return const SizedBox.shrink();
+                                if (services.isEmpty)
+                                  return const SizedBox.shrink();
 
                                 return Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 4,
+                                  ),
                                   child: Container(
                                     decoration: BoxDecoration(
                                       color: AppColors.surface,
                                       borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(color: AppColors.border),
+                                      border: Border.all(
+                                        color: AppColors.border,
+                                      ),
                                     ),
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         // Category Header
                                         Padding(
@@ -995,10 +1064,13 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                           child: Row(
                                             children: [
                                               Container(
-                                                padding: const EdgeInsets.all(6),
+                                                padding: const EdgeInsets.all(
+                                                  6,
+                                                ),
                                                 decoration: BoxDecoration(
                                                   color: AppColors.primaryLight,
-                                                  borderRadius: BorderRadius.circular(8),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
                                                 ),
                                                 child: Icon(
                                                   cat.icon,
@@ -1022,7 +1094,8 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
 
                                         // Category Services
                                         ...services.map((service) {
-                                          final isChecked = tempSelected.contains(service);
+                                          final isChecked = tempSelected
+                                              .contains(service);
                                           return InkWell(
                                             onTap: () {
                                               setSheetState(() {
@@ -1034,21 +1107,27 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                               });
                                             },
                                             child: Padding(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 14,
-                                                vertical: 10,
-                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 14,
+                                                    vertical: 10,
+                                                  ),
                                               child: Row(
                                                 children: [
                                                   AnimatedContainer(
-                                                    duration: const Duration(milliseconds: 180),
+                                                    duration: const Duration(
+                                                      milliseconds: 180,
+                                                    ),
                                                     width: 22,
                                                     height: 22,
                                                     decoration: BoxDecoration(
                                                       color: isChecked
                                                           ? AppColors.primary
                                                           : Colors.transparent,
-                                                      borderRadius: BorderRadius.circular(6),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            6,
+                                                          ),
                                                       border: Border.all(
                                                         color: isChecked
                                                             ? AppColors.primary
@@ -1074,8 +1153,10 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                                             ? FontWeight.w600
                                                             : FontWeight.normal,
                                                         color: isChecked
-                                                            ? AppColors.textPrimary
-                                                            : AppColors.textPrimary,
+                                                            ? AppColors
+                                                                  .textPrimary
+                                                            : AppColors
+                                                                  .textPrimary,
                                                       ),
                                                     ),
                                                   ),
@@ -1122,8 +1203,11 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                               setState(() {
                                 _selectedServices.clear();
                                 _selectedServices.addAll(tempSelected);
-                                if (_skillsController.text.trim().isEmpty && _selectedServices.isNotEmpty) {
-                                  _skillsController.text = _selectedServices.take(2).join(' · ');
+                                if (_skillsController.text.trim().isEmpty &&
+                                    _selectedServices.isNotEmpty) {
+                                  _skillsController.text = _selectedServices
+                                      .take(2)
+                                      .join(' · ');
                                 }
                               });
                               Navigator.pop(ctx);
@@ -1169,6 +1253,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
         availability: widget.user.providerAvailability,
         bio: widget.user.providerBio,
         location: _providerLocation?.address ?? _providerLocation?.shortName,
+        hourlyRate: widget.user.providerHourlyRate ?? 2500.0,
       );
 
       await UserModeService.setMode(UserMode.provider);
@@ -1193,7 +1278,8 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => ProviderMainPage(user: fallbackUser, api: widget.api),
+            builder: (_) =>
+                ProviderMainPage(user: fallbackUser, api: widget.api),
           ),
         );
       }
@@ -1217,7 +1303,18 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
 
       final skillsText = _skillsController.text.trim().isNotEmpty
           ? _skillsController.text.trim()
-          : (_selectedServices.isNotEmpty ? _selectedServices.first : 'Specialist');
+          : (_selectedServices.isNotEmpty
+                ? _selectedServices.first
+                : 'Specialist');
+
+      final cleanRate = _hourlyRateController.text
+          .replaceAll(',', '')
+          .replaceAll('Rs.', '')
+          .replaceAll('LKR', '')
+          .trim();
+      final parsedRate =
+          double.tryParse(cleanRate) ??
+          (widget.user.providerHourlyRate ?? 2500.0);
 
       final updated = await widget.api.saveProviderProfile(
         skills: skillsText,
@@ -1228,6 +1325,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
         availability: _availabilityController.text.trim(),
         bio: _bioController.text.trim(),
         location: _providerLocation?.address ?? _providerLocation?.shortName,
+        hourlyRate: parsedRate,
       );
 
       await UserModeService.setMode(UserMode.provider);
@@ -1363,7 +1461,9 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                         ),
                                         decoration: BoxDecoration(
                                           color: AppColors.primaryLight,
-                                          borderRadius: BorderRadius.circular(10),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
                                         ),
                                         child: Text(
                                           '${_selectedServices.length}',
@@ -1464,10 +1564,14 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                   right: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primaryLight.withValues(alpha: 0.6),
+                                  color: AppColors.primaryLight.withValues(
+                                    alpha: 0.6,
+                                  ),
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: AppColors.primary.withValues(alpha: 0.3),
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.3,
+                                    ),
                                     width: 1,
                                   ),
                                 ),
@@ -1493,7 +1597,9 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                         padding: const EdgeInsets.all(2),
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
-                                          color: AppColors.primary.withValues(alpha: 0.15),
+                                          color: AppColors.primary.withValues(
+                                            alpha: 0.15,
+                                          ),
                                         ),
                                         child: const Icon(
                                           Icons.close_rounded,
@@ -1560,10 +1666,12 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            _providerLocation?.shortName ?? 'Select Base Location',
+                                            _providerLocation?.shortName ??
+                                                'Select Base Location',
                                             style: const TextStyle(
                                               fontSize: 15,
                                               fontWeight: FontWeight.w700,
@@ -1597,7 +1705,9 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                         ),
                                         decoration: BoxDecoration(
                                           color: AppColors.primaryLight,
-                                          borderRadius: BorderRadius.circular(20),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
                                         ),
                                         child: const Row(
                                           mainAxisSize: MainAxisSize.min,
@@ -1633,9 +1743,12 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                       initialCameraPosition: CameraPosition(
                                         target: LatLng(
                                           _providerLocation?.latitude ?? 6.9271,
-                                          _providerLocation?.longitude ?? 79.8612,
+                                          _providerLocation?.longitude ??
+                                              79.8612,
                                         ),
-                                        zoom: _getZoomForRadius(_selectedRadiusKm),
+                                        zoom: _getZoomForRadius(
+                                          _selectedRadiusKm,
+                                        ),
                                       ),
                                       onMapCreated: (controller) {
                                         _miniMapController = controller;
@@ -1643,13 +1756,16 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                       circles: {
                                         if (_providerLocation != null)
                                           Circle(
-                                            circleId: const CircleId('provider_radius_circle'),
+                                            circleId: const CircleId(
+                                              'provider_radius_circle',
+                                            ),
                                             center: LatLng(
                                               _providerLocation!.latitude,
                                               _providerLocation!.longitude,
                                             ),
                                             radius: _selectedRadiusKm * 1000.0,
-                                            fillColor: AppColors.primary.withValues(alpha: 0.18),
+                                            fillColor: AppColors.primary
+                                                .withValues(alpha: 0.18),
                                             strokeColor: AppColors.primary,
                                             strokeWidth: 2,
                                           ),
@@ -1657,14 +1773,18 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                       markers: {
                                         if (_providerLocation != null)
                                           Marker(
-                                            markerId: const MarkerId('provider_marker'),
+                                            markerId: const MarkerId(
+                                              'provider_marker',
+                                            ),
                                             position: LatLng(
                                               _providerLocation!.latitude,
                                               _providerLocation!.longitude,
                                             ),
                                             infoWindow: InfoWindow(
-                                              title: _providerLocation!.shortName,
-                                              snippet: 'Coverage: $_selectedRadiusKm km',
+                                              title:
+                                                  _providerLocation!.shortName,
+                                              snippet:
+                                                  'Coverage: $_selectedRadiusKm km',
                                             ),
                                           ),
                                       },
@@ -1686,11 +1806,17 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                           vertical: 5,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withValues(alpha: 0.94),
-                                          borderRadius: BorderRadius.circular(20),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.94,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: Colors.black.withValues(alpha: 0.1),
+                                              color: Colors.black.withValues(
+                                                alpha: 0.1,
+                                              ),
                                               blurRadius: 4,
                                               offset: const Offset(0, 2),
                                             ),
@@ -1732,10 +1858,14 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                           ),
                                           decoration: BoxDecoration(
                                             color: Colors.white,
-                                            borderRadius: BorderRadius.circular(20),
+                                            borderRadius: BorderRadius.circular(
+                                              20,
+                                            ),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: Colors.black.withValues(alpha: 0.15),
+                                                color: Colors.black.withValues(
+                                                  alpha: 0.15,
+                                                ),
                                                 blurRadius: 6,
                                                 offset: const Offset(0, 2),
                                               ),
@@ -1802,18 +1932,24 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                 final isSelected = _selectedRadiusKm == radius;
                                 return Expanded(
                                   child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 3,
+                                    ),
                                     child: InkWell(
                                       onTap: () => _onRadiusSelected(radius),
                                       borderRadius: BorderRadius.circular(10),
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(vertical: 9),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 9,
+                                        ),
                                         alignment: Alignment.center,
                                         decoration: BoxDecoration(
                                           color: isSelected
                                               ? AppColors.primary
                                               : AppColors.surface,
-                                          borderRadius: BorderRadius.circular(10),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
                                           border: Border.all(
                                             color: isSelected
                                                 ? AppColors.primary
@@ -1846,7 +1982,9 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.primaryLight.withValues(alpha: 0.4),
+                                color: AppColors.primaryLight.withValues(
+                                  alpha: 0.4,
+                                ),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(
@@ -2064,43 +2202,59 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                           height: 38,
                           child: ListView(
                             scrollDirection: Axis.horizontal,
-                            children: ['Mon–Sat', 'Mon–Fri', 'Everyday', 'Weekends'].map((days) {
-                              final isSel = _selectedDays == days;
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: InkWell(
-                                  onTap: () {
-                                    setState(() {
-                                      _selectedDays = days;
-                                      _updateAvailabilityText();
-                                    });
-                                  },
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: isSel ? AppColors.primary : AppColors.surface,
+                            children:
+                                [
+                                  'Mon–Sat',
+                                  'Mon–Fri',
+                                  'Everyday',
+                                  'Weekends',
+                                ].map((days) {
+                                  final isSel = _selectedDays == days;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          _selectedDays = days;
+                                          _updateAvailabilityText();
+                                        });
+                                      },
                                       borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                        color: isSel ? AppColors.primary : AppColors.border,
-                                        width: isSel ? 1.5 : 1,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isSel
+                                              ? AppColors.primary
+                                              : AppColors.surface,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          border: Border.all(
+                                            color: isSel
+                                                ? AppColors.primary
+                                                : AppColors.border,
+                                            width: isSel ? 1.5 : 1,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          days,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: isSel
+                                                ? FontWeight.w700
+                                                : FontWeight.w500,
+                                            color: isSel
+                                                ? Colors.white
+                                                : AppColors.textPrimary,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                    child: Text(
-                                      days,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
-                                        color: isSel ? Colors.white : AppColors.textPrimary,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }).toList(),
+                                  );
+                                }).toList(),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -2124,7 +2278,8 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                     border: Border.all(color: AppColors.border),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       const Row(
                                         children: [
@@ -2171,7 +2326,9 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                               ),
                             ),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
                               child: Container(
                                 padding: const EdgeInsets.all(6),
                                 decoration: const BoxDecoration(
@@ -2201,7 +2358,8 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                     border: Border.all(color: AppColors.border),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       const Row(
                                         children: [
@@ -2258,7 +2416,9 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.primaryLight.withValues(alpha: 0.4),
+                            color: AppColors.primaryLight.withValues(
+                              alpha: 0.4,
+                            ),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
@@ -2284,7 +2444,104 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                         ),
                         const SizedBox(height: AppSpacing.s20),
 
-                        // ── 7. Bio Field (Enlarged Multi-line Text Area) ──
+                        // ── 7. Standard Hourly Rate (LKR) ──
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: const [
+                                Text(
+                                  'Standard Hourly Rate (LKR)',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                Text(
+                                  'LKR / hr',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Set your baseline hourly rate. TaskBridge AI uses this to match you with customer job budgets.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                                height: 1.35,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            AuthInput(
+                              label: 'Rate per hour (LKR)',
+                              hint: 'e.g. 2500',
+                              controller: _hourlyRateController,
+                              enabled: !_busy,
+                              keyboardType: TextInputType.number,
+                            ),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [1500, 2000, 2500, 3500, 5000].map((
+                                preset,
+                              ) {
+                                final isSelected =
+                                    _hourlyRateController.text.trim() ==
+                                    preset.toString();
+                                return InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _hourlyRateController.text = preset
+                                          .toString();
+                                    });
+                                  },
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? AppColors.primary
+                                          : AppColors.primaryLight.withValues(
+                                              alpha: 0.5,
+                                            ),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? AppColors.primary
+                                            : AppColors.primary.withValues(
+                                                alpha: 0.25,
+                                              ),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Rs. $preset',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : AppColors.primary,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.s20),
+
+                        // ── 8. Bio Field (Enlarged Multi-line Text Area) ──
                         AuthInput(
                           label: 'Bio (Optional)',
                           hint:
@@ -2304,7 +2561,9 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
 
                         // ── Finish Setup Button ──
                         AppButton(
-                          label: _isExistingProvider ? 'Save Changes' : 'Save & Continue',
+                          label: _isExistingProvider
+                              ? 'Save Changes'
+                              : 'Save & Continue',
                           loading: _busy,
                           onPressed: _submit,
                         ),
