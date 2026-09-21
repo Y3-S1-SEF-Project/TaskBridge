@@ -748,6 +748,106 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
     }
   }
 
+  void _openCustomCategoryDialog(BuildContext sheetCtx) {
+    final textController = TextEditingController(
+      text:
+          kPredefinedServiceCategories.any(
+            (c) => c.categoryName == _selectedCategory,
+          )
+          ? ''
+          : (_selectedCategory ?? ''),
+    );
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Add Custom Category',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Enter your trade or service category:',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: textController,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                hintText: 'e.g. Masonry, Locksmith, Pest Control…',
+                hintStyle: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                ),
+                filled: true,
+                fillColor: AppColors.surface,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: AppColors.primary,
+                    width: 1.5,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              elevation: 0,
+            ),
+            onPressed: () {
+              final customVal = textController.text.trim();
+              if (customVal.isNotEmpty) {
+                setState(() {
+                  _selectedCategory = customVal;
+                });
+                Navigator.pop(dialogCtx);
+                Navigator.pop(sheetCtx);
+              }
+            },
+            child: const Text(
+              'Confirm',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _openCategoryPicker() {
     showModalBottomSheet(
       context: context,
@@ -783,12 +883,76 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                 const SizedBox(height: 16),
                 Expanded(
                   child: ListView.separated(
-                    itemCount: kPredefinedServiceCategories.length,
+                    itemCount: kPredefinedServiceCategories.length + 1,
                     separatorBuilder: (context, index) =>
                         const Divider(height: 1),
                     itemBuilder: (context, index) {
+                      // Custom "Other" option at the end
+                      if (index == kPredefinedServiceCategories.length) {
+                        final isCustom =
+                            _selectedCategory != null &&
+                            _selectedCategory!.trim().isNotEmpty &&
+                            !kPredefinedServiceCategories.any(
+                              (c) =>
+                                  c.categoryName.toLowerCase() ==
+                                  _selectedCategory!.toLowerCase(),
+                            );
+
+                        return ListTile(
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: isCustom
+                                  ? AppColors.primary
+                                  : AppColors.primaryLight,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.add_circle_outline_rounded,
+                              size: 18,
+                              color: isCustom
+                                  ? Colors.white
+                                  : AppColors.primary,
+                            ),
+                          ),
+                          title: Text(
+                            isCustom
+                                ? 'Other: $_selectedCategory'
+                                : 'Other (Add custom category)',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: isCustom
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                              color: isCustom
+                                  ? AppColors.primary
+                                  : AppColors.textPrimary,
+                            ),
+                          ),
+                          subtitle: isCustom
+                              ? const Text(
+                                  'Tap to change custom category',
+                                  style: TextStyle(fontSize: 12),
+                                )
+                              : null,
+                          trailing: isCustom
+                              ? const Icon(
+                                  Icons.check_circle,
+                                  color: AppColors.primary,
+                                )
+                              : const Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: AppColors.textSecondary,
+                                ),
+                          onTap: () => _openCustomCategoryDialog(ctx),
+                        );
+                      }
+
                       final cat = kPredefinedServiceCategories[index];
-                      final isSelected = _selectedCategory == cat.categoryName;
+                      final isSelected =
+                          _selectedCategory != null &&
+                          _selectedCategory!.toLowerCase() ==
+                              cat.categoryName.toLowerCase();
                       return ListTile(
                         leading: Container(
                           padding: const EdgeInsets.all(8),

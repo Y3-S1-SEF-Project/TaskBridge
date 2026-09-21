@@ -12,6 +12,7 @@ class PlanningApi {
     return const [
       'http://localhost:5298',
       'http://10.0.2.2:5298',
+      'http://192.168.1.4:5298',
       'http://192.168.1.2:5298',
     ];
   }
