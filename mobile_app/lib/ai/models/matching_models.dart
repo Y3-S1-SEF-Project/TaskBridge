@@ -1,4 +1,5 @@
 import 'planning_models.dart';
+import '../../home/models/provider_item.dart';
 
 class ScoreBreakdown {
   final double skillScore;
@@ -73,11 +74,29 @@ class MatchedProvider {
       rating: (json['rating'] as num?)?.toDouble() ?? 4.8,
       reviewCount: json['reviewCount'] as int? ?? 12,
       matchScore: json['matchScore'] as int? ?? 90,
-      aiMatchReason: json['aiMatchReason'] as String? ??
+      aiMatchReason:
+          json['aiMatchReason'] as String? ??
           'Matched based on expertise and proximity to your location.',
       scoreBreakdown: ScoreBreakdown.fromJson(
         json['scoreBreakdown'] as Map<String, dynamic>? ?? {},
       ),
+    );
+  }
+
+  ProviderItem toProviderItem() {
+    return ProviderItem(
+      id: providerId,
+      userId: userId,
+      fullName: fullName,
+      profilePhotoUrl: profilePhotoUrl,
+      phone: phone,
+      category: category,
+      skills: skills,
+      serviceAreas: serviceAreas,
+      hourlyRate: hourlyRate,
+      rating: rating,
+      reviewCount: reviewCount,
+      distanceKm: distanceKm,
     );
   }
 }

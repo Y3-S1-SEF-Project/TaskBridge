@@ -139,6 +139,34 @@ public class PlanningAgentService
                 }
             }
 
+            // Explicitly detect if prompt mentioned date/time keywords
+            var pLower = request.Prompt.ToLowerInvariant();
+            var hasDateWords = pLower.Contains("today") || pLower.Contains("tomorrow") || pLower.Contains("tonight")
+                || pLower.Contains("monday") || pLower.Contains("tuesday") || pLower.Contains("wednesday")
+                || pLower.Contains("thursday") || pLower.Contains("friday") || pLower.Contains("saturday")
+                || pLower.Contains("sunday") || pLower.Contains("weekend") || pLower.Contains("next week")
+                || pLower.Contains("this week") || pLower.Contains("sep") || pLower.Contains("oct") || pLower.Contains("nov");
+
+            var hasTimeWords = pLower.Contains("am") || pLower.Contains("pm") || pLower.Contains("morning")
+                || pLower.Contains("afternoon") || pLower.Contains("evening") || pLower.Contains("night")
+                || pLower.Contains("urgent") || pLower.Contains("asap") || pLower.Contains("o'clock")
+                || pLower.Contains(":00") || pLower.Contains(":30") || pLower.Contains("after 3") || pLower.Contains("at 3");
+
+            bool isDateMissing = !hasDateWords || string.IsNullOrWhiteSpace(openAiData.ScheduledDate) || openAiData.ScheduledDate.Equals("Flexible", StringComparison.OrdinalIgnoreCase);
+            bool isTimeMissing = !hasTimeWords || string.IsNullOrWhiteSpace(openAiData.ScheduledTime) || openAiData.ScheduledTime.Equals("Flexible", StringComparison.OrdinalIgnoreCase);
+
+            if (isDateMissing)
+            {
+                openAiData.ScheduledDate = null;
+                if (!openAiData.MissingFields.Contains("date")) openAiData.MissingFields.Add("date");
+            }
+
+            if (isTimeMissing)
+            {
+                openAiData.ScheduledTime = null;
+                if (!openAiData.MissingFields.Contains("time")) openAiData.MissingFields.Add("time");
+            }
+
             // If location was provided in request context, ensure location is set
             if (!string.IsNullOrWhiteSpace(request.UserLocation) && string.IsNullOrWhiteSpace(openAiData.Location))
             {
@@ -162,6 +190,19 @@ public class PlanningAgentService
                 openAiData.MissingFields.Remove("location");
             }
 
+            if (openAiData.IsLocationMissing && (isDateMissing || isTimeMissing))
+            {
+                openAiData.ClarificationQuestion = "Where and when do you need the service? We need your location and preferred schedule.";
+            }
+            else if (openAiData.IsLocationMissing)
+            {
+                openAiData.ClarificationQuestion = "Where do you need the service? We need your location to find providers who cover your area.";
+            }
+            else if (isDateMissing || isTimeMissing)
+            {
+                openAiData.ClarificationQuestion = "When would you like this service scheduled? Please select your preferred date and time.";
+            }
+
             var plan = new JobPlanDetails
             {
                 ServiceTitle = string.IsNullOrWhiteSpace(openAiData.ServiceTitle) ? "Home Service Repair" : openAiData.ServiceTitle,
@@ -169,8 +210,8 @@ public class PlanningAgentService
                 Description = string.IsNullOrWhiteSpace(openAiData.Description) ? request.Prompt : openAiData.Description,
                 Location = openAiData.Location,
                 LocationAddress = openAiData.LocationAddress ?? (string.IsNullOrWhiteSpace(openAiData.Location) ? null : "24 Park Road"),
-                ScheduledDate = string.IsNullOrWhiteSpace(openAiData.ScheduledDate) ? "Tomorrow · 17 Sep" : openAiData.ScheduledDate,
-                ScheduledTime = string.IsNullOrWhiteSpace(openAiData.ScheduledTime) ? "After 3:00 PM" : openAiData.ScheduledTime,
+                ScheduledDate = openAiData.ScheduledDate ?? string.Empty,
+                ScheduledTime = openAiData.ScheduledTime ?? string.Empty,
                 Budget = openAiData.Budget,
                 BudgetDisplay = string.IsNullOrWhiteSpace(openAiData.BudgetDisplay) 
                     ? (openAiData.Budget.HasValue ? $"Budget up to Rs. {openAiData.Budget.Value:N0}" : "Budget not specified") 
@@ -198,7 +239,7 @@ public class PlanningAgentService
                 {
                     StepKey = "checking_availability",
                     Title = "Checking availability",
-                    Subtitle = $"{plan.ScheduledDate.Split('·').First().Trim()} {plan.ScheduledTime}".Trim(),
+                    Subtitle = string.IsNullOrWhiteSpace(plan.ScheduledDate) ? "Availability matching" : $"{plan.ScheduledDate.Split('·').First().Trim()} {plan.ScheduledTime}".Trim(),
                     Status = "completed"
                 },
                 new()
@@ -213,7 +254,8 @@ public class PlanningAgentService
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"[✅ TASKBRIDGE AI] Parsed Service: \"{plan.ServiceTitle}\" ({plan.Category})");
             Console.WriteLine($"[✅ TASKBRIDGE AI] Location: \"{plan.Location ?? "MISSING"}\" (Missing: {openAiData.IsLocationMissing})");
-            Console.WriteLine($"[✅ TASKBRIDGE AI] Schedule: {plan.ScheduledDate} - {plan.ScheduledTime} | Budget: {plan.BudgetDisplay}");
+            Console.WriteLine($"[✅ TASKBRIDGE AI] Date: \"{(string.IsNullOrEmpty(plan.ScheduledDate) ? "MISSING" : plan.ScheduledDate)}\" | Time: \"{(string.IsNullOrEmpty(plan.ScheduledTime) ? "MISSING" : plan.ScheduledTime)}\"");
+            Console.WriteLine($"[✅ TASKBRIDGE AI] Budget: {plan.BudgetDisplay} | MissingFields: [{string.Join(", ", openAiData.MissingFields)}]");
             Console.WriteLine($"[⚡ TASKBRIDGE AI] Tokens: {tokensUsed} | Latency: {sw.ElapsedMilliseconds} ms");
             Console.ResetColor();
 
@@ -269,9 +311,24 @@ public class PlanningAgentService
         decimal? budget = hasBudgetDigits ? 5000m : null;
         var budgetDisplay = hasBudgetDigits ? "Budget up to Rs. 5,000" : "Budget not specified";
 
+        var hasDateWords = promptLower.Contains("today") || promptLower.Contains("tomorrow") || promptLower.Contains("tonight")
+            || promptLower.Contains("monday") || promptLower.Contains("tuesday") || promptLower.Contains("wednesday")
+            || promptLower.Contains("thursday") || promptLower.Contains("friday") || promptLower.Contains("saturday")
+            || promptLower.Contains("sunday") || promptLower.Contains("weekend");
+
+        var hasTimeWords = promptLower.Contains("am") || promptLower.Contains("pm") || promptLower.Contains("morning")
+            || promptLower.Contains("afternoon") || promptLower.Contains("evening") || promptLower.Contains("night")
+            || promptLower.Contains("urgent") || promptLower.Contains("asap") || promptLower.Contains("o'clock")
+            || promptLower.Contains("after 3") || promptLower.Contains("at 3");
+
         var missing = new List<string>();
         if (locationMissing) missing.Add("location");
+        if (!hasDateWords) missing.Add("date");
+        if (!hasTimeWords) missing.Add("time");
         if (!hasBudgetDigits) missing.Add("budget");
+
+        var scheduledDate = hasDateWords ? "Tomorrow · 17 Sep" : string.Empty;
+        var scheduledTime = hasTimeWords ? "After 3:00 PM" : string.Empty;
 
         var plan = new JobPlanDetails
         {
@@ -280,8 +337,8 @@ public class PlanningAgentService
             Description = desc,
             Location = location,
             LocationAddress = location != null ? "24 Park Road" : null,
-            ScheduledDate = "Tomorrow · 17 Sep",
-            ScheduledTime = "After 3:00 PM",
+            ScheduledDate = scheduledDate,
+            ScheduledTime = scheduledTime,
             Budget = budget,
             BudgetDisplay = budgetDisplay
         };
@@ -290,16 +347,26 @@ public class PlanningAgentService
         {
             new() { StepKey = "understanding_service", Title = "Understanding service", Subtitle = plan.ServiceTitle, Status = "completed" },
             new() { StepKey = "finding_providers", Title = "Finding suitable providers", Subtitle = "Skills and service area matched", Status = "completed" },
-            new() { StepKey = "checking_availability", Title = "Checking availability", Subtitle = "Tomorrow after 3 PM", Status = "completed" },
+            new() { StepKey = "checking_availability", Title = "Checking availability", Subtitle = string.IsNullOrEmpty(scheduledDate) ? "Availability matching" : $"{scheduledDate} {scheduledTime}".Trim(), Status = "completed" },
             new() { StepKey = "preparing_recommendation", Title = "Preparing recommendation", Subtitle = "Waiting for availability checks", Status = "pending" }
         };
+
+        var clarification = "Where do you need the service? We need your location to find providers who cover your area.";
+        if (locationMissing && (!hasDateWords || !hasTimeWords))
+        {
+            clarification = "Where and when do you need the service? We need your location and preferred schedule.";
+        }
+        else if (!hasDateWords || !hasTimeWords)
+        {
+            clarification = "When would you like this service scheduled? Please select your preferred date and time.";
+        }
 
         return new PlanningAnalyzeResponse
         {
             Success = true,
             IsLocationMissing = locationMissing,
             MissingFields = missing,
-            ClarificationQuestion = "Where do you need the service? We need your location to find providers who cover your area.",
+            ClarificationQuestion = clarification,
             JobPlan = plan,
             ProgressSteps = steps,
             LatencyMs = latencyMs,
