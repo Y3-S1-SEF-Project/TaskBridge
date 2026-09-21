@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_nav_bar/google_nav_bar.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_palette.dart';
 
@@ -15,106 +16,54 @@ class ProviderBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+
     final bottomInset = MediaQuery.of(context).padding.bottom;
+
     return Container(
       decoration: BoxDecoration(
         color: palette.surface,
-        border: Border(
-          top: BorderSide(color: palette.border, width: 1),
-        ),
-      ),
-      padding: EdgeInsets.only(
-        top: 8,
-        bottom: bottomInset > 0 ? bottomInset : 10,
-        left: 16,
-        right: 16,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _ProviderNavItem(
-            icon: AppIcons.chart,
-            activeIcon: AppIcons.chartBold,
-            label: 'Dashboard',
-            isSelected: currentIndex == 0,
-            onTap: () => onTap(0),
-          ),
-          _ProviderNavItem(
-            icon: AppIcons.briefcase,
-            activeIcon: AppIcons.briefcaseBold,
-            label: 'Jobs',
-            isSelected: currentIndex == 1,
-            onTap: () => onTap(1),
-          ),
-          _ProviderNavItem(
-            icon: AppIcons.message,
-            activeIcon: AppIcons.messageBold,
-            label: 'Chat',
-            isSelected: currentIndex == 2,
-            onTap: () => onTap(2),
-          ),
-          _ProviderNavItem(
-            icon: AppIcons.profile,
-            activeIcon: AppIcons.profileBold,
-            label: 'Profile',
-            isSelected: currentIndex == 3,
-            onTap: () => onTap(3),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _ProviderNavItem extends StatelessWidget {
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _ProviderNavItem({
-    required this.icon,
-    required this.activeIcon,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? palette.soft : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
+      padding: EdgeInsets.only(
+        top: 12,
+        bottom: bottomInset > 0 ? bottomInset + 8 : 20,
+        left: 20,
+        right: 20,
+      ),
+      child: GNav(
+        selectedIndex: currentIndex,
+        onTabChange: onTap,
+        rippleColor: palette.primary.withValues(alpha: 0.15),
+        hoverColor: palette.soft,
+        haptic: true,
+        tabBorderRadius: 18,
+        curve: Curves.easeInOutCubic,
+        duration: const Duration(milliseconds: 300),
+        gap: 10,
+        color: palette.muted,
+        activeColor: palette.primary,
+        iconSize: 24,
+        tabBackgroundColor: palette.soft,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        textStyle: TextStyle(
+          fontSize: 13.5,
+          fontWeight: FontWeight.w700,
+          color: palette.primary,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isSelected ? activeIcon : icon,
-              size: 22,
-              color: isSelected ? palette.primary : palette.muted,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected ? palette.primary : palette.muted,
-              ),
-            ),
-          ],
-        ),
+        tabs: const [
+          GButton(icon: AppIcons.chart, text: 'Dashboard'),
+          GButton(icon: AppIcons.briefcase, text: 'Jobs'),
+          GButton(icon: AppIcons.message, text: 'Chat'),
+          GButton(icon: AppIcons.profile, text: 'Profile'),
+        ],
       ),
     );
+
   }
 }

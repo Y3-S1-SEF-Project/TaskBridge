@@ -6,6 +6,8 @@ import '../models/service_category.dart';
 import '../widgets/category_card.dart';
 import '../widgets/taskbridge_bottom_nav.dart';
 import '../widgets/taskbridge_search_bar.dart';
+import 'provider_search_page.dart';
+import '../../ai/widgets/ai_prompt_sheet.dart';
 
 class AllCategoriesPage extends StatefulWidget {
   final int initialNavIndex;
@@ -132,10 +134,12 @@ class _AllCategoriesPageState extends State<AllCategoriesPage> {
                   return CategoryCard(
                     category: cat,
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('${cat.name} selected'),
-                          duration: const Duration(seconds: 1),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ProviderSearchPage(
+                            initialCategory: cat.name,
+                          ),
                         ),
                       );
                     },
@@ -145,36 +149,50 @@ class _AllCategoriesPageState extends State<AllCategoriesPage> {
               const SizedBox(height: AppSpacing.s24),
 
               // ── Bottom Help Banner ──
-              Container(
-                decoration: BoxDecoration(
-                  color: p.pillBackground,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: p.border),
-                ),
-                padding: const EdgeInsets.all(AppSpacing.s20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Need a hand choosing?',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: p.textPrimary,
+              InkWell(
+                onTap: () {
+                  AiPromptSheet.show(context);
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: p.pillBackground,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: p.border),
+                  ),
+                  padding: const EdgeInsets.all(AppSpacing.s20),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Need a hand choosing?',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: p.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Tell us what\u2019s wrong and TaskBridge AI will identify the right specialist.',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: p.textSecondary,
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Tell us what\u2019s wrong and we\u2019ll help identify the right service.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: p.textSecondary,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
+                      Icon(Icons.auto_awesome, color: p.primary, size: 28),
+                    ],
+                  ),
                 ),
               ),
+
               const SizedBox(height: AppSpacing.s16),
             ],
           ),

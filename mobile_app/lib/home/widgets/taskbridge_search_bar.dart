@@ -81,11 +81,24 @@ class _TaskBridgeSearchBarState extends State<TaskBridgeSearchBar> {
           disabledBorder: InputBorder.none,
           errorBorder: InputBorder.none,
           focusedErrorBorder: InputBorder.none,
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: Icon(
+              Icons.search_rounded,
+              size: 22,
+              color: _isFocused ? palette.primary : palette.muted,
+            ),
+          ),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 22,
+            minHeight: 22,
+          ),
           filled: false,
           isDense: true,
           contentPadding: EdgeInsets.zero,
-          suffixIcon: (widget.controller != null &&
-                  widget.controller!.text.isNotEmpty)
+
+          suffixIcon:
+              (widget.controller != null && widget.controller!.text.isNotEmpty)
               ? IconButton(
                   icon: Icon(
                     Icons.close_rounded,

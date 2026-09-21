@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../auth/data/auth_api.dart';
 import '../../auth/data/auth_models.dart';
 import '../../core/services/location_service.dart';
@@ -16,6 +17,10 @@ import 'customer_bookings_page.dart';
 import 'customer_chat_page.dart';
 import 'location_picker_page.dart';
 import 'profile_page.dart';
+import 'provider_search_page.dart';
+import '../data/provider_api.dart';
+import '../models/provider_item.dart';
+import '../widgets/provider_card.dart';
 import '../../ai/widgets/ai_prompt_sheet.dart';
 
 class HomePage extends StatefulWidget {
@@ -32,12 +37,56 @@ class _HomePageState extends State<HomePage> {
   int _currentNavIndex = 0;
   UserLocation _userLocation = UserLocation.defaultLocation;
   bool _isLoadingLocation = false;
+  List<ProviderItem> _nearbyProviders = [];
+  bool _isLoadingProviders = true;
 
   @override
   void initState() {
     super.initState();
     UserModeService.setMode(UserMode.customer);
     _initializeLocation();
+    _loadNearbyProviders();
+  }
+
+  Future<void> _loadNearbyProviders() async {
+    if (!mounted) return;
+    setState(() => _isLoadingProviders = true);
+    try {
+      final list = await ProviderApi.getProviders(
+        location: _userLocation.shortName,
+        lat: _userLocation.latitude,
+        lng: _userLocation.longitude,
+        sortBy: 'distance',
+        limit: 5,
+      );
+      if (mounted) {
+        final realList = list.map((p) {
+          if (p.latitude != null && p.longitude != null && p.latitude != 0 && p.longitude != 0) {
+            final meters = Geolocator.distanceBetween(
+              _userLocation.latitude,
+              _userLocation.longitude,
+              p.latitude!,
+              p.longitude!,
+            );
+            final km = meters / 1000.0;
+            final rounded = km < 0.5 ? 0.5 : double.parse(km.toStringAsFixed(1));
+            return p.copyWith(distanceKm: rounded);
+          }
+          return p;
+        }).toList();
+
+        realList.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
+
+        setState(() {
+          _nearbyProviders = realList;
+          _isLoadingProviders = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingProviders = false);
+      }
+    }
   }
 
   Future<void> _initializeLocation() async {
@@ -45,6 +94,7 @@ class _HomePageState extends State<HomePage> {
     final cached = await LocationService.getSavedLocation();
     if (cached != null && mounted) {
       setState(() => _userLocation = cached);
+      _loadNearbyProviders();
     }
 
     // 2. Fetch live GPS position on startup
@@ -56,6 +106,7 @@ class _HomePageState extends State<HomePage> {
           _userLocation = live;
           _isLoadingLocation = false;
         });
+        _loadNearbyProviders();
       } else if (mounted) {
         setState(() => _isLoadingLocation = false);
       }
@@ -74,6 +125,7 @@ class _HomePageState extends State<HomePage> {
 
     if (selected != null && mounted) {
       setState(() => _userLocation = selected);
+      _loadNearbyProviders();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Location updated to ${selected.shortName}'),
@@ -260,77 +312,115 @@ class _HomePageState extends State<HomePage> {
             // ── Search Bar ──
             TaskBridgeSearchBar(
               hintText: 'Search services or providers',
-              onTap: _openAllCategories,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProviderSearchPage(
+                      location: _userLocation.shortName,
+                      userLocation: _userLocation,
+                    ),
+                  ),
+                );
+              },
               readOnly: true,
             ),
-            const SizedBox(height: AppSpacing.s20),
 
-            // ── AI Recommendation Card ──
-            Container(
-              decoration: BoxDecoration(
-                color: palette.soft,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: palette.border, width: 1),
-              ),
-              padding: const EdgeInsets.all(AppSpacing.s20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Don\u2019t know who to hire?',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: palette.text,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Describe your problem and TaskBridge AI will help you find a suitable provider.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: palette.muted,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Icon(
-                    Icons.auto_awesome_rounded,
-                    color: palette.primary,
-                    size: 24,
-                  ),
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: palette.primary,
-                        foregroundColor: palette.onPrimary,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+            const SizedBox(height: AppSpacing.s16),
+
+            // ── AI Recommendation Card (Compact) ──
+            InkWell(
+              onTap: () {
+                AiPromptSheet.show(
+                  context,
+                  currentLocation: _userLocation.shortName,
+                );
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: palette.soft,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: palette.border, width: 1),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.s16,
+                  vertical: 12,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: palette.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      onPressed: () {
-                        AiPromptSheet.show(
-                          context,
-                          currentLocation: _userLocation.shortName,
-                        );
-                      },
-                      child: const Text(
-                        'Get AI Recommendation',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      child: Icon(
+                        Icons.auto_awesome_rounded,
+                        color: palette.primary,
+                        size: 22,
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Don\u2019t know who to hire?',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: palette.text,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Get instant AI specialist recommendation',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: palette.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: palette.primary,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Ask AI',
+                            style: TextStyle(
+                              color: palette.onPrimary,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            color: palette.onPrimary,
+                            size: 13,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: AppSpacing.s24),
+            const SizedBox(height: AppSpacing.s20),
 
             // ── Browse Services Header ──
             Row(
@@ -368,10 +458,14 @@ class _HomePageState extends State<HomePage> {
                     child: CategoryCard(
                       category: cat,
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('${cat.name} selected'),
-                            duration: const Duration(seconds: 1),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ProviderSearchPage(
+                              initialCategory: cat.name,
+                              location: _userLocation.shortName,
+                              userLocation: _userLocation,
+                            ),
                           ),
                         );
                       },
@@ -395,7 +489,17 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 GestureDetector(
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ProviderSearchPage(
+                          location: _userLocation.shortName,
+                          userLocation: _userLocation,
+                        ),
+                      ),
+                    );
+                  },
                   child: Text(
                     'View all',
                     style: TextStyle(
@@ -409,66 +513,62 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: AppSpacing.s12),
 
-            // ── Sample Provider Card ──
-            Container(
-              decoration: BoxDecoration(
-                color: palette.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: palette.border, width: 1),
-              ),
-              padding: const EdgeInsets.all(AppSpacing.s16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: palette.soft,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      AppIcons.plumbing,
-                      color: palette.primary,
-                      size: 26,
-                    ),
+            // ── Dynamic Provider Cards from Database ──
+            if (_isLoadingProviders)
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                alignment: Alignment.center,
+                child: SizedBox.square(
+                  dimension: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(palette.primary),
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Sampath Perera',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: palette.text,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Master Plumber · 4.9 ★ (84 reviews)',
-                          style: TextStyle(fontSize: 13, color: palette.muted),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'From Rs. 2,500/hr',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: palette.primary,
-                          ),
-                        ),
-                      ],
+                ),
+              )
+            else if (_nearbyProviders.isEmpty)
+              Container(
+                decoration: BoxDecoration(
+                  color: palette.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: palette.border, width: 1),
+                ),
+                padding: const EdgeInsets.all(AppSpacing.s16),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline_rounded,
+                      color: palette.muted,
+                      size: 22,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'No specialists registered nearby yet in ${_userLocation.shortName}. Tap "View all" to see all areas.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: palette.muted,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Column(
+                children: _nearbyProviders.take(3).map((provider) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: ProviderCardWidget(provider: provider),
+                  );
+                }).toList(),
               ),
-            ),
-            const SizedBox(height: AppSpacing.s16),
+            const SizedBox(height: 36),
           ],
         ),
       ),
     );
+
   }
 }
