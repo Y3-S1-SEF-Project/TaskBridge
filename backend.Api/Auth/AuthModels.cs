@@ -24,6 +24,7 @@ public sealed class AppUser
 
     // Provider mode profile details
     public bool IsProvider { get; set; }
+    public string? ProviderCategory { get; set; }
     public string? ProviderSkills { get; set; }
     public string? ProviderServices { get; set; }
     public string? ProviderExperience { get; set; }
@@ -100,7 +101,8 @@ public sealed record ProviderSetupRequest(
     string? Availability,
     string? Bio,
     string? Location = null,
-    decimal? HourlyRate = null);
+    decimal? HourlyRate = null,
+    string? Category = null);
 
 public sealed record ChallengeResponse(
     string Email,
@@ -117,6 +119,7 @@ public sealed record UserResponse(
     string? Preferences,
     string? ProfilePhotoUrl,
     bool IsProvider = false,
+    string? ProviderCategory = null,
     string? ProviderSkills = null,
     string? ProviderServices = null,
     string? ProviderExperience = null,

@@ -244,6 +244,7 @@ public sealed class AuthService(
         if (user is null) throw new AuthProblem(404, "User not found.");
 
         user.IsProvider = true;
+        if (req.Category != null) user.ProviderCategory = req.Category.Trim();
         if (req.Skills != null) user.ProviderSkills = req.Skills.Trim();
         if (req.Services != null) user.ProviderServices = req.Services.Trim();
         if (req.Experience != null) user.ProviderExperience = req.Experience.Trim();
@@ -255,6 +256,10 @@ public sealed class AuthService(
         if (req.HourlyRate.HasValue && req.HourlyRate.Value > 0) user.ProviderHourlyRate = req.HourlyRate.Value;
         user.UpdatedAt = DateTimeOffset.UtcNow;
 
+        var resolvedCategory = !string.IsNullOrWhiteSpace(req.Category)
+            ? req.Category.Trim()
+            : (!string.IsNullOrWhiteSpace(req.Services) ? req.Services.Trim() : (!string.IsNullOrWhiteSpace(req.Skills) ? req.Skills.Trim() : "General"));
+
         // Upsert into dedicated providers table
         var provider = await db.Providers.SingleOrDefaultAsync(p => p.UserId == userId, ct);
         if (provider is null)
@@ -262,7 +267,7 @@ public sealed class AuthService(
             provider = new ProviderProfile
             {
                 UserId = userId,
-                Category = !string.IsNullOrWhiteSpace(req.Services) ? req.Services.Trim() : (!string.IsNullOrWhiteSpace(req.Skills) ? req.Skills.Trim() : "General"),
+                Category = resolvedCategory,
                 Skills = req.Skills?.Trim(),
                 Services = req.Services?.Trim(),
                 Experience = req.Experience?.Trim(),
@@ -278,12 +283,10 @@ public sealed class AuthService(
         }
         else
         {
+            if (req.Category != null) provider.Category = req.Category.Trim();
+            else if (string.IsNullOrWhiteSpace(provider.Category) || provider.Category == "General") provider.Category = resolvedCategory;
             if (req.Skills != null) provider.Skills = req.Skills.Trim();
-            if (req.Services != null)
-            {
-                provider.Services = req.Services.Trim();
-                provider.Category = req.Services.Trim();
-            }
+            if (req.Services != null) provider.Services = req.Services.Trim();
             if (req.Experience != null) provider.Experience = req.Experience.Trim();
             if (req.Certifications != null) provider.Certifications = req.Certifications.Trim();
             if (req.ServiceAreas != null) provider.ServiceAreas = req.ServiceAreas.Trim();
@@ -323,6 +326,7 @@ public sealed class AuthService(
         u.Preferences,
         u.ProfilePhotoUrl,
         u.IsProvider,
+        u.ProviderCategory,
         u.ProviderSkills,
         u.ProviderServices,
         u.ProviderExperience,

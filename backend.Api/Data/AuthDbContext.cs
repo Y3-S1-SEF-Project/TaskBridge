@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS users (
     ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
     ""UpdatedAt"" timestamptz NULL,
     ""IsProvider"" boolean NOT NULL DEFAULT false,
+    ""ProviderCategory"" text NULL,
     ""ProviderSkills"" text NULL,
     ""ProviderServices"" text NULL,
     ""ProviderExperience"" text NULL,
@@ -78,6 +79,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""IsProvider"" boolean NOT NULL DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderCategory"" text NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderSkills"" text NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderServices"" text NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderExperience"" text NULL;
