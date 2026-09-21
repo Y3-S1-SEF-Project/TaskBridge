@@ -70,8 +70,13 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
       // Close modal sheet
       Navigator.pop(context);
 
-      // Branch based on missing location: Screen C19 vs Screen C18
-      if (result.isLocationMissing || result.jobPlan.location == null) {
+      // Branch based on missing info: Screen C19 vs Screen C18
+      final isScheduleMissing = result.missingFields.contains('date') ||
+          result.missingFields.contains('time') ||
+          result.jobPlan.scheduledDate.isEmpty ||
+          result.jobPlan.scheduledTime.isEmpty;
+
+      if (result.isLocationMissing || result.jobPlan.location == null || isScheduleMissing) {
         Navigator.push(
           context,
           MaterialPageRoute(

@@ -61,7 +61,10 @@ class _HomePageState extends State<HomePage> {
       );
       if (mounted) {
         final realList = list.map((p) {
-          if (p.latitude != null && p.longitude != null && p.latitude != 0 && p.longitude != 0) {
+          if (p.latitude != null &&
+              p.longitude != null &&
+              p.latitude != 0 &&
+              p.longitude != 0) {
             final meters = Geolocator.distanceBetween(
               _userLocation.latitude,
               _userLocation.longitude,
@@ -69,7 +72,9 @@ class _HomePageState extends State<HomePage> {
               p.longitude!,
             );
             final km = meters / 1000.0;
-            final rounded = km < 0.5 ? 0.5 : double.parse(km.toStringAsFixed(1));
+            final rounded = km < 0.5
+                ? 0.5
+                : double.parse(km.toStringAsFixed(1));
             return p.copyWith(distanceKm: rounded);
           }
           return p;
@@ -569,6 +574,5 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     );
-
   }
 }

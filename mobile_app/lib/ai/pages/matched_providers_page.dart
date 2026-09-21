@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_spacing.dart';
 import '../models/matching_models.dart';
 import '../models/planning_models.dart';
+import '../../home/pages/provider_detail_page.dart';
 
 /// Screen C20: "Your provider shortlist"
 /// Matches the exact Figma layout:
@@ -65,7 +67,11 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      Icon(Icons.auto_awesome, color: palette.primary, size: 22),
+                      Icon(
+                        Icons.auto_awesome,
+                        color: palette.primary,
+                        size: 22,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'AI Matching Reasoning',
@@ -111,7 +117,8 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
                       Expanded(
                         child: _buildMetricCard(
                           title: 'Candidate Pool',
-                          value: '${widget.matchingResponse.candidatePoolCount} registered',
+                          value:
+                              '${widget.matchingResponse.candidatePoolCount} registered',
                           palette: palette,
                         ),
                       ),
@@ -221,10 +228,7 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(fontSize: 12, color: palette.muted),
-          ),
+          Text(title, style: TextStyle(fontSize: 12, color: palette.muted)),
           const SizedBox(height: 4),
           Text(
             value,
@@ -290,10 +294,14 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
     if (count == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('No providers currently available for this category.'),
+          content: const Text(
+            'No providers currently available for this category.',
+          ),
           backgroundColor: Colors.orange.shade800,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
       return;
@@ -363,7 +371,9 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
                               fontSize: 13,
                             ),
                           ),
-                          backgroundColor: palette.primary.withValues(alpha: 0.1),
+                          backgroundColor: palette.primary.withValues(
+                            alpha: 0.1,
+                          ),
                           side: BorderSide(
                             color: palette.primary.withValues(alpha: 0.2),
                           ),
@@ -440,7 +450,9 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
                             palette: palette,
                             icon: Icons.location_on_outlined,
                             title: widget.jobPlan.location ?? 'Colombo 05',
-                            subtitle: widget.jobPlan.locationAddress ?? '24 Park Road',
+                            subtitle:
+                                widget.jobPlan.locationAddress ??
+                                '24 Park Road',
                           ),
                           const SizedBox(height: 12),
 
@@ -470,8 +482,8 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
                       providers.isEmpty
                           ? 'No providers found'
                           : providers.length == 1
-                              ? '1 suitable provider'
-                              : '${providers.length} suitable providers',
+                          ? '1 suitable provider'
+                          : '${providers.length} suitable providers',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
@@ -526,7 +538,9 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
                     else
                       ...providers.map((provider) {
                         return Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.s16),
+                          padding: const EdgeInsets.only(
+                            bottom: AppSpacing.s16,
+                          ),
                           child: _buildProviderCard(
                             provider: provider,
                             palette: palette,
@@ -547,7 +561,9 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
               ),
               decoration: BoxDecoration(
                 color: palette.background,
-                border: Border(top: BorderSide(color: palette.border, width: 0.8)),
+                border: Border(
+                  top: BorderSide(color: palette.border, width: 0.8),
+                ),
               ),
               child: SizedBox(
                 width: double.infinity,
@@ -564,10 +580,7 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
                   onPressed: _onRequestQuotations,
                   child: const Text(
                     'Request Quotations',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -578,22 +591,102 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
     );
   }
 
+  void _navigateToDetail(MatchedProvider provider) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProviderDetailPage(provider: provider.toProviderItem()),
+      ),
+    );
+  }
+
+  Future<void> _callProvider(BuildContext context, String phone) async {
+    final rawPhone = phone.trim();
+    if (rawPhone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Phone number not available for this specialist.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final cleaned = rawPhone.replaceAll(RegExp(r'[^\d+]'), '');
+    final uri = Uri(scheme: 'tel', path: cleaned);
+
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open dialer for $rawPhone'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error launching dialer for $rawPhone'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildProviderAvatar(
+    MatchedProvider provider, {
+    double dimension = 52,
+  }) {
+    final photoUrl = provider.profilePhotoUrl;
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(dimension / 3),
+        child: Image.network(
+          photoUrl,
+          width: dimension,
+          height: dimension,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _buildFallbackAvatar(provider, dimension),
+        ),
+      );
+    }
+    return _buildFallbackAvatar(provider, dimension);
+  }
+
+  Widget _buildFallbackAvatar(MatchedProvider provider, double dimension) {
+    final initial = provider.fullName.isNotEmpty
+        ? provider.fullName.substring(0, 1).toUpperCase()
+        : 'P';
+    return Container(
+      width: dimension,
+      height: dimension,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F5E9),
+        borderRadius: BorderRadius.circular(dimension / 3),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: TextStyle(
+          color: const Color(0xFF2E7D32),
+          fontWeight: FontWeight.w800,
+          fontSize: dimension * 0.35,
+        ),
+      ),
+    );
+  }
+
   Widget _buildProviderCard({
     required MatchedProvider provider,
     required AppPalette palette,
   }) {
-    // Format specialty label, e.g. "Gardening specialist" or "Plumbing specialist"
-    final rawCat = provider.category.toLowerCase();
-    final specialty = rawCat.contains('garden')
-        ? 'Gardening specialist'
-        : (rawCat.contains('clean')
-            ? 'Cleaning specialist'
-            : (rawCat.contains('plumb')
-                ? 'Plumbing specialist'
-                : (rawCat.contains('electric')
-                    ? 'Electrical specialist'
-                    : provider.category)));
-
     final locationText = widget.jobPlan.location ?? 'Colombo 05';
 
     return Container(
@@ -612,131 +705,238 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Top Banner: "Recommended by TaskBridge AI" (Figma Exact) ──
+          // ── Top Banner: "Recommended by TaskBridge AI" + Match Score ──
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
               color: palette.primary.withValues(alpha: 0.10),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(17),
+              ),
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.auto_awesome,
-                  color: palette.primary,
-                  size: 16,
-                ),
+                Icon(Icons.auto_awesome, color: palette.primary, size: 16),
                 const SizedBox(width: 8),
                 Text(
                   'Recommended by TaskBridge AI',
                   style: TextStyle(
                     color: palette.primary,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     fontSize: 13,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: palette.primary,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${provider.matchScore}% Match',
+                    style: TextStyle(
+                      color: palette.onPrimary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 11,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
 
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.s16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Provider Info Row (Avatar, Name, Verified, Rating & Distance)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: palette.primary.withValues(alpha: 0.15),
-                      child: Text(
-                        provider.fullName.isNotEmpty
-                            ? provider.fullName.substring(0, 1).toUpperCase()
-                            : 'P',
-                        style: TextStyle(
-                          color: palette.primary,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 22,
+          // ── Provider Card Content (Same layout as Home & Search) ──
+          InkWell(
+            onTap: () => _navigateToDetail(provider),
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(17),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.s16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      _buildProviderAvatar(provider, dimension: 52),
+                      const SizedBox(width: AppSpacing.s12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    provider.fullName,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: palette.text,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.verified_rounded,
+                                  color: palette.primary,
+                                  size: 15,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              '${provider.category} · ★ ${provider.rating.toStringAsFixed(1)} (${provider.reviewCount})',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: palette.muted,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Text(
+                                  'From Rs. ${provider.hourlyRate.toInt()}/hr',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: palette.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '· ${provider.distanceKm} km',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: palette.muted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: palette.muted,
+                        size: 22,
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: AppSpacing.s12),
+
+                  // Availability line
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            provider.fullName,
+                    decoration: BoxDecoration(
+                      color: palette.soft,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.event_available_rounded,
+                          size: 14,
+                          color: palette.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Available tomorrow · $locationText',
                             style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
                               color: palette.text,
                             ),
                           ),
-                          const SizedBox(height: 3),
-                          Text(
-                            'Verified · $specialty',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: palette.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            '${provider.rating} (${provider.reviewCount} reviews) · ${provider.distanceKm} km away',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: palette.muted,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.s12),
-
-                // Availability & Location Line
-                Text(
-                  'Available tomorrow · $locationText',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: palette.text,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.s16),
-
-                // ── "View Profile" Full Width Mint Button (Figma Exact) ──
-                SizedBox(
-                  width: double.infinity,
-                  height: 46,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: palette.primary.withValues(alpha: 0.10),
-                      foregroundColor: palette.primary,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () => _showAiBreakdown(provider),
-                    child: Text(
-                      'View Profile',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: palette.primary,
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
+
+                  const SizedBox(height: AppSpacing.s16),
+
+                  // "View Profile" Full Width Mint Button -> opens ProviderDetailPage
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: 46,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: palette.primary.withValues(
+                                alpha: 0.12,
+                              ),
+                              foregroundColor: palette.primary,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: () => _navigateToDetail(provider),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.person_outline_rounded,
+                                  size: 18,
+                                  color: palette.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'View Profile',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: palette.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // Call Provider Button
+                      Container(
+                        height: 46,
+                        width: 46,
+                        decoration: BoxDecoration(
+                          color: palette.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: palette.primary.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.phone_rounded,
+                            color: palette.primary,
+                            size: 20,
+                          ),
+                          tooltip: 'Call Specialist',
+                          onPressed: () => _callProvider(context, provider.phone),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -771,10 +971,7 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: palette.muted,
-                  ),
+                  style: TextStyle(fontSize: 13, color: palette.muted),
                 ),
               ],
             ],

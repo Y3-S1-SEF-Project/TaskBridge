@@ -8,7 +8,7 @@ import '../models/planning_models.dart';
 import 'planning_progress_page.dart';
 
 /// Screen C19: "A little more information"
-/// Displays missing details (e.g. service location) with job preview card and continue button.
+/// Displays missing details (service location, date, time, custom budget) with job preview card and continue button.
 class PlanningMissingInfoPage extends StatefulWidget {
   final JobPlan initialPlan;
   final PlanningAnalyzeResult analysisResult;
@@ -20,16 +20,25 @@ class PlanningMissingInfoPage extends StatefulWidget {
   });
 
   @override
-  State<PlanningMissingInfoPage> createState() => _PlanningMissingInfoPageState();
+  State<PlanningMissingInfoPage> createState() =>
+      _PlanningMissingInfoPageState();
 }
 
 class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
   late JobPlan _plan;
   String? _selectedLocation;
   String? _selectedAddress;
+
+  String? _selectedDate;
+  String? _selectedTime;
+
   double? _selectedBudget;
   String? _selectedBudgetDisplay;
+  final TextEditingController _customBudgetController = TextEditingController();
+
   bool _hasLocationError = false;
+  bool _hasDateError = false;
+  bool _hasTimeError = false;
 
   @override
   void initState() {
@@ -37,8 +46,36 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
     _plan = widget.initialPlan;
     _selectedLocation = _plan.location;
     _selectedAddress = _plan.locationAddress;
+
+    // Only pre-fill date/time if it was explicitly parsed and NOT "Flexible" or empty
+    if (_plan.scheduledDate.isNotEmpty &&
+        !_plan.scheduledDate.toLowerCase().contains('flexible')) {
+      _selectedDate = _plan.scheduledDate;
+    }
+    if (_plan.scheduledTime.isNotEmpty &&
+        !_plan.scheduledTime.toLowerCase().contains('flexible')) {
+      _selectedTime = _plan.scheduledTime;
+    }
+
     _selectedBudget = _plan.budget;
-    _selectedBudgetDisplay = _plan.budgetDisplay;
+    _selectedBudgetDisplay = _plan.budgetDisplay.isNotEmpty
+        ? _plan.budgetDisplay
+        : 'Budget not specified';
+
+    if (_selectedBudget != null && _selectedBudget! > 0) {
+      // Check if it matches any standard preset
+      if (_selectedBudget != 2500 &&
+          _selectedBudget != 5000 &&
+          _selectedBudget != 10000) {
+        _customBudgetController.text = _selectedBudget!.toInt().toString();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _customBudgetController.dispose();
+    super.dispose();
   }
 
   void _useSavedHomeAddress() {
@@ -91,25 +128,152 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
     }
   }
 
+  Future<void> _pickCustomDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: now.add(const Duration(days: 1)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 90)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.dark(
+              primary: AppColors.primary,
+              surface: const Color(0xFF1E2421),
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && mounted) {
+      const months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      final formatted =
+          '${weekdays[picked.weekday - 1]} · ${picked.day} ${months[picked.month - 1]}';
+      setState(() {
+        _selectedDate = formatted;
+        _hasDateError = false;
+      });
+    }
+  }
+
+  Future<void> _pickCustomTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: const TimeOfDay(hour: 15, minute: 0),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.dark(
+              primary: AppColors.primary,
+              surface: const Color(0xFF1E2421),
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && mounted) {
+      final hour = picked.hourOfPeriod == 0 ? 12 : picked.hourOfPeriod;
+      final minute = picked.minute.toString().padLeft(2, '0');
+      final period = picked.period == DayPeriod.am ? 'AM' : 'PM';
+      final formatted = 'At $hour:$minute $period';
+      setState(() {
+        _selectedTime = formatted;
+        _hasTimeError = false;
+      });
+    }
+  }
+
+  void _onCustomBudgetChanged(String val) {
+    final cleaned = val.replaceAll(',', '').replaceAll(' ', '').trim();
+    final amount = double.tryParse(cleaned);
+    setState(() {
+      if (amount != null && amount > 0) {
+        _selectedBudget = amount;
+        final formattedAmount = amount.toInt().toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (m) => '${m[1]},',
+        );
+        _selectedBudgetDisplay = 'Budget up to Rs. $formattedAmount';
+      } else {
+        _selectedBudget = null;
+        _selectedBudgetDisplay = 'Budget not specified';
+      }
+    });
+  }
+
   void _onContinue() {
+    bool hasError = false;
+
     if (_selectedLocation == null || _selectedLocation!.isEmpty) {
       setState(() => _hasLocationError = true);
+      hasError = true;
+    }
+
+    if (_selectedDate == null || _selectedDate!.isEmpty) {
+      setState(() => _hasDateError = true);
+      hasError = true;
+    }
+
+    if (_selectedTime == null || _selectedTime!.isEmpty) {
+      setState(() => _hasTimeError = true);
+      hasError = true;
+    }
+
+    if (hasError) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Please select or provide your service location.'),
+          content: Text(
+            _selectedLocation == null
+                ? 'Please select your service location.'
+                : (_selectedDate == null
+                      ? 'Please select your preferred service date.'
+                      : 'Please select your preferred service time window.'),
+          ),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
       return;
     }
 
+    final scheduledDate = _selectedDate!;
+    final scheduledTime = _selectedTime!;
+
     final updatedPlan = _plan.copyWith(
       location: _selectedLocation,
       locationAddress: _selectedAddress ?? '24 Park Road',
+      scheduledDate: scheduledDate,
+      scheduledTime: scheduledTime,
       budget: _selectedBudget,
-      budgetDisplay: _selectedBudgetDisplay ?? (_selectedBudget != null ? 'Budget up to Rs. ${_selectedBudget!.toInt()}' : 'Budget not specified'),
+      budgetDisplay:
+          _selectedBudgetDisplay ??
+          (_selectedBudget != null
+              ? 'Budget up to Rs. ${_selectedBudget!.toInt()}'
+              : 'Budget not specified'),
     );
 
     // Update progress steps for Screen C18
@@ -129,7 +293,9 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
       ReasoningStep(
         stepKey: 'checking_availability',
         title: 'Checking availability',
-        subtitle: '${updatedPlan.scheduledDate.split('·').first.trim()} ${updatedPlan.scheduledTime}'.trim(),
+        subtitle:
+            '${updatedPlan.scheduledDate.split('·').first.trim()} ${updatedPlan.scheduledTime}'
+                .trim(),
         status: 'completed',
       ),
       const ReasoningStep(
@@ -167,6 +333,27 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+
+    final isLocMissing =
+        _selectedLocation == null || _selectedLocation!.isEmpty;
+    final isSchedMissing = _selectedDate == null || _selectedTime == null;
+
+    String mintCardTitle;
+    String mintCardSubtitle;
+
+    if (isLocMissing && isSchedMissing) {
+      mintCardTitle = 'Where & when do you need this done?';
+      mintCardSubtitle =
+          'Please provide your location and preferred schedule so TaskBridge AI can match available specialists.';
+    } else if (isLocMissing) {
+      mintCardTitle = 'Where do you need the service?';
+      mintCardSubtitle =
+          'We need your location to find verified providers who cover your area.';
+    } else {
+      mintCardTitle = 'When do you need the service?';
+      mintCardSubtitle =
+          'Select your preferred date and time so we can check specialist availability.';
+    }
 
     return Scaffold(
       backgroundColor: palette.background,
@@ -226,19 +413,23 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
                     ),
                     const SizedBox(height: AppSpacing.s20),
 
-                    // ── Question Mint Card ──
+                    // ── Dynamic Question Mint Card ──
                     Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
                         color: palette.primary.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: palette.primary.withValues(alpha: 0.25),
+                          width: 1.0,
+                        ),
                       ),
                       padding: const EdgeInsets.all(AppSpacing.s20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Where do you need the service?',
+                            mintCardTitle,
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
@@ -247,7 +438,7 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'We need your location to find providers who cover your area.',
+                            mintCardSubtitle,
                             style: TextStyle(
                               fontSize: 14,
                               color: palette.muted,
@@ -259,14 +450,24 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
                     ),
                     const SizedBox(height: AppSpacing.s24),
 
-                    // ── Service Location Field ──
-                    Text(
-                      'Service location',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: palette.text,
-                      ),
+                    // ── Section 1: Service Location ──
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_outlined,
+                          size: 18,
+                          color: palette.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Service location',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: palette.text,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     InkWell(
@@ -284,15 +485,18 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
                           border: Border.all(
                             color: _hasLocationError
                                 ? AppColors.error
-                                : palette.border,
-                            width: 1.2,
+                                : (_selectedLocation != null
+                                      ? palette.primary
+                                      : palette.border),
+                            width: _hasLocationError ? 1.5 : 1.2,
                           ),
                         ),
                         child: Row(
                           children: [
                             Expanded(
                               child: Text(
-                                _selectedLocation != null && _selectedLocation!.isNotEmpty
+                                _selectedLocation != null &&
+                                        _selectedLocation!.isNotEmpty
                                     ? '$_selectedLocation${_selectedAddress != null && _selectedAddress!.isNotEmpty ? " · $_selectedAddress" : ""}'
                                     : 'Select location',
                                 style: TextStyle(
@@ -314,40 +518,321 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.s16),
+                    const SizedBox(height: AppSpacing.s12),
 
                     // ── Pill Button: Use Saved Home Address ──
                     SizedBox(
                       width: double.infinity,
-                      height: 48,
+                      height: 46,
                       child: TextButton(
                         style: TextButton.styleFrom(
-                          backgroundColor: palette.primary.withValues(alpha: 0.12),
+                          backgroundColor: palette.primary.withValues(
+                            alpha: 0.12,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
                         onPressed: _useSavedHomeAddress,
                         child: Text(
-                          'Use saved home address',
+                          'Use saved home address (Colombo 05)',
                           style: TextStyle(
                             color: palette.primary,
-                            fontSize: 15,
+                            fontSize: 14,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.s16),
+                    const SizedBox(height: AppSpacing.s24),
 
-                    // ── Budget (Optional / Missing Field) ──
-                    Text(
-                      'Budget',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: palette.text,
+                    // ── Section 2: Preferred Date ──
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today_outlined,
+                          size: 18,
+                          color: palette.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Preferred Date',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: palette.text,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_hasDateError) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Please choose a date or select Flexible',
+                        style: TextStyle(fontSize: 12, color: AppColors.error),
                       ),
+                    ],
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildChoiceChip(
+                          label: 'Today',
+                          isSelected:
+                              _selectedDate?.startsWith('Today') == true,
+                          onTap: () {
+                            final now = DateTime.now();
+                            const months = [
+                              'Jan',
+                              'Feb',
+                              'Mar',
+                              'Apr',
+                              'May',
+                              'Jun',
+                              'Jul',
+                              'Aug',
+                              'Sep',
+                              'Oct',
+                              'Nov',
+                              'Dec',
+                            ];
+                            setState(() {
+                              _selectedDate =
+                                  'Today · ${now.day} ${months[now.month - 1]}';
+                              _hasDateError = false;
+                            });
+                          },
+                          palette: palette,
+                        ),
+                        _buildChoiceChip(
+                          label: 'Tomorrow',
+                          isSelected:
+                              _selectedDate?.startsWith('Tomorrow') == true,
+                          onTap: () {
+                            final tomorrow = DateTime.now().add(
+                              const Duration(days: 1),
+                            );
+                            const months = [
+                              'Jan',
+                              'Feb',
+                              'Mar',
+                              'Apr',
+                              'May',
+                              'Jun',
+                              'Jul',
+                              'Aug',
+                              'Sep',
+                              'Oct',
+                              'Nov',
+                              'Dec',
+                            ];
+                            setState(() {
+                              _selectedDate =
+                                  'Tomorrow · ${tomorrow.day} ${months[tomorrow.month - 1]}';
+                              _hasDateError = false;
+                            });
+                          },
+                          palette: palette,
+                        ),
+                        _buildChoiceChip(
+                          label: 'Flexible',
+                          isSelected: _selectedDate == 'Flexible',
+                          onTap: () {
+                            setState(() {
+                              _selectedDate = 'Flexible';
+                              _hasDateError = false;
+                            });
+                          },
+                          palette: palette,
+                        ),
+                        ActionChip(
+                          avatar: Icon(
+                            Icons.edit_calendar_rounded,
+                            size: 16,
+                            color: palette.primary,
+                          ),
+                          label: Text(
+                            _selectedDate != null &&
+                                    !_selectedDate!.startsWith('Today') &&
+                                    !_selectedDate!.startsWith('Tomorrow') &&
+                                    _selectedDate != 'Flexible'
+                                ? _selectedDate!
+                                : 'Pick date…',
+                          ),
+                          onPressed: _pickCustomDate,
+                          backgroundColor:
+                              _selectedDate != null &&
+                                  !_selectedDate!.startsWith('Today') &&
+                                  !_selectedDate!.startsWith('Tomorrow') &&
+                                  _selectedDate != 'Flexible'
+                              ? palette.primary.withValues(alpha: 0.15)
+                              : palette.soft,
+                          side: BorderSide(
+                            color:
+                                _selectedDate != null &&
+                                    !_selectedDate!.startsWith('Today') &&
+                                    !_selectedDate!.startsWith('Tomorrow') &&
+                                    _selectedDate != 'Flexible'
+                                ? palette.primary
+                                : palette.border,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          labelStyle: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: palette.text,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.s24),
+
+                    // ── Section 3: Preferred Time Window ──
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.access_time_rounded,
+                          size: 18,
+                          color: palette.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Preferred Time Window',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: palette.text,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_hasTimeError) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Please choose a time window or select Flexible',
+                        style: TextStyle(fontSize: 12, color: AppColors.error),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildChoiceChip(
+                          label: 'Morning (8 AM - 12 PM)',
+                          isSelected: _selectedTime == 'Morning (8 AM - 12 PM)',
+                          onTap: () {
+                            setState(() {
+                              _selectedTime = 'Morning (8 AM - 12 PM)';
+                              _hasTimeError = false;
+                            });
+                          },
+                          palette: palette,
+                        ),
+                        _buildChoiceChip(
+                          label: 'Afternoon (12 PM - 5 PM)',
+                          isSelected:
+                              _selectedTime == 'Afternoon (12 PM - 5 PM)',
+                          onTap: () {
+                            setState(() {
+                              _selectedTime = 'Afternoon (12 PM - 5 PM)';
+                              _hasTimeError = false;
+                            });
+                          },
+                          palette: palette,
+                        ),
+                        _buildChoiceChip(
+                          label: 'Evening (After 5 PM)',
+                          isSelected: _selectedTime == 'Evening (After 5 PM)',
+                          onTap: () {
+                            setState(() {
+                              _selectedTime = 'Evening (After 5 PM)';
+                              _hasTimeError = false;
+                            });
+                          },
+                          palette: palette,
+                        ),
+                        _buildChoiceChip(
+                          label: 'Flexible',
+                          isSelected: _selectedTime == 'Flexible',
+                          onTap: () {
+                            setState(() {
+                              _selectedTime = 'Flexible';
+                              _hasTimeError = false;
+                            });
+                          },
+                          palette: palette,
+                        ),
+                        ActionChip(
+                          avatar: Icon(
+                            Icons.schedule_rounded,
+                            size: 16,
+                            color: palette.primary,
+                          ),
+                          label: Text(
+                            _selectedTime != null &&
+                                    _selectedTime != 'Morning (8 AM - 12 PM)' &&
+                                    _selectedTime !=
+                                        'Afternoon (12 PM - 5 PM)' &&
+                                    _selectedTime != 'Evening (After 5 PM)' &&
+                                    _selectedTime != 'Flexible'
+                                ? _selectedTime!
+                                : 'Exact time…',
+                          ),
+                          onPressed: _pickCustomTime,
+                          backgroundColor:
+                              _selectedTime != null &&
+                                  _selectedTime != 'Morning (8 AM - 12 PM)' &&
+                                  _selectedTime != 'Afternoon (12 PM - 5 PM)' &&
+                                  _selectedTime != 'Evening (After 5 PM)' &&
+                                  _selectedTime != 'Flexible'
+                              ? palette.primary.withValues(alpha: 0.15)
+                              : palette.soft,
+                          side: BorderSide(
+                            color:
+                                _selectedTime != null &&
+                                    _selectedTime != 'Morning (8 AM - 12 PM)' &&
+                                    _selectedTime !=
+                                        'Afternoon (12 PM - 5 PM)' &&
+                                    _selectedTime != 'Evening (After 5 PM)' &&
+                                    _selectedTime != 'Flexible'
+                                ? palette.primary
+                                : palette.border,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          labelStyle: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: palette.text,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.s24),
+
+                    // ── Section 4: Budget & Custom Budget Box ──
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.payments_outlined,
+                          size: 18,
+                          color: palette.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Budget (LKR)',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: palette.text,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     Wrap(
@@ -360,9 +845,75 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
                         _buildBudgetChip('Rs. 10,000', 10000, palette),
                       ],
                     ),
+                    const SizedBox(height: AppSpacing.s12),
+
+                    // Custom budget text field
+                    Container(
+                      decoration: BoxDecoration(
+                        color: palette.surface,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: _customBudgetController.text.isNotEmpty
+                              ? palette.primary
+                              : palette.border,
+                          width: _customBudgetController.text.isNotEmpty
+                              ? 1.5
+                              : 1.0,
+                        ),
+                      ),
+                      child: TextField(
+                        controller: _customBudgetController,
+                        keyboardType: TextInputType.number,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: palette.text,
+                        ),
+                        onChanged: _onCustomBudgetChanged,
+                        decoration: InputDecoration(
+                          hintText: 'Or enter custom budget (e.g. 7,500)',
+                          hintStyle: TextStyle(
+                            color: palette.muted,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          prefixIcon: Icon(
+                            Icons.currency_exchange_rounded,
+                            color: _customBudgetController.text.isNotEmpty
+                                ? palette.primary
+                                : palette.muted,
+                            size: 20,
+                          ),
+                          prefixText: 'Rs. ',
+                          prefixStyle: TextStyle(
+                            color: palette.text,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                          suffixIcon: _customBudgetController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(
+                                    Icons.close_rounded,
+                                    size: 18,
+                                    color: palette.muted,
+                                  ),
+                                  onPressed: () {
+                                    _customBudgetController.clear();
+                                    _onCustomBudgetChanged('');
+                                  },
+                                )
+                              : null,
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: AppSpacing.s24),
 
-                    // ── Summary Job Card ──
+                    // ── Summary Job Card (Real-time Preview) ──
                     Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
@@ -374,19 +925,44 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            _plan.serviceTitle,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: palette.text,
-                            ),
+                          Row(
+                            children: [
+                              Text(
+                                _plan.serviceTitle,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  color: palette.text,
+                                ),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: palette.primary.withValues(
+                                    alpha: 0.12,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  _plan.category,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: palette.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 4),
                           Text(
                             _plan.description.isNotEmpty
                                 ? _plan.description
-                                : 'Repair the leaking kitchen tap and test for leaks.',
+                                : 'Repair and service request.',
                             style: TextStyle(
                               fontSize: 14,
                               color: palette.muted,
@@ -400,7 +976,10 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
                             palette: palette,
                             icon: Icons.location_on_outlined,
                             title: _selectedLocation ?? 'Location not selected',
-                            subtitle: _selectedAddress ?? 'Tap above to set address',
+                            subtitle:
+                                _selectedAddress ??
+                                'Required to find local specialists',
+                            isWarning: _selectedLocation == null,
                           ),
                           const SizedBox(height: 14),
 
@@ -408,8 +987,11 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
                           _buildDetailRow(
                             palette: palette,
                             icon: Icons.calendar_today_outlined,
-                            title: _plan.scheduledDate,
-                            subtitle: _plan.scheduledTime,
+                            title: _selectedDate ?? 'Date not selected',
+                            subtitle:
+                                _selectedTime ?? 'Time window not selected',
+                            isWarning:
+                                _selectedDate == null || _selectedTime == null,
                           ),
                           const SizedBox(height: 14),
 
@@ -417,8 +999,11 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
                           _buildDetailRow(
                             palette: palette,
                             icon: Icons.account_balance_wallet_outlined,
-                            title: _selectedBudgetDisplay ?? (_plan.budgetDisplay.isNotEmpty ? _plan.budgetDisplay : 'Budget not specified'),
+                            title:
+                                _selectedBudgetDisplay ??
+                                'Budget not specified',
                             subtitle: null,
+                            isWarning: false,
                           ),
                         ],
                       ),
@@ -437,7 +1022,9 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
               ),
               decoration: BoxDecoration(
                 color: palette.background,
-                border: Border(top: BorderSide(color: palette.border, width: 0.8)),
+                border: Border(
+                  top: BorderSide(color: palette.border, width: 0.8),
+                ),
               ),
               child: SizedBox(
                 width: double.infinity,
@@ -454,10 +1041,7 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
                   onPressed: _onContinue,
                   child: const Text(
                     'Continue',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -473,11 +1057,16 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
     required IconData icon,
     required String title,
     String? subtitle,
+    bool isWarning = false,
   }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: palette.primary, size: 22),
+        Icon(
+          icon,
+          color: isWarning ? AppColors.error : palette.primary,
+          size: 22,
+        ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -488,7 +1077,7 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: palette.text,
+                  color: isWarning ? AppColors.error : palette.text,
                 ),
               ),
               if (subtitle != null && subtitle.isNotEmpty) ...[
@@ -497,7 +1086,9 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
                   subtitle,
                   style: TextStyle(
                     fontSize: 13,
-                    color: palette.muted,
+                    color: isWarning
+                        ? AppColors.error.withValues(alpha: 0.8)
+                        : palette.muted,
                   ),
                 ),
               ],
@@ -508,14 +1099,38 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
     );
   }
 
+  Widget _buildChoiceChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required AppPalette palette,
+  }) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) => onTap(),
+      selectedColor: palette.primary,
+      backgroundColor: palette.soft,
+      labelStyle: TextStyle(
+        fontSize: 13,
+        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+        color: isSelected ? palette.onPrimary : palette.text,
+      ),
+      side: BorderSide(color: isSelected ? palette.primary : palette.border),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    );
+  }
+
   Widget _buildBudgetChip(String label, double? amount, AppPalette palette) {
-    final isSelected = _selectedBudget == amount;
+    final isSelected =
+        _selectedBudget == amount && _customBudgetController.text.isEmpty;
 
     return ChoiceChip(
       label: Text(label),
       selected: isSelected,
       onSelected: (_) {
         setState(() {
+          _customBudgetController.clear();
           _selectedBudget = amount;
           _selectedBudgetDisplay = amount != null
               ? 'Budget up to Rs. ${amount.toInt()}'
@@ -529,12 +1144,8 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
         color: isSelected ? palette.onPrimary : palette.text,
       ),
-      side: BorderSide(
-        color: isSelected ? palette.primary : palette.border,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
+      side: BorderSide(color: isSelected ? palette.primary : palette.border),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     );
   }
 }

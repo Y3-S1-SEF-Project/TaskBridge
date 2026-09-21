@@ -28,10 +28,12 @@ class JobPlan {
       description: json['description'] as String? ?? '',
       location: json['location'] as String?,
       locationAddress: json['locationAddress'] as String?,
-      scheduledDate: json['scheduledDate'] as String? ?? 'Tomorrow · 17 Sep',
-      scheduledTime: json['scheduledTime'] as String? ?? 'After 3:00 PM',
-      budget: (json['budget'] is num) ? (json['budget'] as num).toDouble() : null,
-      budgetDisplay: json['budgetDisplay'] as String? ?? 'Budget up to Rs. 5,000',
+      scheduledDate: json['scheduledDate'] as String? ?? '',
+      scheduledTime: json['scheduledTime'] as String? ?? '',
+      budget: (json['budget'] is num)
+          ? (json['budget'] as num).toDouble()
+          : null,
+      budgetDisplay: json['budgetDisplay'] as String? ?? 'Budget not specified',
     );
   }
 
@@ -134,7 +136,9 @@ class PlanningAnalyzeResult {
 
   factory PlanningAnalyzeResult.fromJson(Map<String, dynamic> json) {
     final rawSteps = json['progressSteps'] as List<dynamic>? ?? [];
-    final steps = rawSteps.map((s) => ReasoningStep.fromJson(s as Map<String, dynamic>)).toList();
+    final steps = rawSteps
+        .map((s) => ReasoningStep.fromJson(s as Map<String, dynamic>))
+        .toList();
     final rawMissing = json['missingFields'] as List<dynamic>? ?? [];
     final missing = rawMissing.map((m) => m.toString()).toList();
 
@@ -142,7 +146,8 @@ class PlanningAnalyzeResult {
       success: json['success'] as bool? ?? true,
       isLocationMissing: json['isLocationMissing'] as bool? ?? false,
       missingFields: missing,
-      clarificationQuestion: json['clarificationQuestion'] as String? ??
+      clarificationQuestion:
+          json['clarificationQuestion'] as String? ??
           'Where do you need the service? We need your location to find providers who cover your area.',
       jobPlan: JobPlan.fromJson(json['jobPlan'] as Map<String, dynamic>? ?? {}),
       progressSteps: steps,
