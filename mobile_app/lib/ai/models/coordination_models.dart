@@ -212,6 +212,7 @@ class BookingItem {
   String get priceFormatted => 'Rs. ${price.toInt()}';
   bool get isRequested =>
       status.toLowerCase() == 'requested' ||
+      status.toLowerCase() == 'pending' ||
       status.toLowerCase() == 'quotationpending' ||
       status.toLowerCase() == 'counterbidreceived';
   bool get isUpcoming => status.toLowerCase() == 'upcoming';
@@ -304,4 +305,3 @@ class ProposalItem {
     );
   }
 }
-

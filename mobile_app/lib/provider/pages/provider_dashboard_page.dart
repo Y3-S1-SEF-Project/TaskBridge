@@ -35,23 +35,46 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
   Future<void> _loadBookings() async {
     setState(() => _isLoading = true);
     try {
-      final list = await CoordinationApi.getBookings(
+      final bookingsFuture = CoordinationApi.getBookings(
         providerId: widget.user.id,
         providerName: widget.user.fullName,
       );
+      final proposalsFuture = CoordinationApi.getProposals(
+        providerId: widget.user.id,
+        providerName: widget.user.fullName,
+        status: 'Pending',
+      );
+
+      final results = await Future.wait([bookingsFuture, proposalsFuture]);
+      final list = results[0] as List<BookingItem>;
+      final propList = results[1] as List<ProposalItem>;
+
       if (mounted) {
         final provName = widget.user.fullName.trim().toLowerCase();
         final provId = widget.user.id.toLowerCase();
 
-        final filtered = list.where((b) {
+        final filteredBookings = list.where((b) {
           if (b.providerId != null && b.providerId!.toLowerCase() == provId) {
             return true;
           }
-          return b.providerName.trim().toLowerCase() == provName;
+          final bProv = b.providerName.trim().toLowerCase();
+          return bProv.contains(provName) || provName.contains(bProv);
         }).toList();
 
+        final filteredProposals = propList
+            .where((p) {
+              if (p.providerId != null &&
+                  p.providerId!.toLowerCase() == provId) {
+                return true;
+              }
+              final pProv = p.providerName.trim().toLowerCase();
+              return pProv.contains(provName) || provName.contains(pProv);
+            })
+            .map((p) => p.toBookingItem())
+            .toList();
+
         setState(() {
-          _bookings = filtered;
+          _bookings = [...filteredProposals, ...filteredBookings];
           _isLoading = false;
         });
       }
@@ -63,16 +86,25 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
   }
 
   Future<void> _acceptJob(BookingItem booking) async {
-    final success = await CoordinationApi.updateBookingStatus(
-      bookingReference: booking.bookingReference,
-      newStatus: 'Active',
-    );
+    final isProposal = booking.bookingReference.startsWith('PR-');
+    final success = isProposal
+        ? await CoordinationApi.acceptProposal(
+            proposalReference: booking.bookingReference,
+            price: booking.price,
+            schedule: booking.schedule,
+          )
+        : await CoordinationApi.updateBookingStatus(
+            bookingReference: booking.bookingReference,
+            newStatus: 'Active',
+          );
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Job #${booking.bookingReference} accepted and moved to Active Jobs!',
+            isProposal
+                ? 'Proposal #${booking.bookingReference} accepted! Appointment confirmed.'
+                : 'Job #${booking.bookingReference} moved to Active Jobs!',
           ),
           backgroundColor: AppColors.primary,
           behavior: SnackBarBehavior.floating,
@@ -86,15 +118,25 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
   }
 
   Future<void> _declineJob(BookingItem booking) async {
-    final success = await CoordinationApi.cancelBooking(
-      bookingReference: booking.bookingReference,
-      reason: 'Declined by provider',
-    );
+    final isProposal = booking.bookingReference.startsWith('PR-');
+    final success = isProposal
+        ? await CoordinationApi.declineProposal(
+            proposalReference: booking.bookingReference,
+            reason: 'Declined by provider',
+          )
+        : await CoordinationApi.cancelBooking(
+            bookingReference: booking.bookingReference,
+            reason: 'Declined by provider',
+          );
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Job #${booking.bookingReference} has been declined.'),
+          content: Text(
+            isProposal
+                ? 'Proposal #${booking.bookingReference} declined.'
+                : 'Job #${booking.bookingReference} has been declined.',
+          ),
           backgroundColor: Colors.orange.shade800,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -108,8 +150,9 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
 
   void _showCounterBidModal(BookingItem booking) {
     final palette = AppPalette.of(context);
-    final priceController =
-        TextEditingController(text: booking.price.toInt().toString());
+    final priceController = TextEditingController(
+      text: booking.price.toInt().toString(),
+    );
     final timeController = TextEditingController(
       text: booking.schedule.contains('·')
           ? booking.schedule.split('·').first.trim()
@@ -701,7 +744,9 @@ class _LiveJobCard extends StatelessWidget {
                     ),
                   ),
                   onPressed: onAccept,
-                  child: Text(booking.isRequested ? 'Accept Quote' : 'Accept Job'),
+                  child: Text(
+                    booking.isRequested ? 'Accept Quote' : 'Accept Job',
+                  ),
                 ),
               ),
             ],
@@ -713,7 +758,9 @@ class _LiveJobCard extends StatelessWidget {
               child: OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
                   foregroundColor: palette.primary,
-                  side: BorderSide(color: palette.primary.withValues(alpha: 0.3)),
+                  side: BorderSide(
+                    color: palette.primary.withValues(alpha: 0.3),
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),

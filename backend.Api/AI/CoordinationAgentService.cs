@@ -427,7 +427,21 @@ public class CoordinationAgentService
 
         if (!string.IsNullOrWhiteSpace(providerId) && Guid.TryParse(providerId, out var pGuid))
         {
-            query = query.Where(p => p.ProviderId == pGuid);
+            var profileIds = await _dbContext.Providers
+                .Where(p => p.Id == pGuid || p.UserId == pGuid)
+                .Select(p => p.Id)
+                .ToListAsync(ct);
+            profileIds.Add(pGuid);
+
+            if (!string.IsNullOrWhiteSpace(providerName))
+            {
+                var pLow = providerName.Trim().ToLowerInvariant();
+                query = query.Where(p => (p.ProviderId.HasValue && profileIds.Contains(p.ProviderId.Value)) || p.ProviderName.ToLower().Contains(pLow));
+            }
+            else
+            {
+                query = query.Where(p => p.ProviderId.HasValue && profileIds.Contains(p.ProviderId.Value));
+            }
         }
         else if (!string.IsNullOrWhiteSpace(providerName))
         {
@@ -438,7 +452,7 @@ public class CoordinationAgentService
         if (!string.IsNullOrWhiteSpace(customerName))
         {
             var cLow = customerName.Trim().ToLowerInvariant();
-            query = query.Where(p => p.CustomerName.ToLower().Contains(cLow) || p.CustomerName.ToLower() == "customer");
+            query = query.Where(p => p.CustomerName.ToLower().Contains(cLow) || cLow.Contains(p.CustomerName.ToLower()) || p.CustomerName.ToLower() == "customer");
         }
 
         if (!string.IsNullOrWhiteSpace(status))
@@ -456,23 +470,45 @@ public class CoordinationAgentService
     public async Task<BookingEntity?> SubmitCounterBidAsync(ProviderCounterBidRequest req, CancellationToken ct = default)
     {
         var booking = await _dbContext.Bookings.FirstOrDefaultAsync(b => b.BookingReference == req.BookingReference, ct);
-        if (booking == null) return null;
-
-        booking.Price = req.CounterPrice;
-        if (!string.IsNullOrWhiteSpace(req.AvailableTime))
+        if (booking != null)
         {
-            booking.Schedule = $"{req.AvailableTime} · {booking.Location}";
+            booking.Price = req.CounterPrice;
+            if (!string.IsNullOrWhiteSpace(req.AvailableTime))
+            {
+                booking.Schedule = $"{req.AvailableTime} · {booking.Location}";
+            }
+            booking.Status = "Requested";
+            booking.UpdatedAt = DateTimeOffset.UtcNow;
+            await _dbContext.SaveChangesAsync(ct);
+            return booking;
         }
-        booking.Status = "Requested"; // Keeps in requested state with updated price
-        booking.UpdatedAt = DateTimeOffset.UtcNow;
 
-        await _dbContext.SaveChangesAsync(ct);
+        var proposal = await _dbContext.Proposals.FirstOrDefaultAsync(p => p.ProposalReference == req.BookingReference, ct);
+        if (proposal != null)
+        {
+            proposal.EstimatedRate = req.CounterPrice;
+            if (!string.IsNullOrWhiteSpace(req.AvailableTime))
+            {
+                proposal.PreferredSchedule = $"{req.AvailableTime} · {proposal.Location}";
+            }
+            proposal.UpdatedAt = DateTimeOffset.UtcNow;
+            await _dbContext.SaveChangesAsync(ct);
+            return new BookingEntity
+            {
+                Id = proposal.Id,
+                BookingReference = proposal.ProposalReference,
+                CustomerName = proposal.CustomerName,
+                ProviderName = proposal.ProviderName,
+                ServiceTitle = proposal.ServiceTitle,
+                Category = proposal.Category,
+                Location = proposal.Location,
+                Schedule = proposal.PreferredSchedule,
+                Price = proposal.EstimatedRate,
+                Status = "Requested"
+            };
+        }
 
-        Console.ForegroundColor = ConsoleColor.Magenta;
-        Console.WriteLine($"[💰 COUNTER-BID SUBMITTED] Ref: {booking.BookingReference} | New Price: Rs. {booking.Price:N0} | Time: {req.AvailableTime}");
-        Console.ResetColor();
-
-        return booking;
+        return null;
     }
 
     /// <summary>
@@ -481,18 +517,36 @@ public class CoordinationAgentService
     public async Task<BookingEntity?> CancelBookingAsync(CancelBookingRequest req, CancellationToken ct = default)
     {
         var booking = await _dbContext.Bookings.FirstOrDefaultAsync(b => b.BookingReference == req.BookingReference, ct);
-        if (booking == null) return null;
+        if (booking != null)
+        {
+            booking.Status = "Cancelled";
+            booking.UpdatedAt = DateTimeOffset.UtcNow;
+            await _dbContext.SaveChangesAsync(ct);
+            return booking;
+        }
 
-        booking.Status = "Cancelled";
-        booking.UpdatedAt = DateTimeOffset.UtcNow;
+        var proposal = await _dbContext.Proposals.FirstOrDefaultAsync(p => p.ProposalReference == req.BookingReference, ct);
+        if (proposal != null)
+        {
+            proposal.Status = "Cancelled";
+            proposal.UpdatedAt = DateTimeOffset.UtcNow;
+            await _dbContext.SaveChangesAsync(ct);
+            return new BookingEntity
+            {
+                Id = proposal.Id,
+                BookingReference = proposal.ProposalReference,
+                CustomerName = proposal.CustomerName,
+                ProviderName = proposal.ProviderName,
+                ServiceTitle = proposal.ServiceTitle,
+                Category = proposal.Category,
+                Location = proposal.Location,
+                Schedule = proposal.PreferredSchedule,
+                Price = proposal.EstimatedRate,
+                Status = "Cancelled"
+            };
+        }
 
-        await _dbContext.SaveChangesAsync(ct);
-
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"[❌ BOOKING CANCELLED] Ref: {booking.BookingReference} | Reason: {req.Reason ?? "Customer cancelled request"}");
-        Console.ResetColor();
-
-        return booking;
+        return null;
     }
 
     /// <summary>
@@ -509,28 +563,41 @@ public class CoordinationAgentService
 
         if (!string.IsNullOrWhiteSpace(providerId) && Guid.TryParse(providerId, out var provGuid))
         {
-            query = query.Where(b => b.ProviderId == provGuid);
-        }
+            var profileIds = await _dbContext.Providers
+                .Where(p => p.Id == provGuid || p.UserId == provGuid)
+                .Select(p => p.Id)
+                .ToListAsync(ct);
+            profileIds.Add(provGuid);
 
-        if (!string.IsNullOrWhiteSpace(providerName))
+            if (!string.IsNullOrWhiteSpace(providerName))
+            {
+                var pLow = providerName.Trim().ToLowerInvariant();
+                query = query.Where(b => (b.ProviderId.HasValue && profileIds.Contains(b.ProviderId.Value)) || b.ProviderName.ToLower().Contains(pLow));
+            }
+            else
+            {
+                query = query.Where(b => b.ProviderId.HasValue && profileIds.Contains(b.ProviderId.Value));
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(providerName))
         {
-            var pName = providerName.Trim().ToLower();
-            query = query.Where(b => b.ProviderName.ToLower() == pName);
+            var pLow = providerName.Trim().ToLowerInvariant();
+            query = query.Where(b => b.ProviderName.ToLower().Contains(pLow));
         }
 
         if (!string.IsNullOrWhiteSpace(customerName))
         {
-            var cName = customerName.Trim().ToLower();
-            query = query.Where(b => b.CustomerName.ToLower() == cName);
+            var cLow = customerName.Trim().ToLowerInvariant();
+            query = query.Where(b => b.CustomerName.ToLower().Contains(cLow) || cLow.Contains(b.CustomerName.ToLower()) || b.CustomerName.ToLower() == "customer");
         }
 
         if (!string.IsNullOrWhiteSpace(status))
         {
-            query = query.Where(b => b.Status.ToLower() == status.ToLower());
+            var sLow = status.Trim().ToLowerInvariant();
+            query = query.Where(b => b.Status.ToLower() == sLow);
         }
 
-        var list = await query.OrderByDescending(b => b.CreatedAt).ToListAsync(ct);
-        return list;
+        return await query.OrderByDescending(b => b.CreatedAt).ToListAsync(ct);
     }
 
     /// <summary>

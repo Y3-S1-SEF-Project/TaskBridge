@@ -55,9 +55,11 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
               b.providerId!.toLowerCase() == provId) {
             return true;
           }
-          if (provName != null &&
-              b.providerName.trim().toLowerCase() == provName) {
-            return true;
+          if (provName != null) {
+            final bProv = b.providerName.trim().toLowerCase();
+            if (bProv.contains(provName) || provName.contains(bProv)) {
+              return true;
+            }
           }
           return false;
         }).toList();
@@ -69,9 +71,11 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
               p.providerId!.toLowerCase() == provId) {
             return true;
           }
-          if (provName != null &&
-              p.providerName.trim().toLowerCase() == provName) {
-            return true;
+          if (provName != null) {
+            final pProv = p.providerName.trim().toLowerCase();
+            if (pProv.contains(provName) || provName.contains(pProv)) {
+              return true;
+            }
           }
           return false;
         }).toList();
@@ -112,8 +116,9 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
           ),
           backgroundColor: AppColors.primary,
           behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
       _loadBookings();
@@ -123,8 +128,9 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
   void _showProposalReviewModal(BookingItem booking) {
     final palette = AppPalette.of(context);
     final scheduleCtrl = TextEditingController(text: booking.schedule);
-    final priceCtrl =
-        TextEditingController(text: booking.price.toInt().toString());
+    final priceCtrl = TextEditingController(
+      text: booking.price.toInt().toString(),
+    );
 
     showModalBottomSheet(
       context: context,
@@ -164,7 +170,9 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.amber.shade100,
                           borderRadius: BorderRadius.circular(6),
@@ -217,8 +225,11 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.calendar_today_rounded,
-                            size: 18, color: palette.primary),
+                        Icon(
+                          Icons.calendar_today_rounded,
+                          size: 18,
+                          color: palette.primary,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
@@ -276,7 +287,9 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                         borderSide: BorderSide(color: palette.border),
                       ),
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
                     ),
                   ),
 
@@ -305,7 +318,9 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                         borderSide: BorderSide(color: palette.border),
                       ),
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
                     ),
                   ),
 
@@ -320,12 +335,13 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                         backgroundColor: palette.primary,
                         foregroundColor: palette.onPrimary,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                       onPressed: () async {
                         final parsedPrice =
                             double.tryParse(priceCtrl.text.trim()) ??
-                                booking.price;
+                            booking.price;
                         final confSchedule = scheduleCtrl.text.trim().isNotEmpty
                             ? scheduleCtrl.text.trim()
                             : booking.schedule;
@@ -361,7 +377,9 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                           Text(
                             'Accept & Confirm Schedule',
                             style: TextStyle(
-                                fontSize: 15, fontWeight: FontWeight.w700),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ],
                       ),
@@ -376,7 +394,8 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                         foregroundColor: AppColors.error,
                         side: BorderSide(color: AppColors.error),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       onPressed: () async {
                         Navigator.pop(ctx);
@@ -398,8 +417,10 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                           _loadBookings();
                         }
                       },
-                      child: const Text('Decline Proposal',
-                          style: TextStyle(fontWeight: FontWeight.w600)),
+                      child: const Text(
+                        'Decline Proposal',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ),
                 ],
@@ -460,17 +481,19 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                 Text(
                   'Schedule: ${booking.schedule}',
                   style: TextStyle(
-                      fontSize: 14,
-                      color: palette.text,
-                      fontWeight: FontWeight.w500),
+                    fontSize: 14,
+                    color: palette.text,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Earnings: Rs. ${booking.price.toInt()}',
                   style: TextStyle(
-                      fontSize: 16,
-                      color: palette.primary,
-                      fontWeight: FontWeight.w800),
+                    fontSize: 16,
+                    color: palette.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 20),
 
@@ -484,14 +507,17 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                         backgroundColor: palette.primary,
                         foregroundColor: palette.onPrimary,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       onPressed: () {
                         Navigator.pop(ctx);
                         _updateStatus(booking, 'Active');
                       },
-                      child: const Text('Start Job (Set Active)',
-                          style: TextStyle(fontWeight: FontWeight.w700)),
+                      child: const Text(
+                        'Start Job (Set Active)',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -503,7 +529,8 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                         foregroundColor: AppColors.error,
                         side: BorderSide(color: AppColors.error),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       onPressed: () {
                         Navigator.pop(ctx);
@@ -521,14 +548,17 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                         backgroundColor: palette.primary,
                         foregroundColor: palette.onPrimary,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       onPressed: () {
                         Navigator.pop(ctx);
                         _updateStatus(booking, 'Completed');
                       },
-                      child: const Text('Mark as Completed',
-                          style: TextStyle(fontWeight: FontWeight.w700)),
+                      child: const Text(
+                        'Mark as Completed',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
                     ),
                   ),
                 ] else ...[
@@ -539,7 +569,8 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: palette.text,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       onPressed: () => Navigator.pop(ctx),
                       child: const Text('Close'),
@@ -561,8 +592,9 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
     final requestsList = _proposals.map((p) => p.toBookingItem()).toList();
     final upcomingList = _bookings.where((b) => b.isUpcoming).toList();
     final activeList = _bookings.where((b) => b.isActive).toList();
-    final pastList =
-        _bookings.where((b) => b.isCompleted || b.isCancelled).toList();
+    final pastList = _bookings
+        .where((b) => b.isCompleted || b.isCancelled)
+        .toList();
 
     return Scaffold(
       backgroundColor: palette.background,
@@ -625,8 +657,9 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                           indicatorColor: palette.primary,
                           labelColor: palette.primary,
                           unselectedLabelColor: palette.muted,
-                          labelPadding:
-                              const EdgeInsets.symmetric(horizontal: 4),
+                          labelPadding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                          ),
                           tabs: [
                             Tab(
                               child: FittedBox(
@@ -653,8 +686,9 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                             Tab(
                               child: FittedBox(
                                 fit: BoxFit.scaleDown,
-                                child:
-                                    Text('Upcoming (${upcomingList.length})'),
+                                child: Text(
+                                  'Upcoming (${upcomingList.length})',
+                                ),
                               ),
                             ),
                             Tab(

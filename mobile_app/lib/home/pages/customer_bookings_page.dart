@@ -41,20 +41,51 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage> {
   Future<void> _loadBookings() async {
     setState(() => _isLoading = true);
     try {
-      final list = await CoordinationApi.getBookings(
-        customerName: widget.user?.fullName,
+      final custName = widget.user?.fullName;
+      final bookingsFuture = CoordinationApi.getBookings(
+        customerName: custName,
       );
-      if (mounted) {
-        final custName = widget.user?.fullName.trim().toLowerCase();
+      final proposalsFuture = CoordinationApi.getProposals(
+        customerName: custName,
+      );
 
-        final filtered = list.where((b) {
-          if (custName == null) return true;
+      final results = await Future.wait([bookingsFuture, proposalsFuture]);
+      final list = results[0] as List<BookingItem>;
+      final propList = results[1] as List<ProposalItem>;
+
+      if (mounted) {
+        final custLower = custName?.trim().toLowerCase();
+
+        final filteredBookings = list.where((b) {
+          if (custLower == null) return true;
           final bCust = b.customerName.trim().toLowerCase();
-          return bCust == custName || bCust == 'customer';
+          return bCust.contains(custLower) ||
+              custLower.contains(bCust) ||
+              bCust == 'customer';
         }).toList();
 
+        final filteredProposals = propList
+            .where((p) {
+              if (custLower == null) return true;
+              final pCust = p.customerName.trim().toLowerCase();
+              return pCust.contains(custLower) ||
+                  custLower.contains(pCust) ||
+                  pCust == 'customer';
+            })
+            .map((p) => p.toBookingItem())
+            .toList();
+
+        final existingBookingRefs = filteredBookings
+            .map((b) => b.bookingReference)
+            .toSet();
+        final proposalsToAdd = filteredProposals
+            .where((p) => !existingBookingRefs.contains(p.bookingReference))
+            .toList();
+
+        final combined = [...proposalsToAdd, ...filteredBookings];
+
         setState(() {
-          _bookings = filtered;
+          _bookings = combined;
           _isLoading = false;
         });
       }
@@ -72,7 +103,9 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage> {
         final palette = AppPalette.of(ctx);
         return AlertDialog(
           backgroundColor: palette.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Text(
             'Cancel Request?',
             style: TextStyle(fontWeight: FontWeight.w800, color: palette.text),
@@ -90,10 +123,15 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.error,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Yes, Cancel', style: TextStyle(fontWeight: FontWeight.w700)),
+              child: const Text(
+                'Yes, Cancel',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
           ],
         );
@@ -109,10 +147,14 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage> {
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Request #${booking.bookingReference} has been cancelled.'),
+            content: Text(
+              'Request #${booking.bookingReference} has been cancelled.',
+            ),
             backgroundColor: Colors.orange.shade800,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
         _loadBookings();
@@ -186,10 +228,8 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => QuotationProposalPage(
-          jobPlan: jobPlan,
-          proposalResponse: proposal,
-        ),
+        builder: (_) =>
+            QuotationProposalPage(jobPlan: jobPlan, proposalResponse: proposal),
       ),
     ).then((_) => _loadBookings());
   }
@@ -199,10 +239,8 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => ProviderMainPage(
-            user: widget.user!,
-            api: widget.api!,
-          ),
+          builder: (_) =>
+              ProviderMainPage(user: widget.user!, api: widget.api!),
         ),
       ).then((_) => _loadBookings());
     }
@@ -350,7 +388,9 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage> {
                       ? Center(
                           child: CircularProgressIndicator(
                             strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(palette.primary),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              palette.primary,
+                            ),
                           ),
                         )
                       : TabBarView(
@@ -358,8 +398,10 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage> {
                             // 1. Ongoing (Requests & In Progress)
                             _BookingsListView(
                               bookings: ongoingList,
-                              emptyMessage: 'No ongoing job requests right now.',
-                              emptySub: 'Requests you initiate via TaskBridge AI will appear here.',
+                              emptyMessage:
+                                  'No ongoing job requests right now.',
+                              emptySub:
+                                  'Requests you initiate via TaskBridge AI will appear here.',
                               onRefresh: _loadBookings,
                               onAction: _openProposalForBooking,
                               onCancel: _cancelBooking,
@@ -368,8 +410,10 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage> {
                             // 2. Upcoming (Confirmed locked bookings)
                             _BookingsListView(
                               bookings: upcomingList,
-                              emptyMessage: 'No upcoming bookings at the moment.',
-                              emptySub: 'Accepted quotations and confirmed bookings appear here.',
+                              emptyMessage:
+                                  'No upcoming bookings at the moment.',
+                              emptySub:
+                                  'Accepted quotations and confirmed bookings appear here.',
                               onRefresh: _loadBookings,
                               onAction: null,
                               onCancel: _cancelBooking,
@@ -379,7 +423,8 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage> {
                             _BookingsListView(
                               bookings: completedList,
                               emptyMessage: 'No completed bookings yet.',
-                              emptySub: 'Past finished jobs and reviews will be stored here.',
+                              emptySub:
+                                  'Past finished jobs and reviews will be stored here.',
                               onRefresh: _loadBookings,
                               onAction: null,
                               onCancel: null,
@@ -389,7 +434,8 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage> {
                             _BookingsListView(
                               bookings: cancelledList,
                               emptyMessage: 'No cancelled bookings.',
-                              emptySub: 'Requests that were cancelled or declined appear here.',
+                              emptySub:
+                                  'Requests that were cancelled or declined appear here.',
                               onRefresh: _loadBookings,
                               onAction: null,
                               onCancel: null,
@@ -467,10 +513,7 @@ class _BookingsListView extends StatelessWidget {
                 Text(
                   emptySub,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: palette.muted,
-                  ),
+                  style: TextStyle(fontSize: 12, color: palette.muted),
                 ),
               ],
             ),
@@ -525,7 +568,11 @@ class _BookingsListView extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.receipt_long_rounded, size: 16, color: palette.primary),
+                        Icon(
+                          Icons.receipt_long_rounded,
+                          size: 16,
+                          color: palette.primary,
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           '#${b.bookingReference}',
@@ -539,7 +586,10 @@ class _BookingsListView extends StatelessWidget {
                       ],
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: badgeColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(AppRadius.r12),
@@ -651,7 +701,9 @@ class _BookingsListView extends StatelessWidget {
                           child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               foregroundColor: AppColors.error,
-                              side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
+                              side: BorderSide(
+                                color: AppColors.error.withValues(alpha: 0.5),
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
@@ -660,11 +712,15 @@ class _BookingsListView extends StatelessWidget {
                             onPressed: () => onCancel!(b),
                             child: const Text(
                               'Cancel Request',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ),
-                      if (onCancel != null && onAction != null) const SizedBox(width: 10),
+                      if (onCancel != null && onAction != null)
+                        const SizedBox(width: 10),
                       if (onAction != null)
                         Expanded(
                           child: FilledButton(
@@ -679,7 +735,10 @@ class _BookingsListView extends StatelessWidget {
                             onPressed: () => onAction!(b),
                             child: const Text(
                               'View Proposal',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ),
@@ -692,7 +751,9 @@ class _BookingsListView extends StatelessWidget {
                     child: OutlinedButton(
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.error,
-                        side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
+                        side: BorderSide(
+                          color: AppColors.error.withValues(alpha: 0.5),
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
