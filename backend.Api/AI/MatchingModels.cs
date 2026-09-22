@@ -8,7 +8,10 @@ public class MatchingRequest
     public JobPlanDetails JobPlan { get; set; } = new();
 
     [JsonPropertyName("customerUserId")]
-    public int? CustomerUserId { get; set; }
+    public string? CustomerUserId { get; set; }
+
+    [JsonPropertyName("customerName")]
+    public string? CustomerName { get; set; }
 
     [JsonPropertyName("maxResults")]
     public int MaxResults { get; set; } = 3;

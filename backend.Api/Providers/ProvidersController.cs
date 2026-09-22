@@ -65,6 +65,8 @@ public class ProvidersController : ControllerBase
         [FromQuery] double? lat,
         [FromQuery] double? lng,
         [FromQuery] string? sortBy,
+        [FromQuery] string? excludeUserId,
+        [FromQuery] string? excludeName,
         [FromQuery] int limit = 20,
         CancellationToken ct = default)
     {
@@ -74,6 +76,17 @@ public class ProvidersController : ControllerBase
                 .Include(p => p.User)
                 .Where(p => p.IsActive)
                 .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(excludeUserId) && Guid.TryParse(excludeUserId, out var exGuid))
+            {
+                q = q.Where(p => p.UserId != exGuid);
+            }
+
+            if (!string.IsNullOrWhiteSpace(excludeName))
+            {
+                var exName = excludeName.Trim().ToLower();
+                q = q.Where(p => p.User == null || p.User.FullName.ToLower() != exName);
+            }
 
             if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All", StringComparison.OrdinalIgnoreCase))
             {
