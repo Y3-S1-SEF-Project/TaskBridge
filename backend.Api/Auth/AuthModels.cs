@@ -140,3 +140,21 @@ public sealed class AuthProblem(int status, string message) : Exception(message)
 {
     public int Status { get; } = status;
 }
+
+public sealed class BookingEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string BookingReference { get; set; } = string.Empty; // e.g. TB-1042
+    public Guid? CustomerId { get; set; }
+    public string CustomerName { get; set; } = "Customer";
+    public Guid? ProviderId { get; set; }
+    public string ProviderName { get; set; } = string.Empty;
+    public string ServiceTitle { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public string Location { get; set; } = string.Empty;
+    public string Schedule { get; set; } = string.Empty; // e.g. 17 Sep · 4:00 PM · Colombo 05
+    public decimal Price { get; set; }
+    public string Status { get; set; } = "Upcoming"; // Upcoming, Active, Completed, Cancelled
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? UpdatedAt { get; set; }
+}

@@ -5,6 +5,8 @@ import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_spacing.dart';
 import '../models/matching_models.dart';
 import '../models/planning_models.dart';
+import '../services/coordination_api.dart';
+import 'quotation_proposal_page.dart';
 import '../../home/pages/provider_detail_page.dart';
 
 /// Screen C20: "Your provider shortlist"
@@ -289,37 +291,39 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
     );
   }
 
-  void _onRequestQuotations() {
-    final count = widget.matchingResponse.matchedProviders.length;
-    if (count == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'No providers currently available for this category.',
-          ),
-          backgroundColor: Colors.orange.shade800,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+  bool _isRequestingQuotes = false;
+
+  Future<void> _onRequestQuotations() async {
+    setState(() => _isRequestingQuotes = true);
+
+    try {
+      final proposal = await CoordinationApi.evaluateQuotations(
+        jobPlan: widget.jobPlan,
+        candidateProviders: widget.matchingResponse.matchedProviders,
+      );
+
+      if (!mounted) return;
+      setState(() => _isRequestingQuotes = false);
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => QuotationProposalPage(
+            jobPlan: widget.jobPlan,
+            proposalResponse: proposal,
           ),
         ),
       );
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          count == 1
-              ? 'Quotation requested from ${widget.matchingResponse.matchedProviders.first.fullName}!'
-              : 'Quotations requested from all $count shortlisted providers!',
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isRequestingQuotes = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error evaluating quotations: $e'),
+          backgroundColor: AppColors.error,
         ),
-        backgroundColor: AppColors.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 3),
-      ),
-    );
+      );
+    }
   }
 
   @override
@@ -577,11 +581,24 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  onPressed: _onRequestQuotations,
-                  child: const Text(
-                    'Request Quotations',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                  ),
+                  onPressed: _isRequestingQuotes ? null : _onRequestQuotations,
+                  child: _isRequestingQuotes
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text(
+                          'Request Quotations',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                 ),
               ),
             ),

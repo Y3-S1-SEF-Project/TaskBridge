@@ -7,6 +7,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
 {
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<ProviderProfile> Providers => Set<ProviderProfile>();
+    public DbSet<BookingEntity> Bookings => Set<BookingEntity>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -41,6 +42,16 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
                   .WithOne(x => x.ProviderProfile)
                   .HasForeignKey<ProviderProfile>(x => x.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        model.Entity<BookingEntity>(entity =>
+        {
+            entity.ToTable("bookings");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.BookingReference);
+            entity.HasIndex(x => x.Status);
+            entity.HasIndex(x => x.ProviderId);
+            entity.Property(x => x.Price).HasColumnType("numeric(12,2)");
         });
     }
 
@@ -135,6 +146,26 @@ SELECT
 FROM users u
 WHERE u.""IsProvider"" = true
   AND NOT EXISTS (SELECT 1 FROM providers p WHERE p.""UserId"" = u.""Id"");
+
+CREATE TABLE IF NOT EXISTS bookings (
+    ""Id"" uuid PRIMARY KEY,
+    ""BookingReference"" text NOT NULL,
+    ""CustomerId"" uuid NULL,
+    ""CustomerName"" text NOT NULL DEFAULT 'Customer',
+    ""ProviderId"" uuid NULL,
+    ""ProviderName"" text NOT NULL DEFAULT '',
+    ""ServiceTitle"" text NOT NULL,
+    ""Category"" text NOT NULL,
+    ""Location"" text NOT NULL,
+    ""Schedule"" text NOT NULL,
+    ""Price"" numeric(12,2) NOT NULL,
+    ""Status"" text NOT NULL DEFAULT 'Upcoming',
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
+    ""UpdatedAt"" timestamptz NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_bookings_reference ON bookings (""BookingReference"");
+CREATE INDEX IF NOT EXISTS ix_bookings_status ON bookings (""Status"");
 ";
         await Database.ExecuteSqlRawAsync(sql, ct);
     }
