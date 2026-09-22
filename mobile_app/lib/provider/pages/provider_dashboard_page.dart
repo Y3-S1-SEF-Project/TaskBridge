@@ -35,10 +35,23 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
   Future<void> _loadBookings() async {
     setState(() => _isLoading = true);
     try {
-      final list = await CoordinationApi.getBookings();
+      final list = await CoordinationApi.getBookings(
+        providerId: widget.user.id,
+        providerName: widget.user.fullName,
+      );
       if (mounted) {
+        final provName = widget.user.fullName.trim().toLowerCase();
+        final provId = widget.user.id.toLowerCase();
+
+        final filtered = list.where((b) {
+          if (b.providerId != null && b.providerId!.toLowerCase() == provId) {
+            return true;
+          }
+          return b.providerName.trim().toLowerCase() == provName;
+        }).toList();
+
         setState(() {
-          _bookings = list;
+          _bookings = filtered;
           _isLoading = false;
         });
       }
@@ -73,9 +86,9 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
   }
 
   Future<void> _declineJob(BookingItem booking) async {
-    final success = await CoordinationApi.updateBookingStatus(
+    final success = await CoordinationApi.cancelBooking(
       bookingReference: booking.bookingReference,
-      newStatus: 'Cancelled',
+      reason: 'Declined by provider',
     );
 
     if (success && mounted) {
@@ -93,12 +106,204 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
     }
   }
 
+  void _showCounterBidModal(BookingItem booking) {
+    final palette = AppPalette.of(context);
+    final priceController =
+        TextEditingController(text: booking.price.toInt().toString());
+    final timeController = TextEditingController(
+      text: booking.schedule.contains('·')
+          ? booking.schedule.split('·').first.trim()
+          : booking.schedule,
+    );
+    final notesController = TextEditingController(
+      text: 'Specialist revised quotation with full labor, tools, and testing.',
+    );
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: palette.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: AppSpacing.s20,
+            right: AppSpacing.s20,
+            top: AppSpacing.s20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.s20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: palette.border,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(
+                    Icons.edit_note_rounded,
+                    color: palette.primary,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Counter-Offer / Edit Bid',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: palette.text,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Job: ${booking.serviceTitle} · Customer: ${booking.customerName}',
+                style: TextStyle(fontSize: 13, color: palette.muted),
+              ),
+              const SizedBox(height: 16),
+
+              // Price field
+              Text(
+                'Your Quoted Price (Rs.)',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: palette.text,
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: priceController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  prefixText: 'Rs. ',
+                  prefixStyle: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: palette.primary,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Arrival Time field
+              Text(
+                'Arrival Window',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: palette.text,
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: timeController,
+                decoration: InputDecoration(
+                  hintText: 'e.g. Tomorrow at 10:30 AM',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Notes
+              Text(
+                'Quotation Notes',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: palette.text,
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: notesController,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  hintText: 'Notes for the customer',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: palette.primary,
+                    foregroundColor: palette.onPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () async {
+                    final price =
+                        double.tryParse(priceController.text.trim()) ??
+                        booking.price;
+                    final time = timeController.text.trim();
+                    final note = notesController.text.trim();
+
+                    Navigator.pop(ctx);
+                    final success = await CoordinationApi.submitCounterBid(
+                      bookingReference: booking.bookingReference,
+                      counterPrice: price,
+                      availableTime: time,
+                      notes: note,
+                    );
+
+                    if (success && mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Counter-bid of Rs. ${price.toInt()} sent to customer!',
+                          ),
+                          backgroundColor: AppColors.primary,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      );
+                      _loadBookings();
+                    }
+                  },
+                  child: const Text(
+                    'Submit Counter-Bid',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
 
     final incomingRequests = _bookings
-        .where((b) => b.status.toLowerCase() == 'upcoming')
+        .where((b) => b.isRequested || b.isUpcoming)
         .toList();
     final activeJobs = _bookings
         .where(
@@ -316,6 +521,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
                         booking: booking,
                         onAccept: () => _acceptJob(booking),
                         onDecline: () => _declineJob(booking),
+                        onCounterBid: () => _showCounterBidModal(booking),
                       ),
                     ),
                   ),
@@ -381,11 +587,13 @@ class _LiveJobCard extends StatelessWidget {
   final BookingItem booking;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
+  final VoidCallback? onCounterBid;
 
   const _LiveJobCard({
     required this.booking,
     required this.onAccept,
     required this.onDecline,
+    this.onCounterBid,
   });
 
   @override
@@ -493,11 +701,33 @@ class _LiveJobCard extends StatelessWidget {
                     ),
                   ),
                   onPressed: onAccept,
-                  child: const Text('Accept Job'),
+                  child: Text(booking.isRequested ? 'Accept Quote' : 'Accept Job'),
                 ),
               ),
             ],
           ),
+          if (booking.isRequested && onCounterBid != null) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: palette.primary,
+                  side: BorderSide(color: palette.primary.withValues(alpha: 0.3)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+                onPressed: onCounterBid,
+                icon: const Icon(Icons.edit_note_rounded, size: 18),
+                label: const Text(
+                  'Counter-Offer / Edit Bid',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

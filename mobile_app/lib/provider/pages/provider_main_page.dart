@@ -56,7 +56,7 @@ class _ProviderMainPageState extends State<ProviderMainPage> {
         user: _currentUser,
         onSwitchToCustomer: _switchToCustomer,
       ),
-      const ProviderJobsPage(),
+      ProviderJobsPage(user: _currentUser),
       const ProviderChatPage(),
       ProviderProfilePage(
         user: _currentUser,

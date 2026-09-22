@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../ai/widgets/ai_prompt_sheet.dart';
+import '../../auth/data/auth_models.dart';
 import '../../core/services/location_service.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_palette.dart';
@@ -28,6 +29,7 @@ class ProviderSearchPage extends StatefulWidget {
   final String? initialQuery;
   final String? location;
   final UserLocation? userLocation;
+  final AuthUser? user;
 
   const ProviderSearchPage({
     super.key,
@@ -35,6 +37,7 @@ class ProviderSearchPage extends StatefulWidget {
     this.initialQuery,
     this.location,
     this.userLocation,
+    this.user,
   });
 
   @override
@@ -106,10 +109,25 @@ class _ProviderSearchPageState extends State<ProviderSearchPage> {
         lat: _customerLocation?.latitude,
         lng: _customerLocation?.longitude,
         sortBy: _getApiSortKey(_selectedSort),
+        excludeUserId: widget.user?.id,
+        excludeName: widget.user?.fullName,
       );
 
       if (mounted) {
-        _providers = results;
+        final currentUserId = widget.user?.id.toLowerCase();
+        final currentUserName = widget.user?.fullName.trim().toLowerCase();
+
+        _providers = results.where((p) {
+          if (currentUserId != null && p.userId.toLowerCase() == currentUserId) {
+            return false;
+          }
+          if (currentUserName != null &&
+              p.fullName.trim().toLowerCase() == currentUserName) {
+            return false;
+          }
+          return true;
+        }).toList();
+
         _calculateRealDistancesAndSort();
         setState(() {
           _isLoading = false;

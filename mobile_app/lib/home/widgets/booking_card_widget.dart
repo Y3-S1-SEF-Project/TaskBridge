@@ -3,6 +3,7 @@ import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_spacing.dart';
 
 enum BookingStatus {
+  requested,
   upcoming,
   active,
   completed,
@@ -10,6 +11,11 @@ enum BookingStatus {
 
   static BookingStatus fromString(String val) {
     switch (val.toLowerCase().trim()) {
+      case 'requested':
+      case 'pending':
+      case 'quotationpending':
+      case 'counterbidreceived':
+        return BookingStatus.requested;
       case 'active':
       case 'in progress':
       case 'en route':
@@ -27,6 +33,8 @@ enum BookingStatus {
 
   String get label {
     switch (this) {
+      case BookingStatus.requested:
+        return 'Proposal Sent';
       case BookingStatus.upcoming:
         return 'Upcoming';
       case BookingStatus.active:
@@ -40,7 +48,7 @@ enum BookingStatus {
 }
 
 /// Exact Figma component: `❖ BookingCard`
-/// Implements the 4 exact states: Upcoming, Active, Completed, Cancelled.
+/// Implements the exact states: Requested, Upcoming, Active, Completed, Cancelled.
 class BookingCardWidget extends StatelessWidget {
   final String title;
   final String providerName;
@@ -69,6 +77,10 @@ class BookingCardWidget extends StatelessWidget {
     Color tagBgColor;
 
     switch (status) {
+      case BookingStatus.requested:
+        tagTextColor = Colors.amber.shade900;
+        tagBgColor = Colors.amber.shade100;
+        break;
       case BookingStatus.upcoming:
         tagTextColor = palette.primary;
         tagBgColor = palette.primary.withValues(alpha: 0.12);
