@@ -11,10 +11,7 @@ import '../../core/widgets/design_system.dart';
 class LocationPickerPage extends StatefulWidget {
   final UserLocation initialLocation;
 
-  const LocationPickerPage({
-    super.key,
-    required this.initialLocation,
-  });
+  const LocationPickerPage({super.key, required this.initialLocation});
 
   @override
   State<LocationPickerPage> createState() => _LocationPickerPageState();
@@ -111,12 +108,12 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                   onPressed: () => Geolocator.openAppSettings(),
                 )
               : (e.isServiceDisabled
-                  ? SnackBarAction(
-                      label: 'Settings',
-                      textColor: Colors.white,
-                      onPressed: () => Geolocator.openLocationSettings(),
-                    )
-                  : null),
+                    ? SnackBarAction(
+                        label: 'Settings',
+                        textColor: Colors.white,
+                        onPressed: () => Geolocator.openLocationSettings(),
+                      )
+                    : null),
         ),
       );
     } catch (e) {
@@ -161,18 +158,24 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
 
   Future<void> _animateCameraTo(LatLng target) async {
     final controller = await _mapController.future;
-    controller.animateCamera(
-      CameraUpdate.newCameraPosition(
-        CameraPosition(target: target, zoom: 16),
-      ),
+    await controller.animateCamera(
+      CameraUpdate.newCameraPosition(CameraPosition(target: target, zoom: 16)),
     );
+    if (mounted) {
+      setState(() {
+        _currentCenter = target;
+      });
+      _resolveAddressForCenter();
+    }
   }
 
   void _confirmAndReturn() {
-    final locationToReturn = _selectedLocation ??
+    final locationToReturn =
+        _selectedLocation ??
         UserLocation(
           shortName: 'Custom Location',
-          address: 'Lat: ${_currentCenter.latitude.toStringAsFixed(4)}, Lng: ${_currentCenter.longitude.toStringAsFixed(4)}',
+          address:
+              'Lat: ${_currentCenter.latitude.toStringAsFixed(4)}, Lng: ${_currentCenter.longitude.toStringAsFixed(4)}',
           latitude: _currentCenter.latitude,
           longitude: _currentCenter.longitude,
         );
@@ -192,7 +195,12 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
               target: _currentCenter,
               zoom: 15.5,
             ),
-            onMapCreated: (controller) => _mapController.complete(controller),
+            onMapCreated: (controller) {
+              if (!_mapController.isCompleted) {
+                _mapController.complete(controller);
+              }
+            },
+            onTap: (LatLng tappedPoint) => _animateCameraTo(tappedPoint),
             onCameraMove: _onCameraMove,
             onCameraIdle: _onCameraIdle,
             myLocationEnabled: true,
@@ -261,7 +269,10 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                         backgroundColor: Colors.white,
                         radius: 22,
                         child: IconButton(
-                          icon: const Icon(AppIcons.arrowLeft, color: AppColors.textPrimary),
+                          icon: const Icon(
+                            AppIcons.arrowLeft,
+                            color: AppColors.textPrimary,
+                          ),
                           onPressed: () => Navigator.pop(context),
                         ),
                       ),
@@ -289,9 +300,15 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                                 fontSize: 14,
                                 color: AppColors.textSecondary,
                               ),
-                              prefixIcon: const Icon(Icons.search, color: AppColors.primary),
+                              prefixIcon: const Icon(
+                                Icons.search,
+                                color: AppColors.primary,
+                              ),
                               suffixIcon: IconButton(
-                                icon: const Icon(Icons.arrow_forward_rounded, color: AppColors.primary),
+                                icon: const Icon(
+                                  Icons.arrow_forward_rounded,
+                                  color: AppColors.primary,
+                                ),
                                 onPressed: _performSearch,
                               ),
                               border: InputBorder.none,
@@ -324,10 +341,15 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                       dimension: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppColors.primary,
+                        ),
                       ),
                     )
-                  : const Icon(Icons.my_location_rounded, color: AppColors.primary),
+                  : const Icon(
+                      Icons.my_location_rounded,
+                      color: AppColors.primary,
+                    ),
             ),
           ),
 
@@ -339,7 +361,9 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.1),
@@ -377,7 +401,8 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                               Text(
                                 _isGeocoding
                                     ? 'Pinpointing address…'
-                                    : (_selectedLocation?.shortName ?? 'Selected Location'),
+                                    : (_selectedLocation?.shortName ??
+                                          'Selected Location'),
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w700,
@@ -390,7 +415,8 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                               Text(
                                 _isGeocoding
                                     ? 'Moving to target location…'
-                                    : (_selectedLocation?.address ?? 'Target coordinates'),
+                                    : (_selectedLocation?.address ??
+                                          'Target coordinates'),
                                 style: const TextStyle(
                                   fontSize: 13,
                                   color: AppColors.textSecondary,
@@ -406,7 +432,9 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                             dimension: 16,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppColors.primary,
+                              ),
                             ),
                           ),
                       ],

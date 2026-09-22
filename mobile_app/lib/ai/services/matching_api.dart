@@ -21,7 +21,8 @@ class MatchingApi {
   /// Sends the JobPlan from Agent 1 to Agent 2 for provider matching and ranking.
   static Future<MatchingResponse> matchProviders({
     required JobPlan jobPlan,
-    int? customerUserId,
+    String? customerUserId,
+    String? customerName,
     int maxResults = 3,
   }) async {
     developer.log(
@@ -32,6 +33,7 @@ class MatchingApi {
     final payload = jsonEncode({
       'jobPlan': jobPlan.toJson(),
       'customerUserId': customerUserId,
+      'customerName': customerName,
       'maxResults': maxResults,
     });
 

@@ -25,6 +25,8 @@ class ProviderApi {
     double? lat,
     double? lng,
     String? sortBy,
+    String? excludeUserId,
+    String? excludeName,
     int limit = 20,
   }) async {
     final candidates = _candidateUrls;
@@ -54,6 +56,12 @@ class ProviderApi {
       }
       if (sortBy != null && sortBy.trim().isNotEmpty) {
         queryParams['sortBy'] = sortBy.trim();
+      }
+      if (excludeUserId != null && excludeUserId.trim().isNotEmpty) {
+        queryParams['excludeUserId'] = excludeUserId.trim();
+      }
+      if (excludeName != null && excludeName.trim().isNotEmpty) {
+        queryParams['excludeName'] = excludeName.trim();
       }
 
       final uri = Uri.parse('$candidate/api/providers')

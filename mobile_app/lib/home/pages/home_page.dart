@@ -57,10 +57,27 @@ class _HomePageState extends State<HomePage> {
         lat: _userLocation.latitude,
         lng: _userLocation.longitude,
         sortBy: 'distance',
+        excludeUserId: widget.user?.id,
+        excludeName: widget.user?.fullName,
         limit: 5,
       );
       if (mounted) {
-        final realList = list.map((p) {
+        final currentUserId = widget.user?.id.toLowerCase();
+        final currentUserName = widget.user?.fullName.trim().toLowerCase();
+
+        final filteredList = list.where((p) {
+          if (currentUserId != null &&
+              p.userId.toLowerCase() == currentUserId) {
+            return false;
+          }
+          if (currentUserName != null &&
+              p.fullName.trim().toLowerCase() == currentUserName) {
+            return false;
+          }
+          return true;
+        }).toList();
+
+        final realList = filteredList.map((p) {
           if (p.latitude != null &&
               p.longitude != null &&
               p.latitude != 0 &&
@@ -178,6 +195,8 @@ class _HomePageState extends State<HomePage> {
     final pages = [
       _buildHomeContent(topCategories, palette),
       CustomerBookingsPage(
+        user: widget.user,
+        api: widget.api,
         onSwitchTab: (index) => setState(() => _currentNavIndex = index),
       ),
       const CustomerChatPage(),
@@ -324,6 +343,7 @@ class _HomePageState extends State<HomePage> {
                     builder: (_) => ProviderSearchPage(
                       location: _userLocation.shortName,
                       userLocation: _userLocation,
+                      user: widget.user,
                     ),
                   ),
                 );
@@ -339,6 +359,7 @@ class _HomePageState extends State<HomePage> {
                 AiPromptSheet.show(
                   context,
                   currentLocation: _userLocation.shortName,
+                  user: widget.user,
                 );
               },
               borderRadius: BorderRadius.circular(16),

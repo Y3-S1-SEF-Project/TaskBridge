@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class UserLocation {
@@ -125,7 +127,7 @@ class LocationService {
     try {
       final placemarks = await _geocoding
           .placemarkFromCoordinates(lat, lng)
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 4));
       if (placemarks.isNotEmpty) {
         final place = placemarks.first;
 
@@ -182,7 +184,13 @@ class LocationService {
         );
       }
     } catch (e) {
-      debugPrint('Reverse geocoding error: $e');
+      debugPrint('Reverse geocoding native error: $e');
+    }
+
+    // Try Nominatim fallback if native geocoding timed out or failed
+    final fallback = await _fallbackReverseNominatim(lat, lng);
+    if (fallback != null) {
+      return fallback;
     }
 
     return UserLocation(
@@ -196,13 +204,105 @@ class LocationService {
   // Forward geocodes a search string into coordinates.
   static Future<UserLocation?> searchLocation(String query) async {
     try {
-      final locations = await _geocoding.locationFromAddress(query);
+      final locations = await _geocoding
+          .locationFromAddress(query)
+          .timeout(const Duration(seconds: 4));
       if (locations.isNotEmpty) {
         final loc = locations.first;
         return await getAddressFromCoordinates(loc.latitude, loc.longitude);
       }
     } catch (e) {
-      debugPrint('Forward geocoding error: $e');
+      debugPrint('Forward geocoding native error: $e');
+    }
+
+    // Fallback to OpenStreetMap Nominatim if native geocoding failed (common in simulators/iOS)
+    return await _fallbackSearchNominatim(query);
+  }
+
+  static Future<UserLocation?> _fallbackSearchNominatim(String query) async {
+    try {
+      final uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&addressdetails=1&limit=1',
+      );
+      final res = await http
+          .get(
+            uri,
+            headers: {
+              'User-Agent': 'TaskBridge-App/1.0 (support@taskbridge.app)',
+            },
+          )
+          .timeout(const Duration(seconds: 5));
+
+      if (res.statusCode == 200) {
+        final List data = jsonDecode(res.body) as List;
+        if (data.isNotEmpty) {
+          final first = data.first as Map<String, dynamic>;
+          final lat = double.tryParse(first['lat']?.toString() ?? '');
+          final lon = double.tryParse(first['lon']?.toString() ?? '');
+          if (lat != null && lon != null) {
+            final addr = first['address'] as Map<String, dynamic>?;
+            final short =
+                addr?['suburb'] ??
+                addr?['neighbourhood'] ??
+                addr?['city'] ??
+                addr?['town'] ??
+                addr?['village'] ??
+                first['name'] ??
+                query;
+            final full = first['display_name'] as String? ?? short.toString();
+            return UserLocation(
+              shortName: short.toString(),
+              address: full,
+              latitude: lat,
+              longitude: lon,
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Nominatim forward geocoding error: $e');
+    }
+    return null;
+  }
+
+  static Future<UserLocation?> _fallbackReverseNominatim(
+    double lat,
+    double lng,
+  ) async {
+    try {
+      final uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lng&format=json&addressdetails=1',
+      );
+      final res = await http
+          .get(
+            uri,
+            headers: {
+              'User-Agent': 'TaskBridge-App/1.0 (support@taskbridge.app)',
+            },
+          )
+          .timeout(const Duration(seconds: 5));
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        final addr = data['address'] as Map<String, dynamic>?;
+        final short =
+            addr?['suburb'] ??
+            addr?['neighbourhood'] ??
+            addr?['city'] ??
+            addr?['town'] ??
+            addr?['village'] ??
+            addr?['road'] ??
+            'Selected Location';
+        final full = data['display_name'] as String? ?? short.toString();
+        return UserLocation(
+          shortName: short.toString(),
+          address: full,
+          latitude: lat,
+          longitude: lng,
+        );
+      }
+    } catch (e) {
+      debugPrint('Nominatim reverse geocoding error: $e');
     }
     return null;
   }

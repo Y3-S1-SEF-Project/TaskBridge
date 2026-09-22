@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../auth/data/auth_models.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_spacing.dart';
@@ -8,15 +9,23 @@ import '../services/planning_api.dart';
 
 class AiPromptSheet extends StatefulWidget {
   final String? currentLocation;
+  final AuthUser? user;
 
-  const AiPromptSheet({super.key, this.currentLocation});
+  const AiPromptSheet({super.key, this.currentLocation, this.user});
 
-  static Future<void> show(BuildContext context, {String? currentLocation}) {
+  static Future<void> show(
+    BuildContext context, {
+    String? currentLocation,
+    AuthUser? user,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => AiPromptSheet(currentLocation: currentLocation),
+      builder: (_) => AiPromptSheet(
+        currentLocation: currentLocation,
+        user: user,
+      ),
     );
   }
 
@@ -83,6 +92,7 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
             builder: (_) => PlanningMissingInfoPage(
               initialPlan: result.jobPlan,
               analysisResult: result,
+              user: widget.user,
             ),
           ),
         );
@@ -93,6 +103,7 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
             builder: (_) => PlanningProgressPage(
               plan: result.jobPlan,
               analysisResult: result,
+              user: widget.user,
             ),
           ),
         );
