@@ -197,13 +197,17 @@ class CoordinationApi {
     return true;
   }
 
-  /// Submits a provider counter-bid / updated quote.
+  /// Submits a provider counter-bid or customer re-bid / updated quote.
   static Future<bool> submitCounterBid({
     required String bookingReference,
     required double counterPrice,
     String? availableTime,
     String? notes,
+    String? sender,
   }) async {
+    final isCustomer = sender?.toLowerCase() == 'customer';
+    final targetStatus = isCustomer ? 'CustomerCountered' : 'ProviderCountered';
+
     final idx = _localBookings.indexWhere(
       (b) => b.bookingReference == bookingReference,
     );
@@ -222,7 +226,7 @@ class CoordinationApi {
         location: old.location,
         schedule: newSchedule,
         price: counterPrice,
-        status: 'Requested',
+        status: targetStatus,
         createdAt: old.createdAt,
       );
     }
@@ -232,6 +236,7 @@ class CoordinationApi {
       'counterPrice': counterPrice,
       'availableTime': availableTime,
       'notes': notes,
+      'sender': sender ?? 'provider',
     });
 
     for (final candidate in _candidateUrls) {
@@ -544,8 +549,9 @@ class CoordinationApi {
     }
 
     for (final candidate in candidates) {
-      final uri = Uri.parse('$candidate/api/agent/coordination/proposals')
-          .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+      final uri = Uri.parse(
+        '$candidate/api/agent/coordination/proposals',
+      ).replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
       try {
         final response = await http
             .get(uri, headers: {'Content-Type': 'application/json'})
@@ -559,8 +565,9 @@ class CoordinationApi {
 
           // Sync into local cache
           for (final p in parsed) {
-            final idx = _localProposals
-                .indexWhere((x) => x.proposalReference == p.proposalReference);
+            final idx = _localProposals.indexWhere(
+              (x) => x.proposalReference == p.proposalReference,
+            );
             if (idx != -1) {
               _localProposals[idx] = p;
             } else {
@@ -590,8 +597,9 @@ class CoordinationApi {
     required double price,
   }) async {
     // Update local proposal
-    final idx = _localProposals
-        .indexWhere((p) => p.proposalReference == proposalReference);
+    final idx = _localProposals.indexWhere(
+      (p) => p.proposalReference == proposalReference,
+    );
     if (idx != -1) {
       final old = _localProposals[idx];
       _localProposals[idx] = ProposalItem(
@@ -618,8 +626,9 @@ class CoordinationApi {
     });
 
     for (final candidate in candidates) {
-      final uri =
-          Uri.parse('$candidate/api/agent/coordination/proposals/accept');
+      final uri = Uri.parse(
+        '$candidate/api/agent/coordination/proposals/accept',
+      );
       try {
         final response = await http
             .post(
@@ -643,8 +652,9 @@ class CoordinationApi {
     required String proposalReference,
     String? reason,
   }) async {
-    final idx = _localProposals
-        .indexWhere((p) => p.proposalReference == proposalReference);
+    final idx = _localProposals.indexWhere(
+      (p) => p.proposalReference == proposalReference,
+    );
     if (idx != -1) {
       final old = _localProposals[idx];
       _localProposals[idx] = ProposalItem(
@@ -670,8 +680,9 @@ class CoordinationApi {
     });
 
     for (final candidate in candidates) {
-      final uri =
-          Uri.parse('$candidate/api/agent/coordination/proposals/decline');
+      final uri = Uri.parse(
+        '$candidate/api/agent/coordination/proposals/decline',
+      );
       try {
         final response = await http
             .post(

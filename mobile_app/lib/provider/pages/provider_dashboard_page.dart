@@ -42,7 +42,6 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
       final proposalsFuture = CoordinationApi.getProposals(
         providerId: widget.user.id,
         providerName: widget.user.fullName,
-        status: 'Pending',
       );
 
       final results = await Future.wait([bookingsFuture, proposalsFuture]);
@@ -63,6 +62,10 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
 
         final filteredProposals = propList
             .where((p) {
+              final s = p.status.toLowerCase();
+              if (s == 'accepted' || s == 'declined' || s == 'cancelled') {
+                return false;
+              }
               if (p.providerId != null &&
                   p.providerId!.toLowerCase() == provId) {
                 return true;
@@ -862,6 +865,24 @@ class _LiveJobCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (booking.isCustomerCountered) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade100,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                'CUSTOMER RE-BID RECEIVED',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.orange.shade900,
+                ),
+              ),
+            ),
+          ],
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -975,7 +996,9 @@ class _LiveJobCard extends StatelessWidget {
                   ),
                   onPressed: onAccept,
                   child: Text(
-                    booking.isRequested ? 'Accept Quote' : 'Accept Job',
+                    booking.isCustomerCountered
+                        ? 'Accept Re-Bid'
+                        : (booking.isRequested ? 'Accept Quote' : 'Accept Job'),
                   ),
                 ),
               ),

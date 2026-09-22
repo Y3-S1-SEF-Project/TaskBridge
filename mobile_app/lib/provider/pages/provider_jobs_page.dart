@@ -40,7 +40,6 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
       final proposalsFuture = CoordinationApi.getProposals(
         providerId: widget.user?.id,
         providerName: widget.user?.fullName,
-        status: 'Pending',
       );
 
       final results = await Future.wait([bookingsFuture, proposalsFuture]);
@@ -65,6 +64,10 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
         }).toList();
 
         final filteredProposals = propList.where((p) {
+          final s = p.status.toLowerCase();
+          if (s == 'accepted' || s == 'declined' || s == 'cancelled') {
+            return false;
+          }
           if (widget.user == null) return true;
           if (provId != null &&
               p.providerId != null &&
@@ -165,15 +168,27 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.amber.shade100,
+                              color: booking.isCustomerCountered
+                                  ? Colors.teal.shade100
+                                  : (booking.isProviderCountered
+                                        ? Colors.indigo.shade100
+                                        : Colors.amber.shade100),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              'NEW PROPOSAL',
+                              booking.isCustomerCountered
+                                  ? 'CUSTOMER RE-BID'
+                                  : (booking.isProviderCountered
+                                        ? 'QUOTATION SENT'
+                                        : 'NEW PROPOSAL'),
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
-                                color: Colors.amber.shade900,
+                                color: booking.isCustomerCountered
+                                    ? Colors.teal.shade900
+                                    : (booking.isProviderCountered
+                                          ? Colors.indigo.shade900
+                                          : Colors.amber.shade900),
                               ),
                             ),
                           ),
@@ -204,6 +219,57 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                         style: TextStyle(fontSize: 13, color: palette.muted),
                       ),
                       const SizedBox(height: 14),
+
+                      if (booking.isCustomerCountered) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.teal.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.teal.shade300,
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                Icons.gavel_rounded,
+                                size: 18,
+                                color: Colors.teal.shade800,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Customer Counter-Offered Terms',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.teal.shade900,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      'Customer proposed Rs. ${booking.price.toInt()} and schedule "${booking.schedule}". Accepting now will immediately confirm this job into your Upcoming bookings.',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.teal.shade900,
+                                        height: 1.3,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
 
                       // Customer Requested Time Banner
                       Container(
@@ -514,7 +580,9 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                               messenger.showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    'Proposal accepted! Booking locked into Upcoming schedule for $confSchedule.',
+                                    booking.isCustomerCountered
+                                        ? 'Customer re-bid accepted! Booking confirmed into Upcoming schedule for $confSchedule.'
+                                        : 'Proposal accepted! Booking locked into Upcoming schedule for $confSchedule.',
                                   ),
                                   backgroundColor: AppColors.primary,
                                   behavior: SnackBarBehavior.floating,
@@ -526,17 +594,19 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                               _loadBookings();
                             }
                           },
-                          child: const Row(
+                          child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.check_circle_outline_rounded,
                                 size: 18,
                               ),
-                              SizedBox(width: 8),
+                              const SizedBox(width: 8),
                               Text(
-                                'Accept & Confirm Schedule',
-                                style: TextStyle(
+                                booking.isCustomerCountered
+                                    ? 'Accept Re-Bid & Seal Booking'
+                                    : 'Accept & Confirm Schedule',
+                                style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -965,6 +1035,24 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
           final b = list[index];
           final parsedStatus = BookingStatus.fromString(b.status);
 
+          String? customLabel;
+          Color? tagTextCol;
+          Color? tagBgCol;
+
+          if (b.isCustomerCountered) {
+            customLabel = 'Re-Bid Received';
+            tagTextCol = Colors.teal.shade900;
+            tagBgCol = Colors.teal.shade100;
+          } else if (b.isProviderCountered) {
+            customLabel = 'Quotation Sent';
+            tagTextCol = Colors.indigo.shade900;
+            tagBgCol = Colors.indigo.shade100;
+          } else if (parsedStatus == BookingStatus.requested) {
+            customLabel = 'New Proposal';
+            tagTextCol = Colors.amber.shade900;
+            tagBgCol = Colors.amber.shade100;
+          }
+
           return BookingCardWidget(
             title: b.serviceTitle,
             providerName: b.customerName,
@@ -974,6 +1062,9 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                 ? 'Rate: Rs. ${b.price.toInt()}/hr'
                 : 'Rs. ${b.price.toInt()}',
             status: parsedStatus,
+            customStatusLabel: customLabel,
+            customTagTextColor: tagTextCol,
+            customTagBgColor: tagBgCol,
             onTap: () {
               if (parsedStatus == BookingStatus.requested) {
                 _showProposalReviewModal(b);

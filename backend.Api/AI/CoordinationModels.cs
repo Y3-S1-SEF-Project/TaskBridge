@@ -210,6 +210,9 @@ public class ProviderCounterBidRequest
 
     [JsonPropertyName("notes")]
     public string? Notes { get; set; }
+
+    [JsonPropertyName("sender")]
+    public string? Sender { get; set; } // "customer" or "provider"
 }
 
 public class CancelBookingRequest

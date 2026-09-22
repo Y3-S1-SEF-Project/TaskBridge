@@ -458,7 +458,17 @@ public class CoordinationAgentService
         if (!string.IsNullOrWhiteSpace(status))
         {
             var sLow = status.Trim().ToLowerInvariant();
-            query = query.Where(p => p.Status.ToLower() == sLow);
+            if (sLow == "pending" || sLow == "requested")
+            {
+                query = query.Where(p => p.Status.ToLower() == "pending" ||
+                                         p.Status.ToLower() == "requested" ||
+                                         p.Status.ToLower() == "customercountered" ||
+                                         p.Status.ToLower() == "providercountered");
+            }
+            else
+            {
+                query = query.Where(p => p.Status.ToLower() == sLow);
+            }
         }
 
         return await query.OrderByDescending(p => p.CreatedAt).ToListAsync(ct);
@@ -469,6 +479,9 @@ public class CoordinationAgentService
     /// </summary>
     public async Task<BookingEntity?> SubmitCounterBidAsync(ProviderCounterBidRequest req, CancellationToken ct = default)
     {
+        var isCustomer = string.Equals(req.Sender, "customer", StringComparison.OrdinalIgnoreCase);
+        var targetStatus = isCustomer ? "CustomerCountered" : "ProviderCountered";
+
         var booking = await _dbContext.Bookings.FirstOrDefaultAsync(b => b.BookingReference == req.BookingReference, ct);
         if (booking != null)
         {
@@ -477,7 +490,7 @@ public class CoordinationAgentService
             {
                 booking.Schedule = $"{req.AvailableTime} · {booking.Location}";
             }
-            booking.Status = "Requested";
+            booking.Status = targetStatus;
             booking.UpdatedAt = DateTimeOffset.UtcNow;
             await _dbContext.SaveChangesAsync(ct);
             return booking;
@@ -491,6 +504,7 @@ public class CoordinationAgentService
             {
                 proposal.PreferredSchedule = $"{req.AvailableTime} · {proposal.Location}";
             }
+            proposal.Status = targetStatus;
             proposal.UpdatedAt = DateTimeOffset.UtcNow;
             await _dbContext.SaveChangesAsync(ct);
             return new BookingEntity
@@ -504,7 +518,7 @@ public class CoordinationAgentService
                 Location = proposal.Location,
                 Schedule = proposal.PreferredSchedule,
                 Price = proposal.EstimatedRate,
-                Status = "Requested"
+                Status = targetStatus
             };
         }
 

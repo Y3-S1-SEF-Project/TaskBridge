@@ -15,6 +15,8 @@ enum BookingStatus {
       case 'pending':
       case 'quotationpending':
       case 'counterbidreceived':
+      case 'customercountered':
+      case 'providercountered':
         return BookingStatus.requested;
       case 'active':
       case 'in progress':
@@ -56,6 +58,9 @@ class BookingCardWidget extends StatelessWidget {
   final String schedule;
   final String price;
   final BookingStatus status;
+  final String? customStatusLabel;
+  final Color? customTagTextColor;
+  final Color? customTagBgColor;
   final VoidCallback? onTap;
 
   const BookingCardWidget({
@@ -66,6 +71,9 @@ class BookingCardWidget extends StatelessWidget {
     required this.schedule,
     required this.price,
     this.status = BookingStatus.upcoming,
+    this.customStatusLabel,
+    this.customTagTextColor,
+    this.customTagBgColor,
     this.onTap,
   });
 
@@ -172,15 +180,15 @@ class BookingCardWidget extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: tagBgColor,
+                    color: customTagBgColor ?? tagBgColor,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    status.label,
+                    customStatusLabel ?? status.label,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: tagTextColor,
+                      color: customTagTextColor ?? tagTextColor,
                     ),
                   ),
                 ),

@@ -210,11 +210,16 @@ class BookingItem {
   }
 
   String get priceFormatted => 'Rs. ${price.toInt()}';
+  bool get isProviderCountered =>
+      status.toLowerCase() == 'providercountered' ||
+      status.toLowerCase() == 'counterbidreceived';
+  bool get isCustomerCountered => status.toLowerCase() == 'customercountered';
   bool get isRequested =>
       status.toLowerCase() == 'requested' ||
       status.toLowerCase() == 'pending' ||
       status.toLowerCase() == 'quotationpending' ||
-      status.toLowerCase() == 'counterbidreceived';
+      isProviderCountered ||
+      isCustomerCountered;
   bool get isUpcoming => status.toLowerCase() == 'upcoming';
   bool get isActive =>
       status.toLowerCase() == 'active' || status.toLowerCase() == 'in progress';
@@ -300,7 +305,7 @@ class ProposalItem {
       location: location,
       schedule: preferredSchedule,
       price: estimatedRate,
-      status: 'Requested',
+      status: status,
       createdAt: createdAt,
     );
   }
