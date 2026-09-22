@@ -143,7 +143,7 @@ public class ConfirmBookingRequest
     public decimal Price { get; set; }
 
     [JsonPropertyName("status")]
-    public string Status { get; set; } = "Upcoming";
+    public string Status { get; set; } = "Requested";
 }
 
 public class UpdateBookingStatusRequest
@@ -155,5 +155,68 @@ public class UpdateBookingStatusRequest
     public string? BookingReference { get; set; }
 
     [JsonPropertyName("newStatus")]
-    public string NewStatus { get; set; } = "Active"; // Upcoming, Active, Completed, Cancelled
+    public string NewStatus { get; set; } = "Active"; // Requested, Upcoming, Active, Completed, Cancelled
+
+    [JsonPropertyName("schedule")]
+    public string? Schedule { get; set; }
+
+    [JsonPropertyName("price")]
+    public decimal? Price { get; set; }
+}
+
+public class CreateQuotationRequest
+{
+    [JsonPropertyName("bookingReference")]
+    public string? BookingReference { get; set; }
+
+    [JsonPropertyName("providerId")]
+    public string ProviderId { get; set; } = string.Empty;
+
+    [JsonPropertyName("providerName")]
+    public string ProviderName { get; set; } = string.Empty;
+
+    [JsonPropertyName("customerName")]
+    public string? CustomerName { get; set; }
+
+    [JsonPropertyName("serviceTitle")]
+    public string ServiceTitle { get; set; } = string.Empty;
+
+    [JsonPropertyName("category")]
+    public string Category { get; set; } = string.Empty;
+
+    [JsonPropertyName("location")]
+    public string Location { get; set; } = string.Empty;
+
+    [JsonPropertyName("schedule")]
+    public string Schedule { get; set; } = string.Empty;
+
+    [JsonPropertyName("price")]
+    public decimal Price { get; set; }
+
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = "Requested";
+}
+
+public class ProviderCounterBidRequest
+{
+    [JsonPropertyName("bookingReference")]
+    public string BookingReference { get; set; } = string.Empty;
+
+    [JsonPropertyName("counterPrice")]
+    public decimal CounterPrice { get; set; }
+
+    [JsonPropertyName("availableTime")]
+    public string? AvailableTime { get; set; }
+
+    [JsonPropertyName("notes")]
+    public string? Notes { get; set; }
+}
+
+public class CancelBookingRequest
+{
+    [JsonPropertyName("bookingReference")]
+    public string BookingReference { get; set; } = string.Empty;
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
 }

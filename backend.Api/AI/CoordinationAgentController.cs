@@ -69,12 +69,14 @@ public class CoordinationAgentController : ControllerBase
     [HttpGet("bookings")]
     public async Task<IActionResult> GetBookings(
         [FromQuery] string? providerId,
+        [FromQuery] string? providerName,
+        [FromQuery] string? customerName,
         [FromQuery] string? status,
         CancellationToken ct)
     {
         try
         {
-            var list = await _coordinationService.GetBookingsAsync(providerId, status, ct);
+            var list = await _coordinationService.GetBookingsAsync(providerId, providerName, customerName, status, ct);
             return Ok(list);
         }
         catch (Exception ex)
@@ -105,6 +107,79 @@ public class CoordinationAgentController : ControllerBase
         {
             _logger.LogError(ex, "Error updating booking status");
             return StatusCode(500, new { message = "An error occurred while updating status." });
+        }
+    }
+
+    /// <summary>
+    /// Persists an open quotation request (status = "Requested") when customer triggers Agent 3.
+    /// </summary>
+    [HttpPost("request-quote")]
+    public async Task<IActionResult> CreateQuotationRequest(
+        [FromBody] CreateQuotationRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var entity = await _coordinationService.CreateQuotationRequestAsync(request, ct);
+            return Ok(new
+            {
+                success = true,
+                message = $"Quotation request created with reference {entity.BookingReference}",
+                booking = entity
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating quotation request");
+            return StatusCode(500, new { message = "An error occurred while creating quotation request." });
+        }
+    }
+
+    /// <summary>
+    /// Submits a provider counter-bid or updated quote.
+    /// </summary>
+    [HttpPost("counter-bid")]
+    public async Task<IActionResult> SubmitCounterBid(
+        [FromBody] ProviderCounterBidRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var updated = await _coordinationService.SubmitCounterBidAsync(request, ct);
+            if (updated == null)
+            {
+                return NotFound(new { message = "Booking request not found." });
+            }
+            return Ok(new { success = true, booking = updated });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error submitting counter-bid");
+            return StatusCode(500, new { message = "An error occurred while submitting counter-bid." });
+        }
+    }
+
+    /// <summary>
+    /// Cancels a booking or quotation request.
+    /// </summary>
+    [HttpPost("cancel")]
+    public async Task<IActionResult> CancelBooking(
+        [FromBody] CancelBookingRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var updated = await _coordinationService.CancelBookingAsync(request, ct);
+            if (updated == null)
+            {
+                return NotFound(new { message = "Booking request not found." });
+            }
+            return Ok(new { success = true, booking = updated });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error cancelling booking");
+            return StatusCode(500, new { message = "An error occurred while cancelling booking." });
         }
     }
 }

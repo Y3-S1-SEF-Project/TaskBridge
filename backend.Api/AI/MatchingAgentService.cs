@@ -47,6 +47,17 @@ public class MatchingAgentService
             .Where(p => p.IsActive)
             .ToListAsync(ct);
 
+        // Exclude the current customer's own provider profile so they never match with themselves
+        if (!string.IsNullOrWhiteSpace(request.CustomerUserId) && Guid.TryParse(request.CustomerUserId, out var custGuid))
+        {
+            dbProviders = dbProviders.Where(p => p.UserId != custGuid).ToList();
+        }
+        if (!string.IsNullOrWhiteSpace(request.CustomerName))
+        {
+            var custName = request.CustomerName.Trim().ToLowerInvariant();
+            dbProviders = dbProviders.Where(p => p.User == null || p.User.FullName.Trim().ToLowerInvariant() != custName).ToList();
+        }
+
         var candidatePool = new List<MatchedProviderDto>();
 
         foreach (var p in dbProviders)
@@ -66,7 +77,7 @@ public class MatchingAgentService
                 isRealDbProvider: true);
 
             var totalScore = (int)Math.Round(breakdown.SkillScore + breakdown.LocationScore + breakdown.BudgetScore + breakdown.RatingScore);
-            totalScore = Math.Clamp(totalScore, 75, 98);
+            totalScore = Math.Clamp(totalScore, 40, 98);
 
             candidatePool.Add(new MatchedProviderDto
             {
@@ -89,29 +100,68 @@ public class MatchingAgentService
         }
 
         // 2. Filter candidate pool strictly to real DB providers matching the requested category / service
-        var reqCat = (job.Category ?? "").ToLowerInvariant();
-        var reqTitle = (job.ServiceTitle ?? "").ToLowerInvariant();
-        var reqDesc = (job.Description ?? "").ToLowerInvariant();
+        var reqCat = (job.Category ?? "").ToLowerInvariant().Trim();
+        var reqTitle = (job.ServiceTitle ?? "").ToLowerInvariant().Trim();
+        var reqDesc = (job.Description ?? "").ToLowerInvariant().Trim();
+        var combinedRequest = $"{reqCat} {reqTitle} {reqDesc}";
 
         var matchingProviders = candidatePool.Where(p =>
         {
-            var s = ((p.Category ?? "") + " " + (p.Skills ?? "")).ToLowerInvariant();
-            bool catMatch = !string.IsNullOrWhiteSpace(reqCat) && (s.Contains(reqCat) || reqCat.Contains((p.Category ?? "").ToLowerInvariant()));
-            bool gardenMatch = (reqTitle.Contains("garden") || reqCat.Contains("garden") || reqDesc.Contains("garden") || reqDesc.Contains("yard")) 
-                && (s.Contains("garden") || s.Contains("yard") || s.Contains("clean") || s.Contains("grass") || s.Contains("lawn"));
-            bool cleanMatch = (reqTitle.Contains("clean") || reqCat.Contains("clean") || reqDesc.Contains("clean")) && s.Contains("clean");
-            bool plumbMatch = (reqTitle.Contains("tap") || reqTitle.Contains("plumb") || reqTitle.Contains("pipe") || reqCat.Contains("plumb")) 
-                && (s.Contains("tap") || s.Contains("plumb") || s.Contains("pipe") || s.Contains("leak"));
-            bool elecMatch = (reqTitle.Contains("wire") || reqTitle.Contains("electric") || reqCat.Contains("electric")) 
-                && (s.Contains("wire") || s.Contains("electric"));
-            bool acMatch = (reqTitle.Contains("ac") || reqTitle.Contains("air") || reqCat.Contains("ac")) 
-                && (s.Contains("ac") || s.Contains("cool") || s.Contains("air"));
+            var pCat = (p.Category ?? "").ToLowerInvariant().Trim();
+            var pSkills = (p.Skills ?? "").ToLowerInvariant().Trim();
+            var pFull = $"{pCat} {pSkills}";
 
-            return catMatch || gardenMatch || cleanMatch || plumbMatch || elecMatch || acMatch;
+            // 1. Direct category match (e.g. "plumbing" in "plumbing" or "gardening" in "gardening & outdoor")
+            if (!string.IsNullOrWhiteSpace(reqCat) && !string.IsNullOrWhiteSpace(pCat))
+            {
+                if (pCat == reqCat || pCat.Contains(reqCat) || reqCat.Contains(pCat))
+                {
+                    return true;
+                }
+            }
+
+            // 2. Specific domain keywords matching without substring collisions (e.g., 'air' inside 'repair')
+            // Plumbing
+            if (combinedRequest.Contains("plumb") || combinedRequest.Contains("tap") || combinedRequest.Contains("pipe") || combinedRequest.Contains("faucet") || combinedRequest.Contains("leak") || combinedRequest.Contains("drain"))
+            {
+                return pFull.Contains("plumb") || pFull.Contains("tap") || pFull.Contains("pipe") || pFull.Contains("faucet") || pFull.Contains("drain");
+            }
+
+            // Electrical
+            if (combinedRequest.Contains("electric") || combinedRequest.Contains("wire") || combinedRequest.Contains("wiring") || combinedRequest.Contains("breaker"))
+            {
+                return pFull.Contains("electric") || pFull.Contains("wire") || pFull.Contains("wiring");
+            }
+
+            // HVAC / Air Conditioning (distinct terms, NOT substring 'air' which matches 'repair')
+            if (combinedRequest.Contains("hvac") || combinedRequest.Contains("air condition") || combinedRequest.Contains("a/c") || combinedRequest.Contains("cooling"))
+            {
+                return pFull.Contains("hvac") || pFull.Contains("air condition") || pFull.Contains("a/c") || pFull.Contains("cooling");
+            }
+
+            // Gardening & Outdoor
+            if (combinedRequest.Contains("garden") || combinedRequest.Contains("lawn") || combinedRequest.Contains("grass") || combinedRequest.Contains("yard") || combinedRequest.Contains("landscap"))
+            {
+                return pFull.Contains("garden") || pFull.Contains("lawn") || pFull.Contains("grass") || pFull.Contains("yard") || pFull.Contains("landscap");
+            }
+
+            // Cleaning
+            if (combinedRequest.Contains("deep clean") || combinedRequest.Contains("home clean") || combinedRequest.Contains("house clean") || (reqCat == "cleaning" && pCat.Contains("clean")))
+            {
+                return pFull.Contains("clean");
+            }
+
+            // IT & Security
+            if (combinedRequest.Contains("it & security") || combinedRequest.Contains("cctv") || combinedRequest.Contains("camera") || combinedRequest.Contains("wifi") || combinedRequest.Contains("network"))
+            {
+                return pFull.Contains("it") || pFull.Contains("security") || pFull.Contains("cctv") || pFull.Contains("network");
+            }
+
+            return false;
         }).ToList();
 
-        // Use strictly matching real DB providers if available; otherwise use candidatePool if any exist
-        var poolToRank = matchingProviders.Count > 0 ? matchingProviders : candidatePool;
+        // Strictly use matching providers. If none match the category, do not fall back to unrelated providers
+        var poolToRank = matchingProviders;
 
         // Sort by composite match score descending and take requested top N (ONLY real DB providers)
         var ranked = poolToRank

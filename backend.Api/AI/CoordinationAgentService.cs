@@ -166,8 +166,8 @@ public class CoordinationAgentService
             Location = locPart,
             Schedule = scheduleDisplay,
             Price = bestQuote.QuotedPrice,
-            PriceFormatted = $"Rs. {bestQuote.QuotedPrice:N0}",
-            Status = "Upcoming"
+            PriceFormatted = $"Rs. {bestQuote.QuotedPrice:N0}/hr",
+            Status = "Requested"
         };
 
         Console.ForegroundColor = ConsoleColor.Green;
@@ -199,6 +199,21 @@ public class CoordinationAgentService
             ? req.BookingReference
             : $"TB-{Random.Shared.Next(1020, 1099)}";
 
+        var existing = await _dbContext.Bookings.FirstOrDefaultAsync(b => b.BookingReference == bookingRef, ct);
+        if (existing != null)
+        {
+            existing.Status = req.Status ?? "Upcoming";
+            if (req.Price > 0) existing.Price = req.Price;
+            if (!string.IsNullOrWhiteSpace(req.ProviderName)) existing.ProviderName = req.ProviderName;
+            existing.UpdatedAt = DateTimeOffset.UtcNow;
+            await _dbContext.SaveChangesAsync(ct);
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"[🎉 BOOKING CONFIRMED] Ref: {existing.BookingReference} | Provider: {existing.ProviderName} | Price: Rs. {existing.Price:N0}");
+            Console.ResetColor();
+            return existing;
+        }
+
         Guid? provId = Guid.TryParse(req.ProviderId, out var parsedGuid) ? parsedGuid : null;
 
         var entity = new BookingEntity
@@ -229,11 +244,130 @@ public class CoordinationAgentService
     }
 
     /// <summary>
-    /// Retrieves live bookings for a provider or all bookings for provider mode dashboard.
+    /// Persists an open quotation request (status = "Requested") when customer triggers Agent 3.
     /// </summary>
-    public async Task<List<BookingEntity>> GetBookingsAsync(string? providerId = null, string? status = null, CancellationToken ct = default)
+    public async Task<BookingEntity> CreateQuotationRequestAsync(CreateQuotationRequest req, CancellationToken ct = default)
+    {
+        var bookingRef = !string.IsNullOrWhiteSpace(req.BookingReference)
+            ? req.BookingReference
+            : $"TB-{Random.Shared.Next(1020, 1099)}";
+
+        var existing = await _dbContext.Bookings.FirstOrDefaultAsync(b => b.BookingReference == bookingRef, ct);
+        if (existing != null)
+        {
+            existing.Price = req.Price;
+            existing.Schedule = req.Schedule;
+            existing.Location = req.Location;
+            existing.ServiceTitle = req.ServiceTitle;
+            existing.Category = req.Category;
+            existing.Status = req.Status;
+            existing.UpdatedAt = DateTimeOffset.UtcNow;
+            await _dbContext.SaveChangesAsync(ct);
+            return existing;
+        }
+
+        Guid? provId = Guid.TryParse(req.ProviderId, out var parsedGuid) ? parsedGuid : null;
+
+        var entity = new BookingEntity
+        {
+            Id = Guid.NewGuid(),
+            BookingReference = bookingRef,
+            CustomerId = null,
+            CustomerName = req.CustomerName ?? "Customer",
+            ProviderId = provId,
+            ProviderName = req.ProviderName,
+            ServiceTitle = req.ServiceTitle,
+            Category = req.Category,
+            Location = req.Location,
+            Schedule = req.Schedule,
+            Price = req.Price,
+            Status = string.IsNullOrWhiteSpace(req.Status) ? "Requested" : req.Status,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        _dbContext.Bookings.Add(entity);
+        await _dbContext.SaveChangesAsync(ct);
+
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine($"[📝 QUOTATION REQUEST PERSISTED] Ref: {entity.BookingReference} | Service: {entity.ServiceTitle} | Status: {entity.Status}");
+        Console.ResetColor();
+
+        return entity;
+    }
+
+    /// <summary>
+    /// Allows a provider to submit a counter-bid / updated quote.
+    /// </summary>
+    public async Task<BookingEntity?> SubmitCounterBidAsync(ProviderCounterBidRequest req, CancellationToken ct = default)
+    {
+        var booking = await _dbContext.Bookings.FirstOrDefaultAsync(b => b.BookingReference == req.BookingReference, ct);
+        if (booking == null) return null;
+
+        booking.Price = req.CounterPrice;
+        if (!string.IsNullOrWhiteSpace(req.AvailableTime))
+        {
+            booking.Schedule = $"{req.AvailableTime} · {booking.Location}";
+        }
+        booking.Status = "Requested"; // Keeps in requested state with updated price
+        booking.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _dbContext.SaveChangesAsync(ct);
+
+        Console.ForegroundColor = ConsoleColor.Magenta;
+        Console.WriteLine($"[💰 COUNTER-BID SUBMITTED] Ref: {booking.BookingReference} | New Price: Rs. {booking.Price:N0} | Time: {req.AvailableTime}");
+        Console.ResetColor();
+
+        return booking;
+    }
+
+    /// <summary>
+    /// Cancels an active quotation request or booking upon customer or provider cancellation.
+    /// </summary>
+    public async Task<BookingEntity?> CancelBookingAsync(CancelBookingRequest req, CancellationToken ct = default)
+    {
+        var booking = await _dbContext.Bookings.FirstOrDefaultAsync(b => b.BookingReference == req.BookingReference, ct);
+        if (booking == null) return null;
+
+        booking.Status = "Cancelled";
+        booking.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _dbContext.SaveChangesAsync(ct);
+
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine($"[❌ BOOKING CANCELLED] Ref: {booking.BookingReference} | Reason: {req.Reason ?? "Customer cancelled request"}");
+        Console.ResetColor();
+
+        return booking;
+    }
+
+    /// <summary>
+    /// Retrieves live bookings for a provider or customer.
+    /// </summary>
+    public async Task<List<BookingEntity>> GetBookingsAsync(
+        string? providerId = null,
+        string? providerName = null,
+        string? customerName = null,
+        string? status = null,
+        CancellationToken ct = default)
     {
         var query = _dbContext.Bookings.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(providerId) && Guid.TryParse(providerId, out var provGuid))
+        {
+            query = query.Where(b => b.ProviderId == provGuid);
+        }
+
+        if (!string.IsNullOrWhiteSpace(providerName))
+        {
+            var pName = providerName.Trim().ToLower();
+            query = query.Where(b => b.ProviderName.ToLower() == pName);
+        }
+
+        if (!string.IsNullOrWhiteSpace(customerName))
+        {
+            var cName = customerName.Trim().ToLower();
+            query = query.Where(b => b.CustomerName.ToLower() == cName);
+        }
 
         if (!string.IsNullOrWhiteSpace(status))
         {
@@ -262,6 +396,8 @@ public class CoordinationAgentService
         if (booking == null) return null;
 
         booking.Status = req.NewStatus;
+        if (!string.IsNullOrWhiteSpace(req.Schedule)) booking.Schedule = req.Schedule;
+        if (req.Price.HasValue && req.Price.Value > 0) booking.Price = req.Price.Value;
         booking.UpdatedAt = DateTimeOffset.UtcNow;
         await _dbContext.SaveChangesAsync(ct);
         return booking;
@@ -279,11 +415,11 @@ public class CoordinationAgentService
         {
             var systemPrompt = """
                 You are TaskBridge AI (Agent 3: Coordination Agent).
-                Your job is to provide a concise, professional 2-sentence explanation of why you recommend this specific provider quotation to the customer.
+                Your job is to provide a concise, professional 2-sentence explanation of why you recommend this specific provider to receive the customer's proposal.
                 Highlight:
-                1. How their quoted price fits within the customer's budget.
-                2. How their arrival time matches the customer's preferred schedule.
-                3. Their verified track record or proximity.
+                1. How their standard hourly rate fits within the customer's budget.
+                2. How their availability aligns with the customer's requested timeframe.
+                3. Their verified track record, rating, or proximity.
                 Be polite, clear, and reassuring.
                 """;
 
@@ -291,8 +427,8 @@ public class CoordinationAgentService
                 Job Request: {plan.ServiceTitle} ({plan.Category})
                 Customer Budget: {(plan.Budget.HasValue ? $"Rs. {plan.Budget.Value}" : "Flexible")}
                 Customer Requested Schedule: {plan.ScheduledDate} {plan.ScheduledTime}
-                Recommended Provider: {winner.FullName} (Quote: Rs. {winner.QuotedPrice}, Arrival: {winner.AvailableTime}, Rating: {winner.Rating}★)
-                Other quotes: {string.Join(", ", quotes.Where(q => q.ProviderId != winner.ProviderId).Select(q => $"{q.FullName}: Rs. {q.QuotedPrice} at {q.AvailableTime}"))}
+                Recommended Provider: {winner.FullName} (Hourly Rate: Rs. {winner.QuotedPrice}/hr, Preferred Window: {winner.AvailableTime}, Rating: {winner.Rating}★)
+                Other providers: {string.Join(", ", quotes.Where(q => q.ProviderId != winner.ProviderId).Select(q => $"{q.FullName}: Rs. {q.QuotedPrice}/hr"))}
                 """;
 
             var requestBody = new
@@ -335,11 +471,11 @@ public class CoordinationAgentService
     {
         var budgetPhrase = plan.Budget.HasValue
             ? (winner.QuotedPrice <= plan.Budget.Value
-                ? $"is within your budget (saving Rs. {(plan.Budget.Value - winner.QuotedPrice):N0})"
-                : "offers the best competitive value")
-            : "offers fair, competitive pricing";
+                ? $"fits within your budget"
+                : "offers competitive market rates")
+            : "offers fair hourly rates";
 
-        return $"{winner.FullName} is recommended because their quotation of Rs. {winner.QuotedPrice:N0} {budgetPhrase}, they can arrive {winner.AvailableTime.ToLowerInvariant()}, and they hold a {winner.Rating:F1}★ verified rating.";
+        return $"{winner.FullName} is recommended based on their rate of Rs. {winner.QuotedPrice:N0}/hr ({budgetPhrase}), verified {winner.Rating:F1}★ rating, and proximity of {winner.DistanceKm:F1} km. You can send your proposed time window for their confirmation.";
     }
 
     public List<ProviderQuotationDto> GenerateFallbackQuotes(JobPlanDetails plan)
