@@ -7,6 +7,8 @@ import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../home/widgets/booking_card_widget.dart';
+import 'provider_job_details_page.dart';
 
 class ProviderDashboardPage extends StatefulWidget {
   final AuthUser user;
@@ -559,7 +561,10 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
     final palette = AppPalette.of(context);
 
     final incomingRequests = _bookings
-        .where((b) => b.isRequested || b.isUpcoming)
+        .where((b) => b.isRequested)
+        .toList();
+    final upcomingJobs = _bookings
+        .where((b) => b.isUpcoming)
         .toList();
     final activeJobs = _bookings
         .where(
@@ -581,9 +586,11 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
 
     final activePendingText = activeJobs.isNotEmpty
         ? '${activeJobs.length} Active'
-        : (incomingRequests.isNotEmpty
-              ? '${incomingRequests.length} Pending'
-              : '0 Active');
+        : (upcomingJobs.isNotEmpty
+              ? '${upcomingJobs.length} Upcoming'
+              : (incomingRequests.isNotEmpty
+                    ? '${incomingRequests.length} Pending'
+                    : '0 Active'));
 
     return Scaffold(
       backgroundColor: palette.background,
@@ -781,6 +788,65 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
                       ),
                     ),
                   ),
+
+                // ── Upcoming Confirmed Jobs Section ──
+                if (upcomingJobs.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.s24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Upcoming Confirmed Jobs',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: palette.text,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${upcomingJobs.length} Confirmed',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.green.shade800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ...upcomingJobs.map(
+                    (booking) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: BookingCardWidget(
+                        title: booking.serviceTitle,
+                        providerName: booking.customerName,
+                        reference: booking.bookingReference,
+                        schedule: booking.schedule,
+                        price: 'Rs. ${booking.price.toInt()}',
+                        status: BookingStatus.upcoming,
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ProviderJobDetailsPage(booking: booking),
+                            ),
+                          );
+                          _loadBookings();
+                        },
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

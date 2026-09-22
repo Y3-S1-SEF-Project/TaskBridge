@@ -190,6 +190,59 @@ public class CoordinationAgentService
         };
     }
 
+    private async Task<Guid?> ResolveCustomerIdAsync(string? customerId, string? customerName, CancellationToken ct)
+    {
+        if (!string.IsNullOrWhiteSpace(customerId) && Guid.TryParse(customerId, out var parsedGuid))
+        {
+            return parsedGuid;
+        }
+        if (!string.IsNullOrWhiteSpace(customerName))
+        {
+            var cName = customerName.Trim().ToLowerInvariant();
+            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.FullName.ToLower() == cName, ct);
+            if (user != null) return user.Id;
+        }
+        return null;
+    }
+
+    private async Task BackfillMissingCustomerIdsAsync(CancellationToken ct)
+    {
+        try
+        {
+            var nullProposals = await _dbContext.Proposals.Where(p => p.CustomerId == null).Take(20).ToListAsync(ct);
+            bool changed = false;
+            foreach (var p in nullProposals)
+            {
+                var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.FullName.ToLower() == p.CustomerName.Trim().ToLower(), ct);
+                if (user != null)
+                {
+                    p.CustomerId = user.Id;
+                    changed = true;
+                }
+            }
+
+            var nullBookings = await _dbContext.Bookings.Where(b => b.CustomerId == null).Take(20).ToListAsync(ct);
+            foreach (var b in nullBookings)
+            {
+                var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.FullName.ToLower() == b.CustomerName.Trim().ToLower(), ct);
+                if (user != null)
+                {
+                    b.CustomerId = user.Id;
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                await _dbContext.SaveChangesAsync(ct);
+            }
+        }
+        catch
+        {
+            // best-effort backfill
+        }
+    }
+
     /// <summary>
     /// Confirms the booking upon customer approval (Human-in-the-Loop) and writes to DB.
     /// </summary>
@@ -215,12 +268,13 @@ public class CoordinationAgentService
         }
 
         Guid? provId = Guid.TryParse(req.ProviderId, out var parsedGuid) ? parsedGuid : null;
+        Guid? custId = await ResolveCustomerIdAsync(req.CustomerId, req.CustomerName, ct);
 
         var entity = new BookingEntity
         {
             Id = Guid.NewGuid(),
             BookingReference = bookingRef,
-            CustomerId = null,
+            CustomerId = custId,
             CustomerName = req.CustomerName ?? "Customer",
             ProviderId = provId,
             ProviderName = req.ProviderName,
@@ -237,7 +291,7 @@ public class CoordinationAgentService
         await _dbContext.SaveChangesAsync(ct);
 
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"[🎉 BOOKING CONFIRMED] Ref: {entity.BookingReference} | Provider: {entity.ProviderName} | Price: Rs. {entity.Price:N0}");
+        Console.WriteLine($"[🎉 BOOKING CONFIRMED] Ref: {entity.BookingReference} | Provider: {entity.ProviderName} | CustomerId: {entity.CustomerId} | Price: Rs. {entity.Price:N0}");
         Console.ResetColor();
 
         return entity;
@@ -252,6 +306,8 @@ public class CoordinationAgentService
             ? (req.BookingReference.StartsWith("PR-") ? req.BookingReference : req.BookingReference.Replace("TB-", "PR-"))
             : await GenerateProposalReferenceAsync(ct);
 
+        Guid? custId = await ResolveCustomerIdAsync(req.CustomerId, req.CustomerName, ct);
+
         var existing = await _dbContext.Proposals.FirstOrDefaultAsync(p => p.ProposalReference == proposalRef, ct);
         if (existing != null)
         {
@@ -260,6 +316,10 @@ public class CoordinationAgentService
             existing.Location = req.Location;
             existing.ServiceTitle = req.ServiceTitle;
             existing.Category = req.Category;
+            if (custId.HasValue && !existing.CustomerId.HasValue)
+            {
+                existing.CustomerId = custId;
+            }
             existing.Status = string.IsNullOrWhiteSpace(req.Status) ? "Pending" : req.Status;
             existing.UpdatedAt = DateTimeOffset.UtcNow;
             await _dbContext.SaveChangesAsync(ct);
@@ -272,7 +332,7 @@ public class CoordinationAgentService
         {
             Id = Guid.NewGuid(),
             ProposalReference = proposalRef,
-            CustomerId = null,
+            CustomerId = custId,
             CustomerName = req.CustomerName ?? "Customer",
             ProviderId = provId,
             ProviderName = req.ProviderName,
@@ -289,7 +349,7 @@ public class CoordinationAgentService
         await _dbContext.SaveChangesAsync(ct);
 
         Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"[📝 PROPOSAL PERSISTED IN 'proposals' TABLE] Ref: {entity.ProposalReference} | Provider: {entity.ProviderName} | Status: {entity.Status}");
+        Console.WriteLine($"[📝 PROPOSAL PERSISTED IN 'proposals' TABLE] Ref: {entity.ProposalReference} | Provider: {entity.ProviderName} | CustomerId: {entity.CustomerId} | Status: {entity.Status}");
         Console.ResetColor();
 
         return entity;
@@ -314,13 +374,19 @@ public class CoordinationAgentService
         proposal.Status = "Accepted";
         proposal.UpdatedAt = DateTimeOffset.UtcNow;
 
+        Guid? bookingCustId = proposal.CustomerId ?? await ResolveCustomerIdAsync(null, proposal.CustomerName, ct);
+        if (!proposal.CustomerId.HasValue && bookingCustId.HasValue)
+        {
+            proposal.CustomerId = bookingCustId;
+        }
+
         var bookingRef = await GenerateBookingReferenceAsync(ct);
         var confirmedBooking = new BookingEntity
         {
             Id = Guid.NewGuid(),
             BookingReference = bookingRef,
             ProposalId = proposal.Id,
-            CustomerId = proposal.CustomerId,
+            CustomerId = bookingCustId,
             CustomerName = proposal.CustomerName,
             ProviderId = proposal.ProviderId,
             ProviderName = proposal.ProviderName,
@@ -337,7 +403,7 @@ public class CoordinationAgentService
         await _dbContext.SaveChangesAsync(ct);
 
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"[🎉 PROPOSAL ACCEPTED -> NEW BOOKING CREATED] Proposal: {proposal.ProposalReference} -> Booking: {confirmedBooking.BookingReference} | Price: Rs. {confirmedBooking.Price:N0} | Schedule: {confirmedBooking.Schedule}");
+        Console.WriteLine($"[🎉 PROPOSAL ACCEPTED -> NEW BOOKING CREATED] Proposal: {proposal.ProposalReference} -> Booking: {confirmedBooking.BookingReference} | CustomerId: {confirmedBooking.CustomerId} | Price: Rs. {confirmedBooking.Price:N0} | Schedule: {confirmedBooking.Schedule}");
         Console.ResetColor();
 
         return confirmedBooking;
@@ -423,6 +489,7 @@ public class CoordinationAgentService
         string? status = null,
         CancellationToken ct = default)
     {
+        await BackfillMissingCustomerIdsAsync(ct);
         var query = _dbContext.Proposals.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(providerId) && Guid.TryParse(providerId, out var pGuid))
@@ -573,6 +640,7 @@ public class CoordinationAgentService
         string? status = null,
         CancellationToken ct = default)
     {
+        await BackfillMissingCustomerIdsAsync(ct);
         var query = _dbContext.Bookings.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(providerId) && Guid.TryParse(providerId, out var provGuid))

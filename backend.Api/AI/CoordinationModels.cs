@@ -124,6 +124,9 @@ public class ConfirmBookingRequest
     [JsonPropertyName("providerName")]
     public string ProviderName { get; set; } = string.Empty;
 
+    [JsonPropertyName("customerId")]
+    public string? CustomerId { get; set; }
+
     [JsonPropertyName("customerName")]
     public string? CustomerName { get; set; }
 
@@ -174,6 +177,9 @@ public class CreateQuotationRequest
 
     [JsonPropertyName("providerName")]
     public string ProviderName { get; set; } = string.Empty;
+
+    [JsonPropertyName("customerId")]
+    public string? CustomerId { get; set; }
 
     [JsonPropertyName("customerName")]
     public string? CustomerName { get; set; }

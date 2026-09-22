@@ -7,6 +7,7 @@ import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../home/widgets/booking_card_widget.dart';
+import 'provider_job_details_page.dart';
 
 class ProviderJobsPage extends StatefulWidget {
   final AuthUser? user;
@@ -96,37 +97,7 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
     }
   }
 
-  Future<void> _updateStatus(
-    BookingItem booking,
-    String newStatus, {
-    String? schedule,
-    double? price,
-  }) async {
-    final success = await CoordinationApi.updateBookingStatus(
-      bookingReference: booking.bookingReference,
-      newStatus: newStatus,
-      schedule: schedule,
-      price: price,
-    );
 
-    if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            newStatus == 'Upcoming'
-                ? 'Proposal accepted! Booking locked into Upcoming schedule.'
-                : 'Booking #${booking.bookingReference} updated to $newStatus.',
-          ),
-          backgroundColor: AppColors.primary,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
-      _loadBookings();
-    }
-  }
 
   void _showProposalReviewModal(BookingItem booking) {
     final palette = AppPalette.of(context);
@@ -666,148 +637,7 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
     );
   }
 
-  void _showJobActionsModal(BookingItem booking) {
-    final palette = AppPalette.of(context);
-    final status = BookingStatus.fromString(booking.status);
 
-    showModalBottomSheet(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: palette.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.s20,
-              vertical: AppSpacing.s16,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  booking.serviceTitle,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: palette.text,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Customer: ${booking.customerName} · #${booking.bookingReference}',
-                  style: TextStyle(fontSize: 13, color: palette.muted),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Schedule: ${booking.schedule}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: palette.text,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Earnings: Rs. ${booking.price.toInt()}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: palette.primary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Action buttons based on current status
-                if (status == BookingStatus.upcoming) ...[
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: palette.primary,
-                        foregroundColor: palette.onPrimary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _updateStatus(booking, 'Active');
-                      },
-                      child: const Text(
-                        'Start Job (Set Active)',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.error,
-                        side: BorderSide(color: AppColors.error),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _updateStatus(booking, 'Cancelled');
-                      },
-                      child: const Text('Cancel Job'),
-                    ),
-                  ),
-                ] else if (status == BookingStatus.active) ...[
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: palette.primary,
-                        foregroundColor: palette.onPrimary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _updateStatus(booking, 'Completed');
-                      },
-                      child: const Text(
-                        'Mark as Completed',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
-                ] else ...[
-                  SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: palette.text,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('Close'),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -1065,11 +895,17 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
             customStatusLabel: customLabel,
             customTagTextColor: tagTextCol,
             customTagBgColor: tagBgCol,
-            onTap: () {
+            onTap: () async {
               if (parsedStatus == BookingStatus.requested) {
                 _showProposalReviewModal(b);
               } else {
-                _showJobActionsModal(b);
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProviderJobDetailsPage(booking: b),
+                  ),
+                );
+                _loadBookings();
               }
             },
           );
