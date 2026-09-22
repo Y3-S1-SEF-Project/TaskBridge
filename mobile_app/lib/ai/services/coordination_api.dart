@@ -34,27 +34,23 @@ class CoordinationApi {
     final List<Map<String, dynamic>> quotesJson = [];
     if (candidateProviders != null && candidateProviders.isNotEmpty) {
       for (final p in candidateProviders) {
-        final isMorning = jobPlan.scheduledTime.toLowerCase().contains(
-          'morning',
-        );
-        final availTime = isMorning
-            ? 'Tomorrow at 9:30 AM'
-            : 'Tomorrow at 4:00 PM';
+        final requestedWindow = jobPlan.scheduledTime.isNotEmpty
+            ? '${jobPlan.scheduledDate} (${jobPlan.scheduledTime})'
+            : (jobPlan.scheduledDate.isNotEmpty
+                  ? jobPlan.scheduledDate
+                  : 'Customer preferred schedule');
         quotesJson.add({
           'providerId': p.providerId,
           'fullName': p.fullName,
           'category': p.category,
           'profilePhotoUrl': p.profilePhotoUrl,
           'phone': p.phone,
-          'quotedPrice': p.hourlyRate > 0
-              ? (p.hourlyRate * 1.5).roundToDouble()
-              : 4500.0,
-          'availableTime': availTime,
+          'quotedPrice': p.hourlyRate > 0 ? p.hourlyRate : 3500.0,
+          'availableTime': requestedWindow,
           'distanceKm': p.distanceKm,
           'rating': p.rating,
           'reviewCount': p.reviewCount,
-          'notes':
-              'Includes labor, equipment inspection, and completion cleanup.',
+          'notes': 'Verified service provider matching your requirements.',
           'matchScore': p.matchScore,
         });
       }
@@ -111,6 +107,179 @@ class CoordinationApi {
   }
 
   static final List<BookingItem> _localBookings = [];
+
+  /// Persists a quotation request immediately when customer requests quotations.
+  static Future<bool> createQuotationRequest({
+    required BookingDetails booking,
+    required String category,
+    required String providerId,
+  }) async {
+    developer.log(
+      '📝 [TASKBRIDGE AI: AGENT 3] Creating quotation request "${booking.bookingReference}" for ${booking.providerName}',
+      name: 'CoordinationAgent',
+    );
+
+    final newItem = BookingItem(
+      id: 'b-${DateTime.now().millisecondsSinceEpoch}',
+      bookingReference: booking.bookingReference,
+      customerName: booking.customerName.isNotEmpty
+          ? booking.customerName
+          : 'Customer',
+      providerName: booking.providerName,
+      serviceTitle: booking.serviceTitle,
+      category: category,
+      location: booking.location,
+      schedule: booking.schedule,
+      price: booking.price,
+      status: 'Requested',
+      createdAt: DateTime.now(),
+    );
+
+    _localBookings.removeWhere(
+      (b) => b.bookingReference == booking.bookingReference,
+    );
+    _localBookings.insert(0, newItem);
+
+    final payload = jsonEncode({
+      'bookingReference': booking.bookingReference,
+      'providerId': providerId,
+      'providerName': booking.providerName,
+      'customerName': booking.customerName,
+      'serviceTitle': booking.serviceTitle,
+      'category': category,
+      'location': booking.location,
+      'schedule': booking.schedule,
+      'price': booking.price,
+      'status': 'Requested',
+    });
+
+    for (final candidate in _candidateUrls) {
+      final uri = Uri.parse('$candidate/api/agent/coordination/request-quote');
+      try {
+        final response = await http
+            .post(
+              uri,
+              headers: {'Content-Type': 'application/json'},
+              body: payload,
+            )
+            .timeout(const Duration(seconds: 10));
+
+        if (response.statusCode == 200) {
+          _workingBaseUrl = candidate;
+          return true;
+        }
+      } catch (_) {}
+    }
+
+    return true;
+  }
+
+  /// Submits a provider counter-bid / updated quote.
+  static Future<bool> submitCounterBid({
+    required String bookingReference,
+    required double counterPrice,
+    String? availableTime,
+    String? notes,
+  }) async {
+    final idx = _localBookings.indexWhere(
+      (b) => b.bookingReference == bookingReference,
+    );
+    if (idx != -1) {
+      final old = _localBookings[idx];
+      final newSchedule = availableTime != null && availableTime.isNotEmpty
+          ? '$availableTime · ${old.location}'
+          : old.schedule;
+      _localBookings[idx] = BookingItem(
+        id: old.id,
+        bookingReference: old.bookingReference,
+        customerName: old.customerName,
+        providerName: old.providerName,
+        serviceTitle: old.serviceTitle,
+        category: old.category,
+        location: old.location,
+        schedule: newSchedule,
+        price: counterPrice,
+        status: 'Requested',
+        createdAt: old.createdAt,
+      );
+    }
+
+    final payload = jsonEncode({
+      'bookingReference': bookingReference,
+      'counterPrice': counterPrice,
+      'availableTime': availableTime,
+      'notes': notes,
+    });
+
+    for (final candidate in _candidateUrls) {
+      final uri = Uri.parse('$candidate/api/agent/coordination/counter-bid');
+      try {
+        final response = await http
+            .post(
+              uri,
+              headers: {'Content-Type': 'application/json'},
+              body: payload,
+            )
+            .timeout(const Duration(seconds: 10));
+
+        if (response.statusCode == 200) {
+          return true;
+        }
+      } catch (_) {}
+    }
+
+    return true;
+  }
+
+  /// Cancels an active quotation request or booking.
+  static Future<bool> cancelBooking({
+    required String bookingReference,
+    String? reason,
+  }) async {
+    final idx = _localBookings.indexWhere(
+      (b) => b.bookingReference == bookingReference,
+    );
+    if (idx != -1) {
+      final old = _localBookings[idx];
+      _localBookings[idx] = BookingItem(
+        id: old.id,
+        bookingReference: old.bookingReference,
+        customerName: old.customerName,
+        providerName: old.providerName,
+        serviceTitle: old.serviceTitle,
+        category: old.category,
+        location: old.location,
+        schedule: old.schedule,
+        price: old.price,
+        status: 'Cancelled',
+        createdAt: old.createdAt,
+      );
+    }
+
+    final payload = jsonEncode({
+      'bookingReference': bookingReference,
+      'reason': reason,
+    });
+
+    for (final candidate in _candidateUrls) {
+      final uri = Uri.parse('$candidate/api/agent/coordination/cancel');
+      try {
+        final response = await http
+            .post(
+              uri,
+              headers: {'Content-Type': 'application/json'},
+              body: payload,
+            )
+            .timeout(const Duration(seconds: 10));
+
+        if (response.statusCode == 200) {
+          return true;
+        }
+      } catch (_) {}
+    }
+
+    return true;
+  }
 
   /// Confirms the booking when the customer approves the proposal (Human-in-the-Loop).
   static Future<bool> confirmBooking({
@@ -183,6 +352,8 @@ class CoordinationApi {
   /// Retrieves live bookings for customer/provider dashboard.
   static Future<List<BookingItem>> getBookings({
     String? providerId,
+    String? providerName,
+    String? customerName,
     String? status,
   }) async {
     final candidates = _candidateUrls;
@@ -190,8 +361,18 @@ class CoordinationApi {
     for (final candidate in candidates) {
       var url = '$candidate/api/agent/coordination/bookings';
       final queryParams = <String>[];
-      if (providerId != null) queryParams.add('providerId=$providerId');
-      if (status != null) queryParams.add('status=$status');
+      if (providerId != null && providerId.isNotEmpty) {
+        queryParams.add('providerId=$providerId');
+      }
+      if (providerName != null && providerName.isNotEmpty) {
+        queryParams.add('providerName=${Uri.encodeComponent(providerName)}');
+      }
+      if (customerName != null && customerName.isNotEmpty) {
+        queryParams.add('customerName=${Uri.encodeComponent(customerName)}');
+      }
+      if (status != null && status.isNotEmpty) {
+        queryParams.add('status=${Uri.encodeComponent(status)}');
+      }
       if (queryParams.isNotEmpty) url += '?${queryParams.join('&')}';
 
       try {
@@ -221,6 +402,18 @@ class CoordinationApi {
                 .where((b) => b.status.toLowerCase() == status.toLowerCase())
                 .toList();
           }
+          if (providerName != null && providerName.isNotEmpty) {
+            final pLow = providerName.trim().toLowerCase();
+            result = result
+                .where((b) => b.providerName.trim().toLowerCase() == pLow)
+                .toList();
+          }
+          if (customerName != null && customerName.isNotEmpty) {
+            final cLow = customerName.trim().toLowerCase();
+            result = result
+                .where((b) => b.customerName.trim().toLowerCase() == cLow)
+                .toList();
+          }
           return result;
         }
       } catch (_) {}
@@ -233,6 +426,18 @@ class CoordinationApi {
           .where((b) => b.status.toLowerCase() == status.toLowerCase())
           .toList();
     }
+    if (providerName != null && providerName.isNotEmpty) {
+      final pLow = providerName.trim().toLowerCase();
+      result = result
+          .where((b) => b.providerName.trim().toLowerCase() == pLow)
+          .toList();
+    }
+    if (customerName != null && customerName.isNotEmpty) {
+      final cLow = customerName.trim().toLowerCase();
+      result = result
+          .where((b) => b.customerName.trim().toLowerCase() == cLow)
+          .toList();
+    }
     return result;
   }
 
@@ -240,6 +445,8 @@ class CoordinationApi {
   static Future<bool> updateBookingStatus({
     required String bookingReference,
     required String newStatus,
+    String? schedule,
+    double? price,
   }) async {
     // Update locally immediately
     final idx = _localBookings.indexWhere(
@@ -255,18 +462,21 @@ class CoordinationApi {
         serviceTitle: old.serviceTitle,
         category: old.category,
         location: old.location,
-        schedule: old.schedule,
-        price: old.price,
+        schedule: schedule ?? old.schedule,
+        price: price ?? old.price,
         status: newStatus,
         createdAt: old.createdAt,
       );
     }
 
     final candidates = _candidateUrls;
-    final payload = jsonEncode({
+    final body = <String, dynamic>{
       'bookingReference': bookingReference,
       'newStatus': newStatus,
-    });
+    };
+    if (schedule != null) body['schedule'] = schedule;
+    if (price != null) body['price'] = price;
+    final payload = jsonEncode(body);
 
     for (final candidate in candidates) {
       final uri = Uri.parse('$candidate/api/agent/coordination/update-status');

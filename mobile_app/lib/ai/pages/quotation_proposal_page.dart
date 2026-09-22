@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_spacing.dart';
-import '../../home/pages/home_page.dart';
 import '../../home/widgets/booking_card_widget.dart';
 import '../models/coordination_models.dart';
 import '../models/planning_models.dart';
 import '../services/coordination_api.dart';
 
 /// Screen C21: Agent 3 (Coordination Agent) - Quotation & Booking Proposal
-/// Enforces Human-in-the-Loop (HITL) approval before confirming bookings.
+/// Allows customer to inspect AI recommendation, choose among candidate providers,
+/// view their hourly rates, and dispatch a job proposal awaiting provider confirmation.
 class QuotationProposalPage extends StatefulWidget {
   final JobPlan jobPlan;
   final BookingProposalResponse proposalResponse;
@@ -26,152 +26,97 @@ class QuotationProposalPage extends StatefulWidget {
 
 class _QuotationProposalPageState extends State<QuotationProposalPage> {
   late BookingProposalResponse _proposal;
-  bool _isConfirming = false;
+  int _selectedProviderIndex = 0;
+  bool _isSending = false;
 
   @override
   void initState() {
     super.initState();
     _proposal = widget.proposalResponse;
+
+    final quotes = _proposal.allQuotations;
+    final recIndex = quotes.indexWhere((q) => q.isRecommended);
+    if (recIndex != -1) {
+      _selectedProviderIndex = recIndex;
+    } else {
+      _selectedProviderIndex = 0;
+    }
   }
 
-  Future<void> _onAcceptBooking() async {
-    setState(() => _isConfirming = true);
+  ProviderQuotation get _selectedProvider {
+    final quotes = _proposal.allQuotations;
+    if (quotes.isEmpty) return _proposal.winningQuotation;
+    if (_selectedProviderIndex >= 0 && _selectedProviderIndex < quotes.length) {
+      return quotes[_selectedProviderIndex];
+    }
+    return quotes.first;
+  }
+
+  Future<void> _onSendProposal() async {
+    setState(() => _isSending = true);
 
     try {
-      final success = await CoordinationApi.confirmBooking(
-        booking: _proposal.bookingProposal,
+      final selected = _selectedProvider;
+      final scheduleText = widget.jobPlan.scheduledTime.isNotEmpty
+          ? '${widget.jobPlan.scheduledDate} (${widget.jobPlan.scheduledTime}) · ${widget.jobPlan.location}'
+          : '${widget.jobPlan.scheduledDate} · ${widget.jobPlan.location}';
+
+      final booking = BookingDetails(
+        bookingReference: _proposal.bookingProposal.bookingReference,
+        serviceTitle: widget.jobPlan.serviceTitle,
+        providerName: selected.fullName,
+        customerName: _proposal.bookingProposal.customerName.isNotEmpty
+            ? _proposal.bookingProposal.customerName
+            : 'Customer',
+        location: widget.jobPlan.location ?? 'Colombo',
+        schedule: scheduleText,
+        price: selected.quotedPrice,
+        priceFormatted: 'Rs. ${selected.quotedPrice.toInt()}/hr',
+        status: 'Requested',
+      );
+
+      final success = await CoordinationApi.createQuotationRequest(
+        booking: booking,
         category: widget.jobPlan.category,
-        providerId: _proposal.winningQuotation.providerId,
+        providerId: selected.providerId,
       );
 
       if (!mounted) return;
-      setState(() {
-        _isConfirming = false;
-      });
+      setState(() => _isSending = false);
 
       if (success) {
-        _showBookingSuccessModal();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Job proposal sent to ${selected.fullName}! They will confirm their arrival time shortly.',
+            ),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+
+        // Requirement: Navigate back to Home page
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() => _isConfirming = false);
+      setState(() => _isSending = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error confirming booking: $e'),
+          content: Text('Error sending proposal: $e'),
           backgroundColor: AppColors.error,
         ),
       );
     }
   }
 
-  void _showBookingSuccessModal() {
-    final palette = AppPalette.of(context);
-    final booking = _proposal.bookingProposal;
-
-    showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: palette.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.s24,
-              vertical: AppSpacing.s20,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 54,
-                  height: 54,
-                  decoration: BoxDecoration(
-                    color: palette.primary.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.check_circle_rounded,
-                    color: palette.primary,
-                    size: 34,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Booking Confirmed!',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: palette.text,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Your appointment with ${booking.providerName} has been officially locked and scheduled.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: palette.muted,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Figma BookingCard in Confirmed State
-                BookingCardWidget(
-                  title: booking.serviceTitle,
-                  providerName: booking.providerName,
-                  reference: booking.bookingReference,
-                  schedule: booking.schedule,
-                  price: booking.priceFormatted,
-                  status: BookingStatus.upcoming,
-                ),
-
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: palette.primary,
-                      foregroundColor: palette.onPrimary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (_) => const HomePage()),
-                        (route) => false,
-                      );
-                    },
-                    child: const Text(
-                      'Done & Return to Home',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final booking = _proposal.bookingProposal;
     final quotes = _proposal.allQuotations;
+    final selected = _selectedProvider;
 
     return Scaffold(
       backgroundColor: palette.background,
@@ -220,7 +165,7 @@ class _QuotationProposalPageState extends State<QuotationProposalPage> {
 
                     // ── Title ──
                     Text(
-                      'Quotation &\nBooking Proposal',
+                      'Job Proposal &\nQuotation Selection',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w800,
@@ -229,13 +174,22 @@ class _QuotationProposalPageState extends State<QuotationProposalPage> {
                         letterSpacing: -0.5,
                       ),
                     ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Select a provider to send your proposal. The provider will review your schedule and confirm their arrival time and quote.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: palette.muted,
+                        height: 1.4,
+                      ),
+                    ),
                     const SizedBox(height: AppSpacing.s20),
 
-                    // ── Agent 3 Explainable AI (XAI) Recommendation Card ──
+                    // ── Agent 3 Recommendation Card ──
                     Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        color: palette.primary.withValues(alpha: 0.10),
+                        color: palette.primary.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(
                           color: palette.primary.withValues(alpha: 0.25),
@@ -278,22 +232,47 @@ class _QuotationProposalPageState extends State<QuotationProposalPage> {
                     ),
                     const SizedBox(height: AppSpacing.s24),
 
-                    // ── Section 1: Submitted Quotations ──
-                    Text(
-                      'Submitted Quotations (${quotes.length})',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: palette.text,
-                      ),
+                    // ── Section: Providers List ──
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Available Providers (${quotes.length})',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: palette.text,
+                          ),
+                        ),
+                        Text(
+                          'Tap to select',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: palette.muted,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: AppSpacing.s12),
 
-                    ...quotes.map((q) => _buildQuotationCard(q, palette)),
+                    ...quotes.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final q = entry.value;
+                      final isSelected = index == _selectedProviderIndex;
+                      return _buildProviderCard(
+                        q: q,
+                        isSelected: isSelected,
+                        palette: palette,
+                        onTap: () {
+                          setState(() => _selectedProviderIndex = index);
+                        },
+                      );
+                    }),
 
-                    const SizedBox(height: AppSpacing.s24),
+                    const SizedBox(height: AppSpacing.s20),
 
-                    // ── Section 2: Final Booking Proposal ──
+                    // ── Section 2: Selected Proposal Preview ──
                     Row(
                       children: [
                         Icon(
@@ -303,7 +282,7 @@ class _QuotationProposalPageState extends State<QuotationProposalPage> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          'Booking Proposal',
+                          'Proposal to Send',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -314,44 +293,47 @@ class _QuotationProposalPageState extends State<QuotationProposalPage> {
                     ),
                     const SizedBox(height: AppSpacing.s12),
 
-                    // Exact Figma BookingCard Component
+                    // Figma BookingCard in Requested State
                     BookingCardWidget(
-                      title: booking.serviceTitle,
-                      providerName: booking.providerName,
-                      reference: booking.bookingReference,
-                      schedule: booking.schedule,
-                      price: booking.priceFormatted,
-                      status: BookingStatus.upcoming,
+                      title: widget.jobPlan.serviceTitle,
+                      providerName: selected.fullName,
+                      reference: _proposal.bookingProposal.bookingReference,
+                      schedule: widget.jobPlan.scheduledTime.isNotEmpty
+                          ? '${widget.jobPlan.scheduledDate} (${widget.jobPlan.scheduledTime}) · ${widget.jobPlan.location}'
+                          : '${widget.jobPlan.scheduledDate} · ${widget.jobPlan.location}',
+                      price: 'Rs. ${selected.quotedPrice.toInt()}/hr',
+                      status: BookingStatus.requested,
                     ),
 
                     const SizedBox(height: AppSpacing.s16),
 
-                    // Human-in-the-Loop governance note
+                    // Human-in-the-Loop note
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
-                        vertical: 10,
+                        vertical: 12,
                       ),
                       decoration: BoxDecoration(
                         color: palette.soft,
                         borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: palette.border, width: 0.8),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Icon(
-                            Icons.verified_user_outlined,
+                            Icons.info_outline_rounded,
                             size: 18,
                             color: palette.primary,
                           ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'Human-in-the-Loop Governance: Agent 3 prepares optimal proposals but never finalizes charges without your explicit consent.',
+                              'The provider will review your requested time and location. They will confirm their exact attendance time and final quotation before the appointment is booked.',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: palette.muted,
-                                height: 1.4,
+                                height: 1.45,
                               ),
                             ),
                           ),
@@ -365,7 +347,7 @@ class _QuotationProposalPageState extends State<QuotationProposalPage> {
               ),
             ),
 
-            // ── Sticky Bottom Button: Accept & Confirm Booking ──
+            // ── Sticky Bottom Button: Send Job Proposal ──
             Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.s20,
@@ -389,8 +371,8 @@ class _QuotationProposalPageState extends State<QuotationProposalPage> {
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  onPressed: _isConfirming ? null : _onAcceptBooking,
-                  child: _isConfirming
+                  onPressed: _isSending ? null : _onSendProposal,
+                  child: _isSending
                       ? const SizedBox(
                           width: 24,
                           height: 24,
@@ -401,14 +383,14 @@ class _QuotationProposalPageState extends State<QuotationProposalPage> {
                             ),
                           ),
                         )
-                      : const Row(
+                      : Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.check_circle_outline_rounded, size: 20),
-                            SizedBox(width: 8),
+                            const Icon(Icons.send_rounded, size: 18),
+                            const SizedBox(width: 8),
                             Text(
-                              'Accept Quotation & Confirm Booking',
-                              style: TextStyle(
+                              'Send Proposal to ${selected.fullName.split(' ').first}',
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -424,132 +406,169 @@ class _QuotationProposalPageState extends State<QuotationProposalPage> {
     );
   }
 
-  Widget _buildQuotationCard(ProviderQuotation q, AppPalette palette) {
-    final isWinner = q.isRecommended;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: palette.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isWinner ? palette.primary : palette.border,
-          width: isWinner ? 1.8 : 1.0,
+  Widget _buildProviderCard({
+    required ProviderQuotation q,
+    required bool isSelected,
+    required AppPalette palette,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? palette.primary.withValues(alpha: 0.05)
+              : palette.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? palette.primary : palette.border,
+            width: isSelected ? 2.0 : 1.0,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: palette.primary.withValues(alpha: 0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
         ),
-      ),
-      padding: const EdgeInsets.all(AppSpacing.s16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: palette.primary.withValues(alpha: 0.15),
-                child: Text(
-                  q.fullName.isNotEmpty
-                      ? q.fullName.substring(0, 1).toUpperCase()
-                      : 'P',
-                  style: TextStyle(
-                    color: palette.primary,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
+        padding: const EdgeInsets.all(AppSpacing.s16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Radio/Check circle
+                Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isSelected ? palette.primary : Colors.transparent,
+                    border: Border.all(
+                      color: isSelected ? palette.primary : palette.muted,
+                      width: 2,
+                    ),
+                  ),
+                  child: isSelected
+                      ? const Icon(Icons.check, size: 14, color: Colors.white)
+                      : null,
+                ),
+                const SizedBox(width: 12),
+
+                // Avatar
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: palette.primary.withValues(alpha: 0.15),
+                  child: Text(
+                    q.fullName.isNotEmpty
+                        ? q.fullName.substring(0, 1).toUpperCase()
+                        : 'P',
+                    style: TextStyle(
+                      color: palette.primary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            q.fullName,
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: palette.text,
+                const SizedBox(width: 12),
+
+                // Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              q.fullName,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: palette.text,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.verified_rounded,
-                          color: palette.primary,
-                          size: 14,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.verified_rounded,
+                            color: palette.primary,
+                            size: 14,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '★ ${q.rating.toStringAsFixed(1)} (${q.reviewCount}) · ${q.distanceKm} km away',
+                        style: TextStyle(fontSize: 12, color: palette.muted),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Hourly Rate
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
                     Text(
-                      '★ ${q.rating.toStringAsFixed(1)} (${q.reviewCount}) · ${q.distanceKm} km away',
-                      style: TextStyle(fontSize: 12, color: palette.muted),
+                      'Rs. ${q.quotedPrice.toInt()}/hr',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: isSelected ? palette.primary : palette.text,
+                      ),
+                    ),
+                    Text(
+                      'Hourly Rate',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: palette.muted,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            if (q.isRecommended) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: palette.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.auto_awesome,
+                      size: 12,
+                      color: palette.primary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Agent 3 Top Recommendation',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: palette.primary,
+                      ),
                     ),
                   ],
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'Rs. ${q.quotedPrice.toInt()}',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: isWinner ? palette.primary : palette.text,
-                    ),
-                  ),
-                  if (isWinner)
-                    Container(
-                      margin: const EdgeInsets.only(top: 2),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: palette.primary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'Best Fit Offer',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: palette.primary,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
             ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Icon(Icons.access_time_rounded, size: 14, color: palette.primary),
-              const SizedBox(width: 6),
-              Text(
-                'Available: ${q.availableTime}',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: palette.text,
-                ),
-              ),
-            ],
-          ),
-          if (q.notes.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              q.notes,
-              style: TextStyle(fontSize: 12, color: palette.muted, height: 1.3),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }

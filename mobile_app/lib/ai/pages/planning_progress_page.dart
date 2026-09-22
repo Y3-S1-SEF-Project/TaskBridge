@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../auth/data/auth_models.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_spacing.dart';
@@ -12,11 +13,13 @@ import 'matched_providers_page.dart';
 class PlanningProgressPage extends StatefulWidget {
   final JobPlan plan;
   final PlanningAnalyzeResult analysisResult;
+  final AuthUser? user;
 
   const PlanningProgressPage({
     super.key,
     required this.plan,
     required this.analysisResult,
+    this.user,
   });
 
   @override
@@ -35,7 +38,11 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
   Future<void> _navigateToMatching() async {
     setState(() => _isMatchingLoading = true);
     try {
-      final response = await MatchingApi.matchProviders(jobPlan: widget.plan);
+      final response = await MatchingApi.matchProviders(
+        jobPlan: widget.plan,
+        customerUserId: widget.user?.id,
+        customerName: widget.user?.fullName,
+      );
       if (!mounted) return;
       setState(() => _isMatchingLoading = false);
       Navigator.push(
@@ -44,6 +51,7 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
           builder: (_) => MatchedProvidersPage(
             jobPlan: widget.plan,
             matchingResponse: response,
+            user: widget.user,
           ),
         ),
       );
