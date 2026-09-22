@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../auth/data/auth_models.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_spacing.dart';
@@ -12,11 +13,13 @@ import 'planning_progress_page.dart';
 class PlanningMissingInfoPage extends StatefulWidget {
   final JobPlan initialPlan;
   final PlanningAnalyzeResult analysisResult;
+  final AuthUser? user;
 
   const PlanningMissingInfoPage({
     super.key,
     required this.initialPlan,
     required this.analysisResult,
+    this.user,
   });
 
   @override
@@ -325,6 +328,7 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
         builder: (_) => PlanningProgressPage(
           plan: updatedPlan,
           analysisResult: updatedResult,
+          user: widget.user,
         ),
       ),
     );

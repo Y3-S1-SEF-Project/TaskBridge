@@ -167,6 +167,7 @@ class BookingItem {
   final String serviceTitle;
   final String category;
   final String providerName;
+  final String? providerId;
   final String customerName;
   final String location;
   final String schedule;
@@ -180,6 +181,7 @@ class BookingItem {
     required this.serviceTitle,
     required this.category,
     required this.providerName,
+    this.providerId,
     required this.customerName,
     required this.location,
     required this.schedule,
@@ -195,6 +197,7 @@ class BookingItem {
       serviceTitle: json['serviceTitle'] as String? ?? 'Home Service',
       category: json['category'] as String? ?? 'General',
       providerName: json['providerName'] as String? ?? 'Specialist',
+      providerId: json['providerId']?.toString(),
       customerName: json['customerName'] as String? ?? 'Customer',
       location: json['location'] as String? ?? 'Colombo',
       schedule: json['schedule'] as String? ?? '17 Sep · 4:00 PM · Colombo 05',
@@ -207,9 +210,14 @@ class BookingItem {
   }
 
   String get priceFormatted => 'Rs. ${price.toInt()}';
+  bool get isRequested =>
+      status.toLowerCase() == 'requested' ||
+      status.toLowerCase() == 'quotationpending' ||
+      status.toLowerCase() == 'counterbidreceived';
   bool get isUpcoming => status.toLowerCase() == 'upcoming';
   bool get isActive =>
       status.toLowerCase() == 'active' || status.toLowerCase() == 'in progress';
+  bool get isOngoing => isRequested || isActive;
   bool get isCompleted => status.toLowerCase() == 'completed';
   bool get isCancelled => status.toLowerCase() == 'cancelled';
 
@@ -220,6 +228,7 @@ class BookingItem {
       serviceTitle: serviceTitle,
       category: category,
       providerName: providerName,
+      providerId: providerId,
       customerName: customerName,
       location: location,
       schedule: schedule,

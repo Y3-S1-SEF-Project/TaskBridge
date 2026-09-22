@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../auth/data/auth_models.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_spacing.dart';
@@ -20,11 +21,13 @@ import '../../home/pages/provider_detail_page.dart';
 class MatchedProvidersPage extends StatefulWidget {
   final JobPlan jobPlan;
   final MatchingResponse matchingResponse;
+  final AuthUser? user;
 
   const MatchedProvidersPage({
     super.key,
     required this.jobPlan,
     required this.matchingResponse,
+    this.user,
   });
 
   @override
@@ -293,13 +296,32 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
 
   bool _isRequestingQuotes = false;
 
+  List<MatchedProvider> _filterNonSelfProviders(List<MatchedProvider> list) {
+    if (widget.user == null) return list;
+    final currentUserId = widget.user!.id.toLowerCase();
+    final currentName = widget.user!.fullName.trim().toLowerCase();
+
+    return list.where((p) {
+      if (p.userId.isNotEmpty && p.userId.toLowerCase() == currentUserId) {
+        return false;
+      }
+      if (p.fullName.trim().toLowerCase() == currentName) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
+
   Future<void> _onRequestQuotations() async {
     setState(() => _isRequestingQuotes = true);
 
     try {
+      final validCandidates = _filterNonSelfProviders(
+        widget.matchingResponse.matchedProviders,
+      );
       final proposal = await CoordinationApi.evaluateQuotations(
         jobPlan: widget.jobPlan,
-        candidateProviders: widget.matchingResponse.matchedProviders,
+        candidateProviders: validCandidates,
       );
 
       if (!mounted) return;
@@ -326,283 +348,309 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
     }
   }
 
+  void _handleBack(BuildContext context, bool isEmpty) {
+    if (isEmpty) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final providers = widget.matchingResponse.matchedProviders;
+    final providers = _filterNonSelfProviders(
+      widget.matchingResponse.matchedProviders,
+    );
 
-    return Scaffold(
-      backgroundColor: palette.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.s20,
-                  vertical: AppSpacing.s12,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Top Bar (Back button & AI Trace)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        InkWell(
-                          onTap: () => Navigator.pop(context),
-                          borderRadius: BorderRadius.circular(12),
-                          child: Padding(
-                            padding: const EdgeInsets.all(4),
-                            child: Icon(
-                              Icons.arrow_back,
-                              color: palette.text,
-                              size: 24,
-                            ),
-                          ),
-                        ),
-                        ActionChip(
-                          avatar: Icon(
-                            Icons.auto_awesome,
-                            color: palette.primary,
-                            size: 16,
-                          ),
-                          label: Text(
-                            'AI Trace',
-                            style: TextStyle(
-                              color: palette.primary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                            ),
-                          ),
-                          backgroundColor: palette.primary.withValues(
-                            alpha: 0.1,
-                          ),
-                          side: BorderSide(
-                            color: palette.primary.withValues(alpha: 0.2),
-                          ),
-                          onPressed: () {
-                            if (providers.isNotEmpty) {
-                              _showAiBreakdown(providers.first);
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.s12),
-
-                    // Header Tag
-                    Text(
-                      'MATCHING AGENT',
-                      style: TextStyle(
-                        color: palette.primary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.1,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.s8),
-
-                    // Screen Title
-                    Text(
-                      'Your provider shortlist',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        color: palette.text,
-                        height: 1.2,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.s20),
-
-                    // ── Job Summary Card (Matches Figma C20 & C19) ──
-                    Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: palette.surface,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: palette.border, width: 1),
-                      ),
-                      padding: const EdgeInsets.all(AppSpacing.s20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+    return PopScope(
+      canPop: providers.isNotEmpty,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      },
+      child: Scaffold(
+        backgroundColor: palette.background,
+        body: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.s20,
+                    vertical: AppSpacing.s12,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Top Bar (Back button & AI Trace)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            widget.jobPlan.serviceTitle,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: palette.text,
+                          InkWell(
+                            onTap: () =>
+                                _handleBack(context, providers.isEmpty),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.all(4),
+                              child: Icon(
+                                Icons.arrow_back,
+                                color: palette.text,
+                                size: 24,
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            widget.jobPlan.description.isNotEmpty
-                                ? widget.jobPlan.description
-                                : 'Repair the leaking kitchen tap and test for leaks.',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: palette.muted,
-                              height: 1.4,
+                          ActionChip(
+                            avatar: Icon(
+                              Icons.auto_awesome,
+                              color: palette.primary,
+                              size: 16,
                             ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Location Row
-                          _buildDetailRow(
-                            palette: palette,
-                            icon: Icons.location_on_outlined,
-                            title: widget.jobPlan.location ?? 'Colombo 05',
-                            subtitle:
-                                widget.jobPlan.locationAddress ??
-                                '24 Park Road',
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Calendar Row
-                          _buildDetailRow(
-                            palette: palette,
-                            icon: Icons.calendar_today_outlined,
-                            title: widget.jobPlan.scheduledDate,
-                            subtitle: widget.jobPlan.scheduledTime,
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Budget Row
-                          _buildDetailRow(
-                            palette: palette,
-                            icon: Icons.account_balance_wallet_outlined,
-                            title: widget.jobPlan.budgetDisplay,
-                            subtitle: null,
+                            label: Text(
+                              'AI Trace',
+                              style: TextStyle(
+                                color: palette.primary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
+                            backgroundColor: palette.primary.withValues(
+                              alpha: 0.1,
+                            ),
+                            side: BorderSide(
+                              color: palette.primary.withValues(alpha: 0.2),
+                            ),
+                            onPressed: () {
+                              if (providers.isNotEmpty) {
+                                _showAiBreakdown(providers.first);
+                              }
+                            },
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.s24),
+                      const SizedBox(height: AppSpacing.s12),
 
-                    // ── Section Title: "1 suitable provider" or "X suitable providers" ──
-                    Text(
-                      providers.isEmpty
-                          ? 'No providers found'
-                          : providers.length == 1
-                          ? '1 suitable provider'
-                          : '${providers.length} suitable providers',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: palette.text,
-                        letterSpacing: -0.3,
+                      // Header Tag
+                      Text(
+                        'MATCHING AGENT',
+                        style: TextStyle(
+                          color: palette.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.1,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.s16),
+                      const SizedBox(height: AppSpacing.s8),
 
-                    // ── Provider Cards (ProviderCard/AI from Figma) or Empty State ──
-                    if (providers.isEmpty)
+                      // Screen Title
+                      Text(
+                        'Your provider shortlist',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          color: palette.text,
+                          height: 1.2,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.s20),
+
+                      // ── Job Summary Card (Matches Figma C20 & C19) ──
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.s20,
-                          vertical: AppSpacing.s24,
-                        ),
                         decoration: BoxDecoration(
                           color: palette.surface,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: palette.border),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: palette.border, width: 1),
                         ),
+                        padding: const EdgeInsets.all(AppSpacing.s20),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              Icons.person_search_outlined,
-                              size: 44,
-                              color: palette.muted,
-                            ),
-                            const SizedBox(height: 12),
                             Text(
-                              'No registered providers available',
+                              widget.jobPlan.serviceTitle,
                               style: TextStyle(
-                                fontSize: 16,
+                                fontSize: 18,
                                 fontWeight: FontWeight.w700,
                                 color: palette.text,
                               ),
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 4),
                             Text(
-                              'No active providers are currently registered for this category in your area.',
-                              textAlign: TextAlign.center,
+                              widget.jobPlan.description.isNotEmpty
+                                  ? widget.jobPlan.description
+                                  : 'Repair the leaking kitchen tap and test for leaks.',
                               style: TextStyle(
-                                fontSize: 13,
+                                fontSize: 14,
                                 color: palette.muted,
                                 height: 1.4,
                               ),
                             ),
+                            const SizedBox(height: 16),
+
+                            // Location Row
+                            _buildDetailRow(
+                              palette: palette,
+                              icon: Icons.location_on_outlined,
+                              title: widget.jobPlan.location ?? 'Colombo 05',
+                              subtitle:
+                                  widget.jobPlan.locationAddress ??
+                                  '24 Park Road',
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Calendar Row
+                            _buildDetailRow(
+                              palette: palette,
+                              icon: Icons.calendar_today_outlined,
+                              title: widget.jobPlan.scheduledDate,
+                              subtitle: widget.jobPlan.scheduledTime,
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Budget Row
+                            _buildDetailRow(
+                              palette: palette,
+                              icon: Icons.account_balance_wallet_outlined,
+                              title: widget.jobPlan.budgetDisplay,
+                              subtitle: null,
+                            ),
                           ],
                         ),
-                      )
-                    else
-                      ...providers.map((provider) {
-                        return Padding(
-                          padding: const EdgeInsets.only(
-                            bottom: AppSpacing.s16,
-                          ),
-                          child: _buildProviderCard(
-                            provider: provider,
-                            palette: palette,
-                          ),
-                        );
-                      }),
-                    const SizedBox(height: AppSpacing.s20),
-                  ],
-                ),
-              ),
-            ),
+                      ),
+                      const SizedBox(height: AppSpacing.s24),
 
-            // ── Sticky Bottom Button: "Request Quotations" ──
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.s20,
-                vertical: AppSpacing.s16,
-              ),
-              decoration: BoxDecoration(
-                color: palette.background,
-                border: Border(
-                  top: BorderSide(color: palette.border, width: 0.8),
-                ),
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: palette.primary,
-                    foregroundColor: palette.onPrimary,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  onPressed: _isRequestingQuotes ? null : _onRequestQuotations,
-                  child: _isRequestingQuotes
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
+                      // ── Section Title: "1 suitable provider" or "X suitable providers" ──
+                      Text(
+                        providers.isEmpty
+                            ? 'No providers found'
+                            : providers.length == 1
+                            ? '1 suitable provider'
+                            : '${providers.length} suitable providers',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: palette.text,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.s16),
+
+                      // ── Provider Cards (ProviderCard/AI from Figma) or Empty State ──
+                      if (providers.isEmpty)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.s20,
+                            vertical: AppSpacing.s24,
+                          ),
+                          decoration: BoxDecoration(
+                            color: palette.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: palette.border),
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.search_off_rounded,
+                                size: 44,
+                                color: palette.muted,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'No providers currently available',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: palette.text,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'No providers currently available for this category in your area.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: palette.muted,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
                           ),
                         )
-                      : const Text(
-                          'Request Quotations',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                      else
+                        ...providers.map((provider) {
+                          return Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: AppSpacing.s16,
+                            ),
+                            child: _buildProviderCard(
+                              provider: provider,
+                              palette: palette,
+                            ),
+                          );
+                        }),
+                      const SizedBox(height: AppSpacing.s20),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+
+              // ── Sticky Bottom Button: "Request Quotations" ──
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.s20,
+                  vertical: AppSpacing.s16,
+                ),
+                decoration: BoxDecoration(
+                  color: palette.background,
+                  border: Border(
+                    top: BorderSide(color: palette.border, width: 0.8),
+                  ),
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: palette.primary,
+                      foregroundColor: palette.onPrimary,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: _isRequestingQuotes
+                        ? null
+                        : providers.isEmpty
+                        ? () => _handleBack(context, true)
+                        : _onRequestQuotations,
+                    child: _isRequestingQuotes
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                        : Text(
+                            providers.isEmpty
+                                ? 'Back to Home'
+                                : 'Request Quotations',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -947,7 +995,8 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
                             size: 20,
                           ),
                           tooltip: 'Call Specialist',
-                          onPressed: () => _callProvider(context, provider.phone),
+                          onPressed: () =>
+                              _callProvider(context, provider.phone),
                         ),
                       ),
                     ],
