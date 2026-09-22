@@ -134,9 +134,11 @@ class BookingCardWidget extends StatelessWidget {
             ),
             const SizedBox(height: 4),
 
-            // ── Provider & Booking Reference: "Kamal Perera · Booking #TB-1042" ──
+            // ── Provider & Reference: "Kamal Perera · Booking #TB-1000" or "Proposal #PR-1000" ──
             Text(
-              '$providerName · Booking #${reference.replaceFirst('#', '')}',
+              reference.startsWith('PR-')
+                  ? '$providerName · Proposal #${reference.replaceFirst('#', '')}'
+                  : '$providerName · Booking #${reference.replaceFirst('#', '')}',
               style: TextStyle(
                 fontSize: 13,
                 color: palette.muted,

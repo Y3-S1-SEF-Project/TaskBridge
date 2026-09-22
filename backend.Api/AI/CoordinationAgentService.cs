@@ -151,7 +151,7 @@ public class CoordinationAgentService
         sw.Stop();
 
         // 3. Prepare the formal Booking Proposal (Exact Figma format: "17 Sep · 4:00 PM · Colombo 05")
-        var randomRef = $"TB-{Random.Shared.Next(1020, 1099)}";
+        var propRef = await GenerateProposalReferenceAsync(ct);
         var datePart = string.IsNullOrWhiteSpace(plan.ScheduledDate) ? "Tomorrow" : plan.ScheduledDate.Split('·').First().Trim();
         var timePart = bestQuote.AvailableTime.Contains("at") ? bestQuote.AvailableTime.Split("at").Last().Trim() : "4:00 PM";
         var locPart = string.IsNullOrWhiteSpace(plan.Location) ? "Colombo 05" : plan.Location;
@@ -159,7 +159,7 @@ public class CoordinationAgentService
 
         var bookingProposal = new BookingDetailsDto
         {
-            BookingReference = randomRef,
+            BookingReference = propRef,
             ServiceTitle = plan.ServiceTitle,
             ProviderName = bestQuote.FullName,
             CustomerName = "Kavindu Alwis",
@@ -195,9 +195,9 @@ public class CoordinationAgentService
     /// </summary>
     public async Task<BookingEntity> ConfirmBookingAsync(ConfirmBookingRequest req, CancellationToken ct = default)
     {
-        var bookingRef = !string.IsNullOrWhiteSpace(req.BookingReference)
+        var bookingRef = !string.IsNullOrWhiteSpace(req.BookingReference) && req.BookingReference.StartsWith("TB-")
             ? req.BookingReference
-            : $"TB-{Random.Shared.Next(1020, 1099)}";
+            : await GenerateBookingReferenceAsync(ct);
 
         var existing = await _dbContext.Bookings.FirstOrDefaultAsync(b => b.BookingReference == bookingRef, ct);
         if (existing != null)
@@ -249,8 +249,8 @@ public class CoordinationAgentService
     public async Task<ProposalEntity> CreateProposalAsync(CreateQuotationRequest req, CancellationToken ct = default)
     {
         var proposalRef = !string.IsNullOrWhiteSpace(req.BookingReference)
-            ? req.BookingReference.Replace("TB-", "PR-")
-            : $"PR-{Random.Shared.Next(1020, 1099)}";
+            ? (req.BookingReference.StartsWith("PR-") ? req.BookingReference : req.BookingReference.Replace("TB-", "PR-"))
+            : await GenerateProposalReferenceAsync(ct);
 
         var existing = await _dbContext.Proposals.FirstOrDefaultAsync(p => p.ProposalReference == proposalRef, ct);
         if (existing != null)
@@ -314,7 +314,7 @@ public class CoordinationAgentService
         proposal.Status = "Accepted";
         proposal.UpdatedAt = DateTimeOffset.UtcNow;
 
-        var bookingRef = $"TB-{Random.Shared.Next(1020, 1099)}";
+        var bookingRef = await GenerateBookingReferenceAsync(ct);
         var confirmedBooking = new BookingEntity
         {
             Id = Guid.NewGuid(),
@@ -367,6 +367,51 @@ public class CoordinationAgentService
 
         return proposal;
     }
+
+    /// <summary>
+    /// Generates the next sequential Booking Reference starting at TB-1000.
+    /// </summary>
+    public async Task<string> GenerateBookingReferenceAsync(CancellationToken ct = default)
+    {
+        var allRefs = await _dbContext.Bookings
+            .Where(b => b.BookingReference.StartsWith("TB-"))
+            .Select(b => b.BookingReference)
+            .ToListAsync(ct);
+
+        int maxNumber = 999;
+        foreach (var r in allRefs)
+        {
+            var parts = r.Split('-');
+            if (parts.Length > 1 && int.TryParse(parts[1], out var num) && num > maxNumber)
+            {
+                maxNumber = num;
+            }
+        }
+        return $"TB-{maxNumber + 1}";
+    }
+
+    /// <summary>
+    /// Generates the next sequential Proposal Reference starting at PR-1000.
+    /// </summary>
+    public async Task<string> GenerateProposalReferenceAsync(CancellationToken ct = default)
+    {
+        var allRefs = await _dbContext.Proposals
+            .Where(p => p.ProposalReference.StartsWith("PR-"))
+            .Select(p => p.ProposalReference)
+            .ToListAsync(ct);
+
+        int maxNumber = 999;
+        foreach (var r in allRefs)
+        {
+            var parts = r.Split('-');
+            if (parts.Length > 1 && int.TryParse(parts[1], out var num) && num > maxNumber)
+            {
+                maxNumber = num;
+            }
+        }
+        return $"PR-{maxNumber + 1}";
+    }
+
 
     /// <summary>
     /// Retrieves live proposals from 'proposals' table.
@@ -633,3 +678,4 @@ public class CoordinationAgentService
         };
     }
 }
+
