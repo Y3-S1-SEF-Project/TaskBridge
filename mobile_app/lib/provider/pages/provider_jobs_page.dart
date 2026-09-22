@@ -135,298 +135,462 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: true,
       backgroundColor: palette.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
-          ),
-          child: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.s20,
-                vertical: AppSpacing.s16,
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 44,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: palette.border,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
+              child: SafeArea(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.s20,
+                    vertical: AppSpacing.s12,
                   ),
-                  const SizedBox(height: 16),
-
-                  Row(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.shade100,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'NEW PROPOSAL',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.amber.shade900,
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '#${booking.bookingReference}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: palette.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+
+                      Text(
+                        booking.serviceTitle,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: palette.text,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Customer: ${booking.customerName} · Location: ${booking.location}',
+                        style: TextStyle(fontSize: 13, color: palette.muted),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Customer Requested Time Banner
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.amber.shade100,
-                          borderRadius: BorderRadius.circular(6),
+                          color: palette.soft,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: palette.primary.withValues(alpha: 0.25),
+                            width: 1,
+                          ),
                         ),
-                        child: Text(
-                          'NEW PROPOSAL',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.amber.shade900,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.schedule_rounded,
+                              size: 18,
+                              color: palette.primary,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Customer's Exact Requested Time:",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: palette.text,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    booking.schedule,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: palette.primary,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      // Field 1: Confirmed Attendance Time with Interactive Time Selection
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Your Attendance Time',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: palette.text,
+                            ),
+                          ),
+                          TextButton.icon(
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            onPressed: () async {
+                              final now = TimeOfDay.now();
+                              final picked = await showTimePicker(
+                                context: ctx,
+                                initialTime: TimeOfDay(
+                                  hour: (now.hour + 1) % 24,
+                                  minute: 0,
+                                ),
+                              );
+                              if (picked != null) {
+                                final h = picked.hourOfPeriod == 0
+                                    ? 12
+                                    : picked.hourOfPeriod;
+                                final m = picked.minute.toString().padLeft(
+                                  2,
+                                  '0',
+                                );
+                                final p = picked.period == DayPeriod.am
+                                    ? 'AM'
+                                    : 'PM';
+                                final timeStr = '$h:$m $p';
+                                final current = scheduleCtrl.text.trim();
+                                String datePart = 'Tomorrow';
+                                if (current.contains('·')) {
+                                  datePart = current.split('·').first.trim();
+                                } else if (current.toLowerCase().contains(
+                                  'tomorrow',
+                                )) {
+                                  datePart = 'Tomorrow';
+                                }
+                                setSheetState(() {
+                                  scheduleCtrl.text = '$datePart at $timeStr';
+                                });
+                              }
+                            },
+                            icon: Icon(
+                              Icons.access_time_rounded,
+                              size: 16,
+                              color: palette.primary,
+                            ),
+                            label: Text(
+                              'Pick Time',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: palette.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Select or specify the exact arrival time you can attend.',
+                        style: TextStyle(fontSize: 12, color: palette.muted),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: scheduleCtrl,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.access_time_rounded),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              Icons.access_time_filled_rounded,
+                              color: palette.primary,
+                            ),
+                            onPressed: () async {
+                              final now = TimeOfDay.now();
+                              final picked = await showTimePicker(
+                                context: ctx,
+                                initialTime: TimeOfDay(
+                                  hour: (now.hour + 1) % 24,
+                                  minute: 0,
+                                ),
+                              );
+                              if (picked != null) {
+                                final h = picked.hourOfPeriod == 0
+                                    ? 12
+                                    : picked.hourOfPeriod;
+                                final m = picked.minute.toString().padLeft(
+                                  2,
+                                  '0',
+                                );
+                                final p = picked.period == DayPeriod.am
+                                    ? 'AM'
+                                    : 'PM';
+                                final timeStr = '$h:$m $p';
+                                final current = scheduleCtrl.text.trim();
+                                String datePart = 'Tomorrow';
+                                if (current.contains('·')) {
+                                  datePart = current.split('·').first.trim();
+                                } else if (current.toLowerCase().contains(
+                                  'tomorrow',
+                                )) {
+                                  datePart = 'Tomorrow';
+                                }
+                                setSheetState(() {
+                                  scheduleCtrl.text = '$datePart at $timeStr';
+                                });
+                              }
+                            },
+                          ),
+                          hintText: 'e.g., Tomorrow at 10:30 AM',
+                          filled: true,
+                          fillColor: palette.background,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: palette.border),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
                           ),
                         ),
                       ),
-                      const Spacer(),
-                      Text(
-                        '#${booking.bookingReference}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: palette.muted,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
+                      const SizedBox(height: 8),
 
-                  Text(
-                    booking.serviceTitle,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: palette.text,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Customer: ${booking.customerName} · Location: ${booking.location}',
-                    style: TextStyle(fontSize: 13, color: palette.muted),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Customer Requested Window Info
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: palette.soft,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: palette.border, width: 0.8),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.calendar_today_rounded,
-                          size: 18,
-                          color: palette.primary,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Customer\'s Preferred Window:',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: palette.text,
+                      // Quick time chips
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            for (final slot in [
+                              '8:30 AM',
+                              '10:00 AM',
+                              '11:30 AM',
+                              '2:00 PM',
+                              '4:00 PM',
+                              '5:30 PM',
+                            ])
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: ActionChip(
+                                  label: Text(
+                                    slot,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  backgroundColor:
+                                      scheduleCtrl.text.contains(slot)
+                                      ? palette.primary.withValues(alpha: 0.18)
+                                      : palette.surface,
+                                  side: BorderSide(
+                                    color: scheduleCtrl.text.contains(slot)
+                                        ? palette.primary
+                                        : palette.border,
+                                  ),
+                                  onPressed: () {
+                                    final current = scheduleCtrl.text.trim();
+                                    String datePart = 'Tomorrow';
+                                    if (current.contains('·')) {
+                                      datePart = current
+                                          .split('·')
+                                          .first
+                                          .trim();
+                                    } else if (current.toLowerCase().contains(
+                                      'tomorrow',
+                                    )) {
+                                      datePart = 'Tomorrow';
+                                    }
+                                    setSheetState(() {
+                                      scheduleCtrl.text = '$datePart at $slot';
+                                    });
+                                  },
                                 ),
                               ),
-                              const SizedBox(height: 2),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Field 2: Confirmed Price / Quote
+                      Text(
+                        'Quoted Price / Final Amount (Rs.)',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: palette.text,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: priceCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.payments_outlined),
+                          hintText: 'e.g., 3500',
+                          filled: true,
+                          fillColor: palette.background,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: palette.border),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 22),
+
+                      // Actions: Accept / Decline
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: palette.primary,
+                            foregroundColor: palette.onPrimary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          onPressed: () async {
+                            final parsedPrice =
+                                double.tryParse(priceCtrl.text.trim()) ??
+                                booking.price;
+                            final confSchedule =
+                                scheduleCtrl.text.trim().isNotEmpty
+                                ? scheduleCtrl.text.trim()
+                                : booking.schedule;
+
+                            final messenger = ScaffoldMessenger.of(context);
+                            Navigator.pop(ctx);
+                            final success =
+                                await CoordinationApi.acceptProposal(
+                                  proposalReference: booking.bookingReference,
+                                  schedule: confSchedule,
+                                  price: parsedPrice,
+                                );
+
+                            if (success && mounted) {
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Proposal accepted! Booking locked into Upcoming schedule for $confSchedule.',
+                                  ),
+                                  backgroundColor: AppColors.primary,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              );
+                              _loadBookings();
+                            }
+                          },
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.check_circle_outline_rounded,
+                                size: 18,
+                              ),
+                              SizedBox(width: 8),
                               Text(
-                                booking.schedule,
+                                'Accept & Confirm Schedule',
                                 style: TextStyle(
-                                  fontSize: 13,
-                                  color: palette.muted,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  // Field 1: Confirmed Attendance Time
-                  Text(
-                    'Your Attendance Time',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: palette.text,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Specify the exact time you can attend within the customer\'s window.',
-                    style: TextStyle(fontSize: 12, color: palette.muted),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: scheduleCtrl,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.access_time_rounded),
-                      hintText: 'e.g., Tomorrow at 3:30 PM',
-                      filled: true,
-                      fillColor: palette.background,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: palette.border),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Field 2: Confirmed Price / Quote
-                  Text(
-                    'Quoted Price / Final Amount (Rs.)',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: palette.text,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: priceCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.payments_outlined),
-                      hintText: 'e.g., 3500',
-                      filled: true,
-                      fillColor: palette.background,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: palette.border),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 22),
-
-                  // Actions: Accept / Decline
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: palette.primary,
-                        foregroundColor: palette.onPrimary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      onPressed: () async {
-                        final parsedPrice =
-                            double.tryParse(priceCtrl.text.trim()) ??
-                            booking.price;
-                        final confSchedule = scheduleCtrl.text.trim().isNotEmpty
-                            ? scheduleCtrl.text.trim()
-                            : booking.schedule;
-
-                        Navigator.pop(ctx);
-                        final success = await CoordinationApi.acceptProposal(
-                          proposalReference: booking.bookingReference,
-                          schedule: confSchedule,
-                          price: parsedPrice,
-                        );
-
-                        if (success && mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Proposal accepted! Booking locked into Upcoming schedule for $confSchedule.',
-                              ),
-                              backgroundColor: AppColors.primary,
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          );
-                          _loadBookings();
-                        }
-                      },
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.check_circle_outline_rounded, size: 18),
-                          SizedBox(width: 8),
-                          Text(
-                            'Accept & Confirm Schedule',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.error,
+                            side: BorderSide(color: AppColors.error),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.error,
-                        side: BorderSide(color: AppColors.error),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          onPressed: () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            Navigator.pop(ctx);
+                            final success =
+                                await CoordinationApi.declineProposal(
+                                  proposalReference: booking.bookingReference,
+                                );
+
+                            if (success && mounted) {
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: const Text('Proposal declined.'),
+                                  backgroundColor: Colors.orange.shade800,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              );
+                              _loadBookings();
+                            }
+                          },
+                          child: const Text(
+                            'Decline Proposal',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
                         ),
                       ),
-                      onPressed: () async {
-                        Navigator.pop(ctx);
-                        final success = await CoordinationApi.declineProposal(
-                          proposalReference: booking.bookingReference,
-                        );
-
-                        if (success && mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text('Proposal declined.'),
-                              backgroundColor: Colors.orange.shade800,
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          );
-                          _loadBookings();
-                        }
-                      },
-                      child: const Text(
-                        'Decline Proposal',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
@@ -438,6 +602,7 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
 
     showModalBottomSheet(
       context: context,
+      showDragHandle: true,
       backgroundColor: palette.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -453,17 +618,6 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: palette.border,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
                 Text(
                   booking.serviceTitle,
                   style: TextStyle(

@@ -22,8 +22,9 @@ abstract final class AppTheme {
       statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
       systemNavigationBarColor: isDark ? const Color(0xFF101713) : Colors.white,
-      systemNavigationBarIconBrightness:
-          isDark ? Brightness.light : Brightness.dark,
+      systemNavigationBarIconBrightness: isDark
+          ? Brightness.light
+          : Brightness.dark,
       systemNavigationBarDividerColor: Colors.transparent,
     );
   }
@@ -210,7 +211,10 @@ abstract final class AppTheme {
         elevation: 0,
         modalElevation: 0,
         showDragHandle: true,
-        dragHandleColor: p.border,
+        dragHandleColor: p == AppPalette.dark
+            ? const Color(0xFF475569)
+            : const Color(0xFFCBD5E1),
+        dragHandleSize: const Size(44, 4),
         surfaceTintColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(

@@ -165,177 +165,387 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: true,
       backgroundColor: palette.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: AppSpacing.s20,
-            right: AppSpacing.s20,
-            top: AppSpacing.s20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.s20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: palette.border,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: AppSpacing.s20,
+                right: AppSpacing.s20,
+                top: AppSpacing.s8,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.s20,
               ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Icon(
-                    Icons.edit_note_rounded,
-                    color: palette.primary,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Counter-Offer / Edit Bid',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: palette.text,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Job: ${booking.serviceTitle} · Customer: ${booking.customerName}',
-                style: TextStyle(fontSize: 13, color: palette.muted),
-              ),
-              const SizedBox(height: 16),
-
-              // Price field
-              Text(
-                'Your Quoted Price (Rs.)',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: palette.text,
-                ),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: priceController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  prefixText: 'Rs. ',
-                  prefixStyle: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: palette.primary,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Arrival Time field
-              Text(
-                'Arrival Window',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: palette.text,
-                ),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: timeController,
-                decoration: InputDecoration(
-                  hintText: 'e.g. Tomorrow at 10:30 AM',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Notes
-              Text(
-                'Quotation Notes',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: palette.text,
-                ),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: notesController,
-                maxLines: 2,
-                decoration: InputDecoration(
-                  hintText: 'Notes for the customer',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: palette.primary,
-                    foregroundColor: palette.onPrimary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: () async {
-                    final price =
-                        double.tryParse(priceController.text.trim()) ??
-                        booking.price;
-                    final time = timeController.text.trim();
-                    final note = notesController.text.trim();
-
-                    Navigator.pop(ctx);
-                    final success = await CoordinationApi.submitCounterBid(
-                      bookingReference: booking.bookingReference,
-                      counterPrice: price,
-                      availableTime: time,
-                      notes: note,
-                    );
-
-                    if (success && mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Counter-bid of Rs. ${price.toInt()} sent to customer!',
-                          ),
-                          backgroundColor: AppColors.primary,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.edit_note_rounded,
+                          color: palette.primary,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Counter-Offer / Edit Bid',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: palette.text,
                           ),
                         ),
-                      );
-                      _loadBookings();
-                    }
-                  },
-                  child: const Text(
-                    'Submit Counter-Bid',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                  ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Job: ${booking.serviceTitle} · Customer: ${booking.customerName}',
+                      style: TextStyle(fontSize: 13, color: palette.muted),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Customer's Exact Requested Time Banner
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: palette.soft,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: palette.primary.withValues(alpha: 0.25),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.schedule_rounded,
+                            size: 18,
+                            color: palette.primary,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Customer's Exact Requested Time:",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: palette.text,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  booking.schedule,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: palette.primary,
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Price field
+                    Text(
+                      'Your Quoted Price (Rs.)',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: palette.text,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: priceController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        prefixText: 'Rs. ',
+                        prefixStyle: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: palette.primary,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Arrival Time field with interactive time picker
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Select Attendance Time',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: palette.text,
+                          ),
+                        ),
+                        TextButton.icon(
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () async {
+                            final now = TimeOfDay.now();
+                            final picked = await showTimePicker(
+                              context: ctx,
+                              initialTime: TimeOfDay(
+                                hour: (now.hour + 1) % 24,
+                                minute: 0,
+                              ),
+                            );
+                            if (picked != null) {
+                              final h = picked.hourOfPeriod == 0
+                                  ? 12
+                                  : picked.hourOfPeriod;
+                              final m = picked.minute.toString().padLeft(
+                                2,
+                                '0',
+                              );
+                              final p = picked.period == DayPeriod.am
+                                  ? 'AM'
+                                  : 'PM';
+                              final timeStr = '$h:$m $p';
+                              final current = timeController.text.trim();
+                              String datePart = 'Tomorrow';
+                              if (current.contains('·')) {
+                                datePart = current.split('·').first.trim();
+                              } else if (current.toLowerCase().contains(
+                                'tomorrow',
+                              )) {
+                                datePart = 'Tomorrow';
+                              }
+                              setSheetState(() {
+                                timeController.text = '$datePart at $timeStr';
+                              });
+                            }
+                          },
+                          icon: Icon(
+                            Icons.access_time_rounded,
+                            size: 16,
+                            color: palette.primary,
+                          ),
+                          label: Text(
+                            'Pick Time',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: palette.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: timeController,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(
+                          Icons.calendar_today_rounded,
+                          size: 18,
+                        ),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            Icons.access_time_filled_rounded,
+                            color: palette.primary,
+                          ),
+                          onPressed: () async {
+                            final now = TimeOfDay.now();
+                            final picked = await showTimePicker(
+                              context: ctx,
+                              initialTime: TimeOfDay(
+                                hour: (now.hour + 1) % 24,
+                                minute: 0,
+                              ),
+                            );
+                            if (picked != null) {
+                              final h = picked.hourOfPeriod == 0
+                                  ? 12
+                                  : picked.hourOfPeriod;
+                              final m = picked.minute.toString().padLeft(
+                                2,
+                                '0',
+                              );
+                              final p = picked.period == DayPeriod.am
+                                  ? 'AM'
+                                  : 'PM';
+                              final timeStr = '$h:$m $p';
+                              final current = timeController.text.trim();
+                              String datePart = 'Tomorrow';
+                              if (current.contains('·')) {
+                                datePart = current.split('·').first.trim();
+                              } else if (current.toLowerCase().contains(
+                                'tomorrow',
+                              )) {
+                                datePart = 'Tomorrow';
+                              }
+                              setSheetState(() {
+                                timeController.text = '$datePart at $timeStr';
+                              });
+                            }
+                          },
+                        ),
+                        hintText: 'e.g. Tomorrow at 10:30 AM',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Quick time slot chips
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (final slot in [
+                            '8:30 AM',
+                            '10:00 AM',
+                            '11:30 AM',
+                            '2:00 PM',
+                            '4:00 PM',
+                            '5:30 PM',
+                          ])
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ActionChip(
+                                label: Text(
+                                  slot,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                backgroundColor:
+                                    timeController.text.contains(slot)
+                                    ? palette.primary.withValues(alpha: 0.18)
+                                    : palette.surface,
+                                side: BorderSide(
+                                  color: timeController.text.contains(slot)
+                                      ? palette.primary
+                                      : palette.border,
+                                ),
+                                onPressed: () {
+                                  final current = timeController.text.trim();
+                                  String datePart = 'Tomorrow';
+                                  if (current.contains('·')) {
+                                    datePart = current.split('·').first.trim();
+                                  } else if (current.toLowerCase().contains(
+                                    'tomorrow',
+                                  )) {
+                                    datePart = 'Tomorrow';
+                                  }
+                                  setSheetState(() {
+                                    timeController.text = '$datePart at $slot';
+                                  });
+                                },
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Notes
+                    Text(
+                      'Quotation Notes',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: palette.text,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: notesController,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        hintText: 'Notes for the customer',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: palette.primary,
+                          foregroundColor: palette.onPrimary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () async {
+                          final price =
+                              double.tryParse(priceController.text.trim()) ??
+                              booking.price;
+                          final time = timeController.text.trim();
+                          final note = notesController.text.trim();
+                          final messenger = ScaffoldMessenger.of(context);
+
+                          Navigator.pop(ctx);
+                          final success =
+                              await CoordinationApi.submitCounterBid(
+                                bookingReference: booking.bookingReference,
+                                counterPrice: price,
+                                availableTime: time,
+                                notes: note,
+                              );
+
+                          if (success && mounted) {
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Counter-bid of Rs. ${price.toInt()} sent to customer!',
+                                ),
+                                backgroundColor: AppColors.primary,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            );
+                            _loadBookings();
+                          }
+                        },
+                        child: const Text(
+                          'Submit Counter-Bid',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -693,27 +903,47 @@ class _LiveJobCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(AppIcons.location, size: 14, color: palette.muted),
-              const SizedBox(width: 4),
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Icon(AppIcons.location, size: 14, color: palette.muted),
+              ),
+              const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   booking.location,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 13, color: palette.muted),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: palette.muted,
+                    height: 1.3,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(AppIcons.clock, size: 14, color: palette.muted),
-              const SizedBox(width: 4),
-              Text(
-                booking.schedule,
-                style: TextStyle(fontSize: 13, color: palette.muted),
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Icon(AppIcons.clock, size: 14, color: palette.muted),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  booking.schedule,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: palette.muted,
+                    height: 1.3,
+                  ),
+                ),
               ),
             ],
           ),
