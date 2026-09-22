@@ -111,7 +111,7 @@ public class CoordinationAgentController : ControllerBase
     }
 
     /// <summary>
-    /// Persists an open quotation request (status = "Requested") when customer triggers Agent 3.
+    /// Persists an open quotation proposal (status = "Pending") into the 'proposals' table.
     /// </summary>
     [HttpPost("request-quote")]
     public async Task<IActionResult> CreateQuotationRequest(
@@ -120,18 +120,103 @@ public class CoordinationAgentController : ControllerBase
     {
         try
         {
-            var entity = await _coordinationService.CreateQuotationRequestAsync(request, ct);
+            var proposal = await _coordinationService.CreateProposalAsync(request, ct);
             return Ok(new
             {
                 success = true,
-                message = $"Quotation request created with reference {entity.BookingReference}",
-                booking = entity
+                message = $"Proposal created with reference {proposal.ProposalReference}",
+                proposal = proposal,
+                booking = new
+                {
+                    proposal.Id,
+                    BookingReference = proposal.ProposalReference,
+                    proposal.CustomerName,
+                    proposal.ProviderName,
+                    proposal.ServiceTitle,
+                    proposal.Category,
+                    proposal.Location,
+                    Schedule = proposal.PreferredSchedule,
+                    Price = proposal.EstimatedRate,
+                    proposal.Status,
+                    proposal.CreatedAt
+                }
             });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating quotation request");
-            return StatusCode(500, new { message = "An error occurred while creating quotation request." });
+            _logger.LogError(ex, "Error creating quotation proposal");
+            return StatusCode(500, new { message = "An error occurred while creating proposal." });
+        }
+    }
+
+    /// <summary>
+    /// Retrieves live proposals from the 'proposals' table.
+    /// </summary>
+    [HttpGet("proposals")]
+    public async Task<IActionResult> GetProposals(
+        [FromQuery] string? providerId,
+        [FromQuery] string? providerName,
+        [FromQuery] string? customerName,
+        [FromQuery] string? status,
+        CancellationToken ct)
+    {
+        try
+        {
+            var list = await _coordinationService.GetProposalsAsync(providerId, providerName, customerName, status, ct);
+            return Ok(list);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching proposals");
+            return StatusCode(500, new { message = "An error occurred while retrieving proposals." });
+        }
+    }
+
+    /// <summary>
+    /// Provider accepts a proposal, marking it as Accepted and creating an Upcoming booking in 'bookings' table.
+    /// </summary>
+    [HttpPost("proposals/accept")]
+    public async Task<IActionResult> AcceptProposal(
+        [FromBody] AcceptProposalRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var booking = await _coordinationService.AcceptProposalAsync(request, ct);
+            if (booking == null)
+            {
+                return NotFound(new { message = "Proposal not found." });
+            }
+            return Ok(new { success = true, booking });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error accepting proposal");
+            return StatusCode(500, new { message = "An error occurred while accepting proposal." });
+        }
+    }
+
+    /// <summary>
+    /// Provider declines a proposal, marking it as Declined.
+    /// </summary>
+    [HttpPost("proposals/decline")]
+    public async Task<IActionResult> DeclineProposal(
+        [FromBody] DeclineProposalRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var proposal = await _coordinationService.DeclineProposalAsync(request, ct);
+            if (proposal == null)
+            {
+                return NotFound(new { message = "Proposal not found." });
+            }
+            return Ok(new { success = true, proposal });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error declining proposal");
+            return StatusCode(500, new { message = "An error occurred while declining proposal." });
         }
     }
 

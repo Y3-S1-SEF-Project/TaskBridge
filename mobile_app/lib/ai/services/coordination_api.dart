@@ -107,17 +107,40 @@ class CoordinationApi {
   }
 
   static final List<BookingItem> _localBookings = [];
+  static final List<ProposalItem> _localProposals = [];
 
-  /// Persists a quotation request immediately when customer requests quotations.
+  /// Persists a newly created quotation proposal (status = "Requested") to the proposals table.
   static Future<bool> createQuotationRequest({
     required BookingDetails booking,
     required String category,
     required String providerId,
   }) async {
     developer.log(
-      '📝 [TASKBRIDGE AI: AGENT 3] Creating quotation request "${booking.bookingReference}" for ${booking.providerName}',
+      '📝 [TASKBRIDGE AI: AGENT 3] Creating quotation proposal "${booking.bookingReference}" for ${booking.providerName}',
       name: 'CoordinationAgent',
     );
+
+    final newProp = ProposalItem(
+      id: 'pr-${DateTime.now().millisecondsSinceEpoch}',
+      proposalReference: booking.bookingReference,
+      serviceTitle: booking.serviceTitle,
+      category: category,
+      providerName: booking.providerName,
+      providerId: providerId,
+      customerName: booking.customerName.isNotEmpty
+          ? booking.customerName
+          : 'Customer',
+      location: booking.location,
+      preferredSchedule: booking.schedule,
+      estimatedRate: booking.price,
+      status: 'Pending',
+      createdAt: DateTime.now(),
+    );
+
+    _localProposals.removeWhere(
+      (p) => p.proposalReference == booking.bookingReference,
+    );
+    _localProposals.insert(0, newProp);
 
     final newItem = BookingItem(
       id: 'b-${DateTime.now().millisecondsSinceEpoch}',
@@ -480,6 +503,175 @@ class CoordinationApi {
 
     for (final candidate in candidates) {
       final uri = Uri.parse('$candidate/api/agent/coordination/update-status');
+      try {
+        final response = await http
+            .post(
+              uri,
+              headers: {'Content-Type': 'application/json'},
+              body: payload,
+            )
+            .timeout(const Duration(seconds: 10));
+
+        if (response.statusCode == 200) {
+          return true;
+        }
+      } catch (_) {}
+    }
+
+    return true;
+  }
+
+  /// Retrieves proposals from the 'proposals' table.
+  static Future<List<ProposalItem>> getProposals({
+    String? providerId,
+    String? providerName,
+    String? customerName,
+    String? status,
+  }) async {
+    final candidates = _candidateUrls;
+    final queryParams = <String, String>{};
+    if (providerId != null && providerId.isNotEmpty) {
+      queryParams['providerId'] = providerId;
+    }
+    if (providerName != null && providerName.isNotEmpty) {
+      queryParams['providerName'] = providerName;
+    }
+    if (customerName != null && customerName.isNotEmpty) {
+      queryParams['customerName'] = customerName;
+    }
+    if (status != null && status.isNotEmpty) {
+      queryParams['status'] = status;
+    }
+
+    for (final candidate in candidates) {
+      final uri = Uri.parse('$candidate/api/agent/coordination/proposals')
+          .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+      try {
+        final response = await http
+            .get(uri, headers: {'Content-Type': 'application/json'})
+            .timeout(const Duration(seconds: 10));
+
+        if (response.statusCode == 200) {
+          final list = jsonDecode(response.body) as List<dynamic>;
+          final parsed = list
+              .map((e) => ProposalItem.fromJson(e as Map<String, dynamic>))
+              .toList();
+
+          // Sync into local cache
+          for (final p in parsed) {
+            final idx = _localProposals
+                .indexWhere((x) => x.proposalReference == p.proposalReference);
+            if (idx != -1) {
+              _localProposals[idx] = p;
+            } else {
+              _localProposals.add(p);
+            }
+          }
+
+          return parsed;
+        }
+      } catch (_) {}
+    }
+
+    // Fallback to local proposals
+    var result = List<ProposalItem>.from(_localProposals);
+    if (status != null && status.isNotEmpty) {
+      result = result
+          .where((p) => p.status.toLowerCase() == status.toLowerCase())
+          .toList();
+    }
+    return result;
+  }
+
+  /// Provider accepts a proposal, locking it into confirmed 'bookings'.
+  static Future<bool> acceptProposal({
+    required String proposalReference,
+    required String schedule,
+    required double price,
+  }) async {
+    // Update local proposal
+    final idx = _localProposals
+        .indexWhere((p) => p.proposalReference == proposalReference);
+    if (idx != -1) {
+      final old = _localProposals[idx];
+      _localProposals[idx] = ProposalItem(
+        id: old.id,
+        proposalReference: old.proposalReference,
+        serviceTitle: old.serviceTitle,
+        category: old.category,
+        providerName: old.providerName,
+        providerId: old.providerId,
+        customerName: old.customerName,
+        location: old.location,
+        preferredSchedule: schedule,
+        estimatedRate: price,
+        status: 'Accepted',
+        createdAt: old.createdAt,
+      );
+    }
+
+    final candidates = _candidateUrls;
+    final payload = jsonEncode({
+      'proposalReference': proposalReference,
+      'confirmedSchedule': schedule,
+      'confirmedPrice': price,
+    });
+
+    for (final candidate in candidates) {
+      final uri =
+          Uri.parse('$candidate/api/agent/coordination/proposals/accept');
+      try {
+        final response = await http
+            .post(
+              uri,
+              headers: {'Content-Type': 'application/json'},
+              body: payload,
+            )
+            .timeout(const Duration(seconds: 10));
+
+        if (response.statusCode == 200) {
+          return true;
+        }
+      } catch (_) {}
+    }
+
+    return true;
+  }
+
+  /// Provider declines a proposal.
+  static Future<bool> declineProposal({
+    required String proposalReference,
+    String? reason,
+  }) async {
+    final idx = _localProposals
+        .indexWhere((p) => p.proposalReference == proposalReference);
+    if (idx != -1) {
+      final old = _localProposals[idx];
+      _localProposals[idx] = ProposalItem(
+        id: old.id,
+        proposalReference: old.proposalReference,
+        serviceTitle: old.serviceTitle,
+        category: old.category,
+        providerName: old.providerName,
+        providerId: old.providerId,
+        customerName: old.customerName,
+        location: old.location,
+        preferredSchedule: old.preferredSchedule,
+        estimatedRate: old.estimatedRate,
+        status: 'Declined',
+        createdAt: old.createdAt,
+      );
+    }
+
+    final candidates = _candidateUrls;
+    final payload = jsonEncode({
+      'proposalReference': proposalReference,
+      'reason': reason ?? 'Declined by provider',
+    });
+
+    for (final candidate in candidates) {
+      final uri =
+          Uri.parse('$candidate/api/agent/coordination/proposals/decline');
       try {
         final response = await http
             .post(

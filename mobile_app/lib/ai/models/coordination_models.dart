@@ -238,3 +238,70 @@ class BookingItem {
     );
   }
 }
+
+class ProposalItem {
+  final String id;
+  final String proposalReference;
+  final String serviceTitle;
+  final String category;
+  final String providerName;
+  final String? providerId;
+  final String customerName;
+  final String location;
+  final String preferredSchedule;
+  final double estimatedRate;
+  final String status;
+  final DateTime createdAt;
+
+  const ProposalItem({
+    required this.id,
+    required this.proposalReference,
+    required this.serviceTitle,
+    required this.category,
+    required this.providerName,
+    this.providerId,
+    required this.customerName,
+    required this.location,
+    required this.preferredSchedule,
+    required this.estimatedRate,
+    required this.status,
+    required this.createdAt,
+  });
+
+  factory ProposalItem.fromJson(Map<String, dynamic> json) {
+    return ProposalItem(
+      id: json['id']?.toString() ?? '',
+      proposalReference: json['proposalReference'] as String? ?? 'PR-1026',
+      serviceTitle: json['serviceTitle'] as String? ?? 'Home Service',
+      category: json['category'] as String? ?? 'General',
+      providerName: json['providerName'] as String? ?? 'Specialist',
+      providerId: json['providerId']?.toString(),
+      customerName: json['customerName'] as String? ?? 'Customer',
+      location: json['location'] as String? ?? 'Colombo',
+      preferredSchedule: json['preferredSchedule'] as String? ?? '',
+      estimatedRate: (json['estimatedRate'] as num?)?.toDouble() ?? 3500.0,
+      status: json['status'] as String? ?? 'Pending',
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
+          : DateTime.now(),
+    );
+  }
+
+  BookingItem toBookingItem() {
+    return BookingItem(
+      id: id,
+      bookingReference: proposalReference,
+      serviceTitle: serviceTitle,
+      category: category,
+      providerName: providerName,
+      providerId: providerId,
+      customerName: customerName,
+      location: location,
+      schedule: preferredSchedule,
+      price: estimatedRate,
+      status: 'Requested',
+      createdAt: createdAt,
+    );
+  }
+}
+

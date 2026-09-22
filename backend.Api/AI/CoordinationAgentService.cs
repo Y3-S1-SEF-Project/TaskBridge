@@ -244,23 +244,23 @@ public class CoordinationAgentService
     }
 
     /// <summary>
-    /// Persists an open quotation request (status = "Requested") when customer triggers Agent 3.
+    /// Persists an open proposal (status = "Pending") into the 'proposals' table.
     /// </summary>
-    public async Task<BookingEntity> CreateQuotationRequestAsync(CreateQuotationRequest req, CancellationToken ct = default)
+    public async Task<ProposalEntity> CreateProposalAsync(CreateQuotationRequest req, CancellationToken ct = default)
     {
-        var bookingRef = !string.IsNullOrWhiteSpace(req.BookingReference)
-            ? req.BookingReference
-            : $"TB-{Random.Shared.Next(1020, 1099)}";
+        var proposalRef = !string.IsNullOrWhiteSpace(req.BookingReference)
+            ? req.BookingReference.Replace("TB-", "PR-")
+            : $"PR-{Random.Shared.Next(1020, 1099)}";
 
-        var existing = await _dbContext.Bookings.FirstOrDefaultAsync(b => b.BookingReference == bookingRef, ct);
+        var existing = await _dbContext.Proposals.FirstOrDefaultAsync(p => p.ProposalReference == proposalRef, ct);
         if (existing != null)
         {
-            existing.Price = req.Price;
-            existing.Schedule = req.Schedule;
+            existing.EstimatedRate = req.Price;
+            existing.PreferredSchedule = req.Schedule;
             existing.Location = req.Location;
             existing.ServiceTitle = req.ServiceTitle;
             existing.Category = req.Category;
-            existing.Status = req.Status;
+            existing.Status = string.IsNullOrWhiteSpace(req.Status) ? "Pending" : req.Status;
             existing.UpdatedAt = DateTimeOffset.UtcNow;
             await _dbContext.SaveChangesAsync(ct);
             return existing;
@@ -268,10 +268,10 @@ public class CoordinationAgentService
 
         Guid? provId = Guid.TryParse(req.ProviderId, out var parsedGuid) ? parsedGuid : null;
 
-        var entity = new BookingEntity
+        var entity = new ProposalEntity
         {
             Id = Guid.NewGuid(),
-            BookingReference = bookingRef,
+            ProposalReference = proposalRef,
             CustomerId = null,
             CustomerName = req.CustomerName ?? "Customer",
             ProviderId = provId,
@@ -279,20 +279,130 @@ public class CoordinationAgentService
             ServiceTitle = req.ServiceTitle,
             Category = req.Category,
             Location = req.Location,
-            Schedule = req.Schedule,
-            Price = req.Price,
-            Status = string.IsNullOrWhiteSpace(req.Status) ? "Requested" : req.Status,
+            PreferredSchedule = req.Schedule,
+            EstimatedRate = req.Price,
+            Status = "Pending",
             CreatedAt = DateTimeOffset.UtcNow
         };
 
-        _dbContext.Bookings.Add(entity);
+        _dbContext.Proposals.Add(entity);
         await _dbContext.SaveChangesAsync(ct);
 
         Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"[📝 QUOTATION REQUEST PERSISTED] Ref: {entity.BookingReference} | Service: {entity.ServiceTitle} | Status: {entity.Status}");
+        Console.WriteLine($"[📝 PROPOSAL PERSISTED IN 'proposals' TABLE] Ref: {entity.ProposalReference} | Provider: {entity.ProviderName} | Status: {entity.Status}");
         Console.ResetColor();
 
         return entity;
+    }
+
+    /// <summary>
+    /// Provider accepts a customer proposal:
+    /// 1. Updates proposal in 'proposals' table to Status = 'Accepted'.
+    /// 2. Creates and locks a new confirmed appointment in 'bookings' table (Status = 'Upcoming').
+    /// </summary>
+    public async Task<BookingEntity?> AcceptProposalAsync(AcceptProposalRequest req, CancellationToken ct = default)
+    {
+        var proposal = await _dbContext.Proposals.FirstOrDefaultAsync(p => p.ProposalReference == req.ProposalReference, ct);
+        if (proposal == null)
+        {
+            var altRef = req.ProposalReference.Replace("TB-", "PR-");
+            proposal = await _dbContext.Proposals.FirstOrDefaultAsync(p => p.ProposalReference == altRef, ct);
+        }
+
+        if (proposal == null) return null;
+
+        proposal.Status = "Accepted";
+        proposal.UpdatedAt = DateTimeOffset.UtcNow;
+
+        var bookingRef = $"TB-{Random.Shared.Next(1020, 1099)}";
+        var confirmedBooking = new BookingEntity
+        {
+            Id = Guid.NewGuid(),
+            BookingReference = bookingRef,
+            ProposalId = proposal.Id,
+            CustomerId = proposal.CustomerId,
+            CustomerName = proposal.CustomerName,
+            ProviderId = proposal.ProviderId,
+            ProviderName = proposal.ProviderName,
+            ServiceTitle = proposal.ServiceTitle,
+            Category = proposal.Category,
+            Location = proposal.Location,
+            Schedule = !string.IsNullOrWhiteSpace(req.ConfirmedSchedule) ? req.ConfirmedSchedule : proposal.PreferredSchedule,
+            Price = req.ConfirmedPrice > 0 ? req.ConfirmedPrice : proposal.EstimatedRate,
+            Status = "Upcoming",
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        _dbContext.Bookings.Add(confirmedBooking);
+        await _dbContext.SaveChangesAsync(ct);
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine($"[🎉 PROPOSAL ACCEPTED -> NEW BOOKING CREATED] Proposal: {proposal.ProposalReference} -> Booking: {confirmedBooking.BookingReference} | Price: Rs. {confirmedBooking.Price:N0} | Schedule: {confirmedBooking.Schedule}");
+        Console.ResetColor();
+
+        return confirmedBooking;
+    }
+
+    /// <summary>
+    /// Provider declines a customer proposal.
+    /// </summary>
+    public async Task<ProposalEntity?> DeclineProposalAsync(DeclineProposalRequest req, CancellationToken ct = default)
+    {
+        var proposal = await _dbContext.Proposals.FirstOrDefaultAsync(p => p.ProposalReference == req.ProposalReference, ct);
+        if (proposal == null)
+        {
+            var altRef = req.ProposalReference.Replace("TB-", "PR-");
+            proposal = await _dbContext.Proposals.FirstOrDefaultAsync(p => p.ProposalReference == altRef, ct);
+        }
+
+        if (proposal == null) return null;
+
+        proposal.Status = "Declined";
+        proposal.UpdatedAt = DateTimeOffset.UtcNow;
+        await _dbContext.SaveChangesAsync(ct);
+
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine($"[❌ PROPOSAL DECLINED] Ref: {proposal.ProposalReference} | Reason: {req.Reason ?? "Declined by provider"}");
+        Console.ResetColor();
+
+        return proposal;
+    }
+
+    /// <summary>
+    /// Retrieves live proposals from 'proposals' table.
+    /// </summary>
+    public async Task<List<ProposalEntity>> GetProposalsAsync(
+        string? providerId = null,
+        string? providerName = null,
+        string? customerName = null,
+        string? status = null,
+        CancellationToken ct = default)
+    {
+        var query = _dbContext.Proposals.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(providerId) && Guid.TryParse(providerId, out var pGuid))
+        {
+            query = query.Where(p => p.ProviderId == pGuid);
+        }
+        else if (!string.IsNullOrWhiteSpace(providerName))
+        {
+            var pLow = providerName.Trim().ToLowerInvariant();
+            query = query.Where(p => p.ProviderName.ToLower().Contains(pLow));
+        }
+
+        if (!string.IsNullOrWhiteSpace(customerName))
+        {
+            var cLow = customerName.Trim().ToLowerInvariant();
+            query = query.Where(p => p.CustomerName.ToLower().Contains(cLow) || p.CustomerName.ToLower() == "customer");
+        }
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            var sLow = status.Trim().ToLowerInvariant();
+            query = query.Where(p => p.Status.ToLower() == sLow);
+        }
+
+        return await query.OrderByDescending(p => p.CreatedAt).ToListAsync(ct);
     }
 
     /// <summary>

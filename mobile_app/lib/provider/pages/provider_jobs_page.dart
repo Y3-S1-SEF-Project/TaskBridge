@@ -18,6 +18,7 @@ class ProviderJobsPage extends StatefulWidget {
 
 class _ProviderJobsPageState extends State<ProviderJobsPage> {
   List<BookingItem> _bookings = [];
+  List<ProposalItem> _proposals = [];
   bool _isLoading = true;
 
   @override
@@ -29,15 +30,25 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
   Future<void> _loadBookings() async {
     setState(() => _isLoading = true);
     try {
-      final list = await CoordinationApi.getBookings(
+      final provName = widget.user?.fullName.trim().toLowerCase();
+      final provId = widget.user?.id.toLowerCase();
+
+      final bookingsFuture = CoordinationApi.getBookings(
         providerId: widget.user?.id,
         providerName: widget.user?.fullName,
       );
-      if (mounted) {
-        final provName = widget.user?.fullName.trim().toLowerCase();
-        final provId = widget.user?.id.toLowerCase();
+      final proposalsFuture = CoordinationApi.getProposals(
+        providerId: widget.user?.id,
+        providerName: widget.user?.fullName,
+        status: 'Pending',
+      );
 
-        final filtered = list.where((b) {
+      final results = await Future.wait([bookingsFuture, proposalsFuture]);
+      final list = results[0] as List<BookingItem>;
+      final propList = results[1] as List<ProposalItem>;
+
+      if (mounted) {
+        final filteredBookings = list.where((b) {
           if (widget.user == null) return true;
           if (provId != null &&
               b.providerId != null &&
@@ -51,8 +62,23 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
           return false;
         }).toList();
 
+        final filteredProposals = propList.where((p) {
+          if (widget.user == null) return true;
+          if (provId != null &&
+              p.providerId != null &&
+              p.providerId!.toLowerCase() == provId) {
+            return true;
+          }
+          if (provName != null &&
+              p.providerName.trim().toLowerCase() == provName) {
+            return true;
+          }
+          return false;
+        }).toList();
+
         setState(() {
-          _bookings = filtered;
+          _bookings = filteredBookings;
+          _proposals = filteredProposals;
           _isLoading = false;
         });
       }
@@ -296,7 +322,7 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14)),
                       ),
-                      onPressed: () {
+                      onPressed: () async {
                         final parsedPrice =
                             double.tryParse(priceCtrl.text.trim()) ??
                                 booking.price;
@@ -305,12 +331,27 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                             : booking.schedule;
 
                         Navigator.pop(ctx);
-                        _updateStatus(
-                          booking,
-                          'Upcoming',
+                        final success = await CoordinationApi.acceptProposal(
+                          proposalReference: booking.bookingReference,
                           schedule: confSchedule,
                           price: parsedPrice,
                         );
+
+                        if (success && mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Proposal accepted! Booking locked into Upcoming schedule for $confSchedule.',
+                              ),
+                              backgroundColor: AppColors.primary,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          );
+                          _loadBookings();
+                        }
                       },
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -337,9 +378,25 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.pop(ctx);
-                        _updateStatus(booking, 'Cancelled');
+                        final success = await CoordinationApi.declineProposal(
+                          proposalReference: booking.bookingReference,
+                        );
+
+                        if (success && mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Proposal declined.'),
+                              backgroundColor: Colors.orange.shade800,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          );
+                          _loadBookings();
+                        }
                       },
                       child: const Text('Decline Proposal',
                           style: TextStyle(fontWeight: FontWeight.w600)),
@@ -501,7 +558,7 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
 
-    final requestsList = _bookings.where((b) => b.isRequested).toList();
+    final requestsList = _proposals.map((p) => p.toBookingItem()).toList();
     final upcomingList = _bookings.where((b) => b.isUpcoming).toList();
     final activeList = _bookings.where((b) => b.isActive).toList();
     final pastList =

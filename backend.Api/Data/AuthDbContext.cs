@@ -8,6 +8,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<ProviderProfile> Providers => Set<ProviderProfile>();
     public DbSet<BookingEntity> Bookings => Set<BookingEntity>();
+    public DbSet<ProposalEntity> Proposals => Set<ProposalEntity>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -52,6 +53,16 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
             entity.HasIndex(x => x.Status);
             entity.HasIndex(x => x.ProviderId);
             entity.Property(x => x.Price).HasColumnType("numeric(12,2)");
+        });
+
+        model.Entity<ProposalEntity>(entity =>
+        {
+            entity.ToTable("proposals");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.ProposalReference);
+            entity.HasIndex(x => x.Status);
+            entity.HasIndex(x => x.ProviderId);
+            entity.Property(x => x.EstimatedRate).HasColumnType("numeric(12,2)");
         });
     }
 
@@ -150,6 +161,7 @@ WHERE u.""IsProvider"" = true
 CREATE TABLE IF NOT EXISTS bookings (
     ""Id"" uuid PRIMARY KEY,
     ""BookingReference"" text NOT NULL,
+    ""ProposalId"" uuid NULL,
     ""CustomerId"" uuid NULL,
     ""CustomerName"" text NOT NULL DEFAULT 'Customer',
     ""ProviderId"" uuid NULL,
@@ -164,8 +176,31 @@ CREATE TABLE IF NOT EXISTS bookings (
     ""UpdatedAt"" timestamptz NULL
 );
 
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""ProposalId"" uuid NULL;
+
 CREATE INDEX IF NOT EXISTS ix_bookings_reference ON bookings (""BookingReference"");
 CREATE INDEX IF NOT EXISTS ix_bookings_status ON bookings (""Status"");
+
+CREATE TABLE IF NOT EXISTS proposals (
+    ""Id"" uuid PRIMARY KEY,
+    ""ProposalReference"" text NOT NULL,
+    ""CustomerId"" uuid NULL,
+    ""CustomerName"" text NOT NULL DEFAULT 'Customer',
+    ""ProviderId"" uuid NULL,
+    ""ProviderName"" text NOT NULL DEFAULT '',
+    ""ServiceTitle"" text NOT NULL,
+    ""Category"" text NOT NULL,
+    ""Location"" text NOT NULL,
+    ""PreferredSchedule"" text NOT NULL,
+    ""EstimatedRate"" numeric(12,2) NOT NULL,
+    ""Status"" text NOT NULL DEFAULT 'Pending',
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
+    ""UpdatedAt"" timestamptz NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_proposals_reference ON proposals (""ProposalReference"");
+CREATE INDEX IF NOT EXISTS ix_proposals_status ON proposals (""Status"");
+CREATE INDEX IF NOT EXISTS ix_proposals_provider_id ON proposals (""ProviderId"");
 ";
         await Database.ExecuteSqlRawAsync(sql, ct);
     }
