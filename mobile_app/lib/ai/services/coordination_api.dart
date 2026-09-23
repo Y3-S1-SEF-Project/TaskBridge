@@ -497,13 +497,21 @@ class CoordinationApi {
           if (providerName != null && providerName.isNotEmpty) {
             final pLow = providerName.trim().toLowerCase();
             result = result
-                .where((b) => b.providerName.trim().toLowerCase() == pLow)
+                .where((b) {
+                  final bProv = b.providerName.trim().toLowerCase();
+                  return bProv.contains(pLow) || pLow.contains(bProv);
+                })
                 .toList();
           }
           if (customerName != null && customerName.isNotEmpty) {
             final cLow = customerName.trim().toLowerCase();
             result = result
-                .where((b) => b.customerName.trim().toLowerCase() == cLow)
+                .where((b) {
+                  final bCust = b.customerName.trim().toLowerCase();
+                  return bCust.contains(cLow) ||
+                      cLow.contains(bCust) ||
+                      bCust == 'customer';
+                })
                 .toList();
           }
           return result;
@@ -761,7 +769,10 @@ class CoordinationApi {
         if (response.statusCode == 200) {
           try {
             final json = jsonDecode(response.body) as Map<String, dynamic>;
-            final serverBooking = BookingItem.fromJson(json);
+            final bookingData = json['booking'] is Map<String, dynamic>
+                ? json['booking'] as Map<String, dynamic>
+                : json;
+            final serverBooking = BookingItem.fromJson(bookingData);
             _localBookings.removeWhere(
               (b) =>
                   b.bookingReference == serverBooking.bookingReference ||

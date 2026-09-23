@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../ai/models/coordination_models.dart';
 import '../../ai/services/bookings_sync_service.dart';
@@ -33,6 +34,7 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
   late final TabController _tabController;
   List<BookingItem> _bookings = [];
   bool _isLoading = true;
+  Timer? _pollTimer;
 
   @override
   void initState() {
@@ -40,10 +42,14 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
     _tabController = TabController(length: 4, vsync: this);
     BookingsSyncService.instance.addListener(_onSyncUpdate);
     _loadBookings();
+    _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (mounted) _loadBookings(silent: true);
+    });
   }
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     BookingsSyncService.instance.removeListener(_onSyncUpdate);
     _tabController.dispose();
     super.dispose();
@@ -1273,47 +1279,71 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                       ),
                     ],
                   ),
-                  if (widget.user != null)
-                    Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: _switchToProvider,
-                        borderRadius: BorderRadius.circular(AppRadius.r12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: palette.primary.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(AppRadius.r12),
-                            border: Border.all(
-                              color: palette.primary.withValues(alpha: 0.35),
-                              width: 1.2,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.swap_horiz_rounded,
-                                size: 18,
-                                color: palette.primary,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Provider',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Refresh Bookings',
+                        icon: _isLoading
+                            ? SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
                                   color: palette.primary,
                                 ),
+                              )
+                            : Icon(
+                                Icons.refresh_rounded,
+                                color: palette.primary,
+                                size: 22,
                               ),
-                            ],
+                        onPressed: () => _loadBookings(),
+                      ),
+                      const SizedBox(width: 4),
+                      if (widget.user != null)
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: _switchToProvider,
+                            borderRadius: BorderRadius.circular(AppRadius.r12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: palette.primary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(AppRadius.r12),
+                                border: Border.all(
+                                  color: palette.primary.withValues(alpha: 0.35),
+                                  width: 1.2,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.swap_horiz_rounded,
+                                    size: 18,
+                                    color: palette.primary,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Provider',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: palette.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
+                    ],
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
