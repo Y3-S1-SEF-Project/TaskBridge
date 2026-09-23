@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../ai/models/coordination_models.dart';
 import '../../ai/services/coordination_api.dart';
+import '../../ai/services/review_api.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
+import 'job_completion_proof_page.dart';
 
 /// Full Job Details page for providers displaying complete customer info,
 /// confirmed schedule, realistic interactive location map, rate type (hourly vs fixed),
@@ -25,11 +28,217 @@ class ProviderJobDetailsPage extends StatefulWidget {
 class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
   late BookingItem _currentBooking;
   bool _isUpdating = false;
+  DateTime? _jobStartedAt;
+  String? _beforePhotoUrl;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
     _currentBooking = widget.booking;
+  }
+
+  Future<void> _handleStartJobFlow() async {
+    final palette = AppPalette.of(context);
+    String? tempBeforePhoto = _beforePhotoUrl;
+    bool isUploadingPhoto = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) => AlertDialog(
+          backgroundColor: palette.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.camera_enhance_rounded, color: AppColors.primary, size: 24),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Start Job & Capture Before Photo',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: palette.text),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Highlighted notice for AI review
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.info_outline_rounded, color: Colors.amber, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'AI Review Requirement:\nAgent 4 (Quality Assurance) checks the initial state before work begins. Taking a clear photo now ensures your completion review passes without delay.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.amber.shade900,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (tempBeforePhoto != null) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(
+                      tempBeforePhoto!,
+                      height: 120,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: isUploadingPhoto
+                        ? null
+                        : () async {
+                            final picked = await _picker.pickImage(
+                              source: ImageSource.camera,
+                              imageQuality: 80,
+                            );
+                            if (picked != null) {
+                              setDialogState(() => isUploadingPhoto = true);
+                              final uploaded = await ReviewApi.uploadProofPhoto(
+                                picked.path,
+                                bookingRef: _currentBooking.bookingReference,
+                              );
+                              setDialogState(() {
+                                isUploadingPhoto = false;
+                                if (uploaded != null) tempBeforePhoto = uploaded;
+                              });
+                            }
+                          },
+                    icon: isUploadingPhoto
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.camera_alt_rounded, size: 18),
+                    label: Text(
+                      tempBeforePhoto != null ? 'Retake Before Photo' : 'Take Before Photo Now',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: palette.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () async {
+                Navigator.pop(dialogCtx);
+                setState(() {
+                  _isUpdating = true;
+                  _beforePhotoUrl = tempBeforePhoto;
+                  _jobStartedAt = DateTime.now();
+                });
+
+                await ReviewApi.startJob(
+                  bookingReference: _currentBooking.bookingReference,
+                  beforePhotoUrl: tempBeforePhoto,
+                );
+
+                await _updateJobStatus('Active');
+              },
+              child: const Text('Start Working'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleEndJobFlow() async {
+    final palette = AppPalette.of(context);
+
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: palette.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.auto_awesome, color: Colors.purple, size: 24),
+            const SizedBox(width: 8),
+            const Text('Finish & Submit Proof?'),
+          ],
+        ),
+        content: const Text(
+          'Are you ready to submit your work for Agent 4 Quality Verification? You will be prompted to attach after-service proof photos and work notes.',
+          style: TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Continue Working'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Proceed to AI Review'),
+          ),
+        ],
+      ),
+    );
+
+    if (proceed == true && mounted) {
+      final updated = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => JobCompletionProofPage(
+            booking: _currentBooking,
+            startedAt: _jobStartedAt,
+            beforePhotoUrl: _beforePhotoUrl,
+          ),
+        ),
+      );
+
+      if (updated == true && mounted) {
+        setState(() {
+          _currentBooking = _currentBooking.copyWith(status: 'PendingCustomerSignOff');
+        });
+      }
+    }
   }
 
   Future<void> _updateJobStatus(String newStatus) async {
@@ -943,7 +1152,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                           elevation: 0,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        onPressed: _isUpdating ? null : () => _updateJobStatus('Active'),
+                        onPressed: _isUpdating ? null : _handleStartJobFlow,
                         icon: _isUpdating
                             ? const SizedBox(
                                 width: 18,
@@ -966,26 +1175,42 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                     height: 48,
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green.shade700,
+                        backgroundColor: Colors.purple.shade700,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      onPressed: _isUpdating ? null : () => _updateJobStatus('Completed'),
-                      icon: _isUpdating
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            )
-                          : const Icon(Icons.check_circle_rounded, size: 20),
+                      onPressed: _isUpdating ? null : _handleEndJobFlow,
+                      icon: const Icon(Icons.auto_awesome_rounded, size: 18),
                       label: const Text(
-                        'Mark Job as Completed',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                        'End Job & Submit Proof (Agent 4)',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
                       ),
                     ),
                   )
-                : const SizedBox.shrink()),
+                : (_currentBooking.status == 'PendingCustomerSignOff'
+                    ? Container(
+                        width: double.infinity,
+                        height: 48,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.green.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.hourglass_top_rounded, color: Colors.green, size: 18),
+                            SizedBox(width: 8),
+                            Text(
+                              'Awaiting Customer Sign-Off (Agent 4 Verified)',
+                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      )
+                    : const SizedBox.shrink())),
       ),
     );
   }

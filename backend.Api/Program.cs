@@ -26,6 +26,7 @@ builder.Services.AddHttpClient<IOtpSender, NotifySmsSender>(client => client.Tim
 builder.Services.AddHttpClient<backend.Api.AI.PlanningAgentService>(client => client.Timeout = TimeSpan.FromSeconds(25));
 builder.Services.AddHttpClient<backend.Api.AI.MatchingAgentService>(client => client.Timeout = TimeSpan.FromSeconds(25));
 builder.Services.AddHttpClient<backend.Api.AI.CoordinationAgentService>(client => client.Timeout = TimeSpan.FromSeconds(25));
+builder.Services.AddHttpClient<backend.Api.AI.ReviewAgentService>(client => client.Timeout = TimeSpan.FromSeconds(45));
 builder.Services.AddAuthentication("Session").AddScheme<AuthenticationSchemeOptions, SessionAuthenticationHandler>("Session", null);
 builder.Services.AddAuthorization();
 builder.Services.AddRateLimiter(options =>

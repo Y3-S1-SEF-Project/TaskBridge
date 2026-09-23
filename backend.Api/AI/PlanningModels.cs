@@ -42,6 +42,9 @@ public class JobPlanDetails
 
     [JsonPropertyName("budgetDisplay")]
     public string BudgetDisplay { get; set; } = string.Empty;
+
+    [JsonPropertyName("acceptanceChecklist")]
+    public List<string> AcceptanceChecklist { get; set; } = new();
 }
 
 public class ReasoningStepItem

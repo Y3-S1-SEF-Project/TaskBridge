@@ -75,7 +75,13 @@ public class PlanningAgentService
                   "budgetDisplay": "Budget up to Rs. 5,000 or Budget not specified",
                   "isLocationMissing": true or false,
                   "missingFields": ["location", "budget"],
-                  "clarificationQuestion": "Where do you need the service? We need your location to find providers who cover your area."
+                  "clarificationQuestion": "Where do you need the service? We need your location to find providers who cover your area.",
+                  "acceptanceChecklist": [
+                    "Isolate water valve and remove defective tap fitting",
+                    "Fit and secure replacement seal / cartridge",
+                    "Conduct water pressure test and verify leak-free operation",
+                    "Clean and tidy workspace area"
+                  ]
                 }
                 """;
 
@@ -215,7 +221,10 @@ public class PlanningAgentService
                 Budget = openAiData.Budget,
                 BudgetDisplay = string.IsNullOrWhiteSpace(openAiData.BudgetDisplay) 
                     ? (openAiData.Budget.HasValue ? $"Budget up to Rs. {openAiData.Budget.Value:N0}" : "Budget not specified") 
-                    : openAiData.BudgetDisplay
+                    : openAiData.BudgetDisplay,
+                AcceptanceChecklist = (openAiData.AcceptanceChecklist != null && openAiData.AcceptanceChecklist.Count > 0)
+                    ? openAiData.AcceptanceChecklist
+                    : GetDefaultChecklist(openAiData.Category ?? "General", openAiData.ServiceTitle ?? request.Prompt)
             };
 
             // Build the 4 sequential progress steps for Screen C18
@@ -340,7 +349,8 @@ public class PlanningAgentService
             ScheduledDate = scheduledDate,
             ScheduledTime = scheduledTime,
             Budget = budget,
-            BudgetDisplay = budgetDisplay
+            BudgetDisplay = budgetDisplay,
+            AcceptanceChecklist = GetDefaultChecklist(category, title)
         };
 
         var steps = new List<ReasoningStepItem>
@@ -375,6 +385,61 @@ public class PlanningAgentService
         };
     }
 
+    private static List<string> GetDefaultChecklist(string category, string title)
+    {
+        var cat = (category ?? "").ToLowerInvariant();
+        var t = (title ?? "").ToLowerInvariant();
+
+        if (cat.Contains("plumb") || t.Contains("tap") || t.Contains("leak") || t.Contains("pipe"))
+        {
+            return new List<string>
+            {
+                "Inspect plumbing connection and shut off water valve",
+                "Replace worn seal, washer, or cartridge assembly",
+                "Perform pressure water test to verify zero leaks",
+                "Wipe down and clean work area thoroughly"
+            };
+        }
+        if (cat.Contains("garden") || t.Contains("grass") || t.Contains("lawn"))
+        {
+            return new List<string>
+            {
+                "Clear weeds, overgrowth, and dead plant matter",
+                "Trim hedges, grass edges, or designated shrubbery",
+                "Collect, bag, and remove all green garden waste",
+                "Sweep and tidy all adjacent pathways and garden beds"
+            };
+        }
+        if (cat.Contains("electr") || t.Contains("wire") || t.Contains("switch") || t.Contains("light"))
+        {
+            return new List<string>
+            {
+                "Isolate circuit breaker and verify zero voltage with multimeter",
+                "Install/repair designated electrical fixture or wiring securely",
+                "Restore power and test functionality under operational load",
+                "Ensure wire insulation and work area safety compliance"
+            };
+        }
+        if (cat.Contains("clean") || t.Contains("wash"))
+        {
+            return new List<string>
+            {
+                "Deep clean and sanitize specified fixtures and surfaces",
+                "Remove heavy stains, grime, and dust buildup",
+                "Dry and buff all polished or glass surfaces",
+                "Dispose of all trash and return items to tidy order"
+            };
+        }
+
+        return new List<string>
+        {
+            "Inspect and prepare work area with appropriate safety measures",
+            "Perform primary service/repair per agreed specifications",
+            "Test and verify operational function in presence of test conditions",
+            "Clean up work area and dispose of all debris"
+        };
+    }
+
     private class OpenAiParsedResult
     {
         public string? ServiceTitle { get; set; }
@@ -389,5 +454,6 @@ public class PlanningAgentService
         public bool IsLocationMissing { get; set; }
         public List<string> MissingFields { get; set; } = new();
         public string? ClarificationQuestion { get; set; }
+        public List<string> AcceptanceChecklist { get; set; } = new();
     }
 }

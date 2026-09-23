@@ -10,6 +10,7 @@ namespace TaskBridge.Api.Auth;
 public interface IProfileImageService
 {
     Task<string> UploadProfilePhotoAsync(IFormFile file, Guid userId, CancellationToken ct);
+    Task<string> UploadProofPhotoAsync(IFormFile file, string bookingRef, CancellationToken ct);
 }
 
 public sealed class R2ImageService : IProfileImageService
@@ -90,6 +91,58 @@ public sealed class R2ImageService : IProfileImageService
 
         var publicImageUrl = $"{_publicUrl}/{key}";
         _logger.LogInformation("Successfully uploaded to Cloudflare R2: {Url}", publicImageUrl);
+        return publicImageUrl;
+    }
+
+    public async Task<string> UploadProofPhotoAsync(IFormFile file, string bookingRef, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            throw new AuthProblem(400, "Please select a proof photo to upload.");
+
+        if (file.Length > 15 * 1024 * 1024)
+            throw new AuthProblem(400, "Proof image size exceeds maximum allowed limit (15MB).");
+
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".heic" };
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (string.IsNullOrEmpty(ext) || !allowedExtensions.Contains(ext))
+            ext = ".jpg";
+
+        var safeRef = string.IsNullOrWhiteSpace(bookingRef) ? "general" : bookingRef.Replace("#", "").Trim();
+        var key = $"proofs/{safeRef}_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}_{Guid.NewGuid().ToString("N")[..6]}{ext}";
+
+        await using var stream = file.OpenReadStream();
+        var contentType = ext switch
+        {
+            ".png" => "image/png",
+            ".webp" => "image/webp",
+            ".heic" => "image/heic",
+            _ => "image/jpeg"
+        };
+
+        var putRequest = new PutObjectRequest
+        {
+            BucketName = _bucketName,
+            Key = key,
+            InputStream = stream,
+            ContentType = contentType,
+            Headers =
+            {
+                CacheControl = "public, max-age=31536000, immutable"
+            },
+            DisablePayloadSigning = true
+        };
+
+        _logger.LogInformation("Uploading completion proof to Cloudflare R2: {Key}...", key);
+        var response = await _s3Client.PutObjectAsync(putRequest, ct);
+
+        if (response.HttpStatusCode != System.Net.HttpStatusCode.OK)
+        {
+            _logger.LogError("R2 proof upload failed with status {Status}", response.HttpStatusCode);
+            throw new AuthProblem(500, "Failed to upload proof photo to Cloudflare R2 storage.");
+        }
+
+        var publicImageUrl = $"{_publicUrl}/{key}";
+        _logger.LogInformation("Successfully uploaded proof to Cloudflare R2: {Url}", publicImageUrl);
         return publicImageUrl;
     }
 }

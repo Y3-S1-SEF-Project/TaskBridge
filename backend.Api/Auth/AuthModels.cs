@@ -176,6 +176,12 @@ public sealed class BookingEntity
     public decimal Price { get; set; }
     public string RateType { get; set; } = "Hourly"; // Hourly or Fixed
     public string Status { get; set; } = "Upcoming"; // Upcoming, Active, Completed, Cancelled
+    public DateTimeOffset? StartedAt { get; set; }
+    public DateTimeOffset? EndedAt { get; set; }
+    public int? DurationMinutes { get; set; }
+    public decimal? FinalCalculatedPrice { get; set; }
+    public string? BeforePhotoUrl { get; set; }
+    public string? AgreedChecklist { get; set; } // JSON array of checklist items from Agent 1
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAt { get; set; }
 }

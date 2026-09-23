@@ -10,6 +10,7 @@ import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../provider/pages/provider_main_page.dart';
+import 'customer_completion_review_page.dart';
 
 class CustomerBookingsPage extends StatefulWidget {
   final ValueChanged<int>? onSwitchTab;
@@ -1530,6 +1531,12 @@ class _BookingsListView extends StatelessWidget {
             badgeText = b.status.toLowerCase() == 'declined'
                 ? 'Declined by Provider'
                 : 'Cancelled';
+          } else if (b.status == 'PendingCustomerSignOff') {
+            badgeColor = Colors.purple.shade700;
+            badgeText = 'Proof Ready (AI Verified)';
+          } else if (b.status == 'RevisionRequested') {
+            badgeColor = Colors.orange.shade800;
+            badgeText = 'Revision Requested';
           } else if (b.isProviderCountered) {
             badgeColor = Colors.green.shade700;
             badgeText = 'Counter-Bid Received';
@@ -1807,6 +1814,36 @@ class _BookingsListView extends StatelessWidget {
                           ),
                           onPressed: () => onCancel!(b),
                           child: const Text('Cancel Booking'),
+                        ),
+                      ),
+                    ],
+                    if (b.status == 'PendingCustomerSignOff' || b.status == 'RevisionRequested' || b.isCompleted) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: b.isCompleted ? Colors.blue.shade700 : Colors.purple.shade700,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                          onPressed: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => CustomerCompletionReviewPage(booking: b),
+                              ),
+                            );
+                            await onRefresh();
+                          },
+                          icon: const Icon(Icons.verified_rounded, size: 18),
+                          label: Text(
+                            b.isCompleted ? 'View Proof & Rating' : 'Review Proof & Sign-Off (Agent 4)',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
                         ),
                       ),
                     ],

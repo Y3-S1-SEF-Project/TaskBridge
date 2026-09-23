@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TaskBridge.Api.Auth;
+using backend.Api.AI;
 
 namespace TaskBridge.Api.Data;
 
@@ -9,6 +10,8 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
     public DbSet<ProviderProfile> Providers => Set<ProviderProfile>();
     public DbSet<BookingEntity> Bookings => Set<BookingEntity>();
     public DbSet<ProposalEntity> Proposals => Set<ProposalEntity>();
+    public DbSet<JobCompletionEntity> JobCompletions => Set<JobCompletionEntity>();
+    public DbSet<FeedbackEntity> Feedbacks => Set<FeedbackEntity>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -63,6 +66,26 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
             entity.HasIndex(x => x.Status);
             entity.HasIndex(x => x.ProviderId);
             entity.Property(x => x.EstimatedRate).HasColumnType("numeric(12,2)");
+        });
+
+        model.Entity<JobCompletionEntity>(entity =>
+        {
+            entity.ToTable("job_completions");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.BookingReference);
+            entity.HasIndex(x => x.ProviderId);
+            entity.HasIndex(x => x.Status);
+            entity.Property(x => x.HourlyRate).HasColumnType("numeric(12,2)");
+            entity.Property(x => x.CalculatedPrice).HasColumnType("numeric(12,2)");
+        });
+
+        model.Entity<FeedbackEntity>(entity =>
+        {
+            entity.ToTable("feedbacks");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.BookingReference);
+            entity.HasIndex(x => x.ProviderId);
+            entity.HasIndex(x => x.CustomerId);
         });
     }
 
@@ -204,6 +227,61 @@ CREATE TABLE IF NOT EXISTS proposals (
 CREATE INDEX IF NOT EXISTS ix_proposals_reference ON proposals (""ProposalReference"");
 CREATE INDEX IF NOT EXISTS ix_proposals_status ON proposals (""Status"");
 CREATE INDEX IF NOT EXISTS ix_proposals_provider_id ON proposals (""ProviderId"");
+
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""StartedAt"" timestamptz NULL;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""EndedAt"" timestamptz NULL;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""DurationMinutes"" integer NULL;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""FinalCalculatedPrice"" numeric(12,2) NULL;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""BeforePhotoUrl"" text NULL;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""AgreedChecklist"" text NULL;
+
+CREATE TABLE IF NOT EXISTS job_completions (
+    ""Id"" uuid PRIMARY KEY,
+    ""BookingReference"" text NOT NULL,
+    ""BookingId"" uuid NULL,
+    ""ProviderId"" uuid NULL,
+    ""ProviderName"" text NOT NULL DEFAULT '',
+    ""CustomerId"" uuid NULL,
+    ""CustomerName"" text NOT NULL DEFAULT 'Customer',
+    ""ServiceTitle"" text NOT NULL DEFAULT '',
+    ""Category"" text NOT NULL DEFAULT '',
+    ""ProviderNotes"" text NOT NULL DEFAULT '',
+    ""BeforePhotoUrl"" text NULL,
+    ""AfterPhotoUrls"" text NOT NULL DEFAULT '[]',
+    ""StartedAt"" timestamptz NOT NULL DEFAULT now(),
+    ""EndedAt"" timestamptz NOT NULL DEFAULT now(),
+    ""DurationMinutes"" integer NOT NULL DEFAULT 0,
+    ""HourlyRate"" numeric(12,2) NOT NULL DEFAULT 0,
+    ""CalculatedPrice"" numeric(12,2) NOT NULL DEFAULT 0,
+    ""AiVerificationPassed"" boolean NOT NULL DEFAULT false,
+    ""AiConfidenceScore"" integer NOT NULL DEFAULT 0,
+    ""AiComparisonAnalysis"" text NOT NULL DEFAULT '',
+    ""AiVerifiedTasks"" text NOT NULL DEFAULT '[]',
+    ""AiMissingDetails"" text NOT NULL DEFAULT '[]',
+    ""Status"" text NOT NULL DEFAULT 'PendingAiReview',
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
+    ""UpdatedAt"" timestamptz NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_completions_booking_ref ON job_completions (""BookingReference"");
+CREATE INDEX IF NOT EXISTS ix_completions_provider_id ON job_completions (""ProviderId"");
+CREATE INDEX IF NOT EXISTS ix_completions_status ON job_completions (""Status"");
+
+CREATE TABLE IF NOT EXISTS feedbacks (
+    ""Id"" uuid PRIMARY KEY,
+    ""BookingReference"" text NOT NULL,
+    ""CustomerId"" uuid NULL,
+    ""CustomerName"" text NOT NULL DEFAULT 'Customer',
+    ""ProviderId"" uuid NULL,
+    ""ProviderName"" text NOT NULL DEFAULT '',
+    ""Rating"" integer NOT NULL DEFAULT 5,
+    ""Comment"" text NOT NULL DEFAULT '',
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_feedbacks_booking_ref ON feedbacks (""BookingReference"");
+CREATE INDEX IF NOT EXISTS ix_feedbacks_provider_id ON feedbacks (""ProviderId"");
+CREATE INDEX IF NOT EXISTS ix_feedbacks_customer_id ON feedbacks (""CustomerId"");
 ";
         await Database.ExecuteSqlRawAsync(sql, ct);
     }
