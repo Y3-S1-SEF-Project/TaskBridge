@@ -19,10 +19,7 @@ import 'job_completion_proof_page.dart';
 class ProviderJobDetailsPage extends StatefulWidget {
   final BookingItem booking;
 
-  const ProviderJobDetailsPage({
-    super.key,
-    required this.booking,
-  });
+  const ProviderJobDetailsPage({super.key, required this.booking});
 
   @override
   State<ProviderJobDetailsPage> createState() => _ProviderJobDetailsPageState();
@@ -41,14 +38,17 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
   void initState() {
     super.initState();
     _currentBooking = widget.booking;
-    if (_currentBooking.isCompleted || _currentBooking.status == 'PendingCustomerSignOff') {
+    if (_currentBooking.isCompleted ||
+        _currentBooking.status == 'PendingCustomerSignOff') {
       _loadCompletionProof();
     }
   }
 
   Future<void> _loadCompletionProof() async {
     setState(() => _isLoadingProof = true);
-    final proof = await ReviewApi.getCompletionDetails(_currentBooking.bookingReference);
+    final proof = await ReviewApi.getCompletionDetails(
+      _currentBooking.bookingReference,
+    );
     if (mounted) {
       setState(() {
         _completion = proof;
@@ -68,15 +68,25 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
       builder: (ctx) => StatefulBuilder(
         builder: (dialogCtx, setDialogState) => AlertDialog(
           backgroundColor: palette.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Row(
             children: [
-              const Icon(Icons.camera_enhance_rounded, color: AppColors.primary, size: 24),
+              const Icon(
+                Icons.camera_enhance_rounded,
+                color: AppColors.primary,
+                size: 24,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Start Job & Capture Before Photo',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: palette.text),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: palette.text,
+                  ),
                 ),
               ),
             ],
@@ -92,12 +102,18 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                   decoration: BoxDecoration(
                     color: Colors.amber.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
+                    border: Border.all(
+                      color: Colors.amber.withValues(alpha: 0.5),
+                    ),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.info_outline_rounded, color: Colors.amber, size: 20),
+                      const Icon(
+                        Icons.info_outline_rounded,
+                        color: Colors.amber,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -132,7 +148,9 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
                       side: const BorderSide(color: AppColors.primary),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                     onPressed: isUploadingPhoto
                         ? null
@@ -149,7 +167,8 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                               );
                               setDialogState(() {
                                 isUploadingPhoto = false;
-                                if (uploaded != null) tempBeforePhoto = uploaded;
+                                if (uploaded != null)
+                                  tempBeforePhoto = uploaded;
                               });
                             }
                           },
@@ -161,8 +180,13 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                           )
                         : const Icon(Icons.camera_alt_rounded, size: 18),
                     label: Text(
-                      tempBeforePhoto != null ? 'Retake Before Photo' : 'Take Before Photo Now',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      tempBeforePhoto != null
+                          ? 'Retake Before Photo'
+                          : 'Take Before Photo Now',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ),
@@ -178,7 +202,9 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: palette.primary,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               onPressed: () async {
                 Navigator.pop(dialogCtx);
@@ -231,7 +257,9 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.purple,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Proceed to AI Review'),
@@ -241,12 +269,14 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
     );
 
     if (proceed == true && mounted) {
+      final jobEndedAt = DateTime.now();
       final updated = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
           builder: (_) => JobCompletionProofPage(
             booking: _currentBooking,
             startedAt: _jobStartedAt,
+            endedAt: jobEndedAt,
             beforePhotoUrl: _beforePhotoUrl,
           ),
         ),
@@ -254,7 +284,9 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
 
       if (updated == true && mounted) {
         setState(() {
-          _currentBooking = _currentBooking.copyWith(status: 'PendingCustomerSignOff');
+          _currentBooking = _currentBooking.copyWith(
+            status: 'PendingCustomerSignOff',
+          );
         });
       }
     }
@@ -284,8 +316,8 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
               newStatus == 'Active'
                   ? 'Job started! Status is now Active.'
                   : (newStatus == 'Completed'
-                      ? '🎉 Job marked as Completed! Earnings added to your account.'
-                      : 'Job status updated to $newStatus.'),
+                        ? '🎉 Job marked as Completed! Earnings added to your account.'
+                        : 'Job status updated to $newStatus.'),
             ),
             backgroundColor: AppColors.primary,
             behavior: SnackBarBehavior.floating,
@@ -385,7 +417,12 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
         ),
       ),
       // Clean, flush bottom action bar docked to the screen bottom (replaces problematic bottomSheet)
-      bottomNavigationBar: _buildBottomActionBar(palette, isUpcoming, isActive, isCompleted),
+      bottomNavigationBar: _buildBottomActionBar(
+        palette,
+        isUpcoming,
+        isActive,
+        isCompleted,
+      ),
     );
   }
 
@@ -400,7 +437,8 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
       bg = Colors.green.shade50;
       fg = Colors.green.shade800;
       statusTitle = 'Upcoming Confirmed Job';
-      statusSubtitle = 'Appointment confirmed. Please arrive on time at customer location.';
+      statusSubtitle =
+          'Appointment confirmed. Please arrive on time at customer location.';
       icon = Icons.event_available_rounded;
     } else if (_currentBooking.isActive) {
       bg = Colors.blue.shade50;
@@ -480,57 +518,70 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
           borderRadius: BorderRadius.circular(AppRadius.r16),
           border: Border.all(color: palette.border),
         ),
-        child: const Center(
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
+        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
       );
     }
 
-    final isGardening = _currentBooking.category.toLowerCase().contains('garden') ||
+    final isGardening =
+        _currentBooking.category.toLowerCase().contains('garden') ||
         _currentBooking.serviceTitle.toLowerCase().contains('garden');
-    final isPlumbing = _currentBooking.category.toLowerCase().contains('plumb') ||
+    final isPlumbing =
+        _currentBooking.category.toLowerCase().contains('plumb') ||
         _currentBooking.serviceTitle.toLowerCase().contains('sink');
 
     final defaultBefore = isGardening
         ? 'https://images.unsplash.com/photo-1592417817098-8f3d6ef2c6e1?w=800&auto=format&fit=crop&q=80'
         : (isPlumbing
-            ? 'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=800&auto=format&fit=crop&q=80'
-            : 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&auto=format&fit=crop&q=80');
+              ? 'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=800&auto=format&fit=crop&q=80'
+              : 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&auto=format&fit=crop&q=80');
 
     final defaultAfter = isGardening
         ? 'https://images.unsplash.com/photo-1558904541-efa8c4a08931?w=800&auto=format&fit=crop&q=80'
         : (isPlumbing
-            ? 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=800&auto=format&fit=crop&q=80'
-            : 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?w=800&auto=format&fit=crop&q=80');
+              ? 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=800&auto=format&fit=crop&q=80'
+              : 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?w=800&auto=format&fit=crop&q=80');
 
     final rawBefore = _completion?.beforePhotoUrl;
-    final beforeUrl = (rawBefore != null && rawBefore.isNotEmpty) ? rawBefore : defaultBefore;
+    final beforeUrl = (rawBefore != null && rawBefore.isNotEmpty)
+        ? rawBefore
+        : defaultBefore;
 
     final afterUrls = _completion?.afterPhotoUrls ?? [];
     final rawAfter = afterUrls.isNotEmpty ? afterUrls.first : null;
-    final afterUrl = (rawAfter != null && rawAfter.isNotEmpty) ? rawAfter : defaultAfter;
+    final afterUrl = (rawAfter != null && rawAfter.isNotEmpty)
+        ? rawAfter
+        : defaultAfter;
 
     final mins = _completion?.durationMinutes ?? 52;
     final hours = mins ~/ 60;
     final remMins = mins % 60;
-    final rate = _completion?.hourlyRate ?? (_currentBooking.price > 0 ? _currentBooking.price : 3750.0);
-    final calculatedPrice = _completion?.calculatedPrice ??
+    final rate =
+        _completion?.hourlyRate ??
+        (_currentBooking.price > 0 ? _currentBooking.price : 3750.0);
+    final calculatedPrice =
+        _completion?.calculatedPrice ??
         ((hours * rate) + (remMins * (rate / 60.0)));
 
-    final analysis = _completion?.aiComparisonAnalysis ??
+    final analysis =
+        _completion?.aiComparisonAnalysis ??
         'Agent 4 analyzed the proof images and verified that the service requirements were met with clean execution.';
-    final verified = _completion?.aiVerifiedTasks ?? [
-      'Initial inspection and before-work condition captured',
-      'Complete execution of requested ${_currentBooking.serviceTitle} tasks',
-      'After-work cleanup and site clearance verified',
-      'Final testing and operational check confirmed'
-    ];
+    final verified =
+        _completion?.aiVerifiedTasks ??
+        [
+          'Initial inspection and before-work condition captured',
+          'Complete execution of requested ${_currentBooking.serviceTitle} tasks',
+          'After-work cleanup and site clearance verified',
+          'Final testing and operational check confirmed',
+        ];
 
     return Container(
       decoration: BoxDecoration(
         color: palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.r16),
-        border: Border.all(color: Colors.green.withValues(alpha: 0.35), width: 1.2),
+        border: Border.all(
+          color: Colors.green.withValues(alpha: 0.35),
+          width: 1.2,
+        ),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -542,7 +593,11 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.verified_rounded, color: Colors.green, size: 20),
+                  const Icon(
+                    Icons.verified_rounded,
+                    color: Colors.green,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'SUBMITTED PROOF OF WORK',
@@ -614,7 +669,11 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.auto_awesome, color: Colors.green, size: 16),
+                        const Icon(
+                          Icons.auto_awesome,
+                          color: Colors.green,
+                          size: 16,
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           'Agent 4 Quality Assessment',
@@ -627,7 +686,10 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                       ],
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.green,
                         borderRadius: BorderRadius.circular(6),
@@ -659,12 +721,19 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                       padding: const EdgeInsets.only(bottom: 3),
                       child: Row(
                         children: [
-                          const Icon(Icons.check_circle_outline, size: 13, color: Colors.green),
+                          const Icon(
+                            Icons.check_circle_outline,
+                            size: 13,
+                            color: Colors.green,
+                          ),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
                               t,
-                              style: TextStyle(fontSize: 11, color: palette.text),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: palette.text,
+                              ),
                             ),
                           ),
                         ],
@@ -699,7 +768,10 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: palette.primary.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
@@ -828,23 +900,20 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
       photoWidget = Image.file(
         File(cleanPath),
         fit: BoxFit.cover,
-        errorBuilder: (c, e, s) => const Center(
-          child: Icon(Icons.broken_image, color: Colors.grey),
-        ),
+        errorBuilder: (c, e, s) =>
+            const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
       );
     } else {
       photoWidget = CachedNetworkImage(
         imageUrl: url,
         fit: BoxFit.cover,
-        placeholder: (context, urlStr) => const Center(
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
+        placeholder: (context, urlStr) =>
+            const Center(child: CircularProgressIndicator(strokeWidth: 2)),
         errorWidget: (context, urlStr, error) => Image.network(
           url,
           fit: BoxFit.cover,
-          errorBuilder: (c, e, s) => const Center(
-            child: Icon(Icons.broken_image, color: Colors.grey),
-          ),
+          errorBuilder: (c, e, s) =>
+              const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
         ),
       );
     }
@@ -865,17 +934,27 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                  ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: badgeColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     subtitle,
-                    style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: badgeColor),
+                    style: TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                      color: badgeColor,
+                    ),
                   ),
                 ),
               ],
@@ -886,10 +965,14 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
             width: double.infinity,
             decoration: BoxDecoration(
               color: Colors.grey.withValues(alpha: 0.1),
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(12),
+              ),
             ),
             child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(12),
+              ),
               child: photoWidget,
             ),
           ),
@@ -916,7 +999,10 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: palette.soft,
                   borderRadius: BorderRadius.circular(8),
@@ -938,7 +1024,9 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                   color: isHourly ? Colors.teal.shade50 : Colors.indigo.shade50,
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: isHourly ? Colors.teal.shade200 : Colors.indigo.shade200,
+                    color: isHourly
+                        ? Colors.teal.shade200
+                        : Colors.indigo.shade200,
                     width: 0.8,
                   ),
                 ),
@@ -948,7 +1036,9 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                     Icon(
                       isHourly ? Icons.timelapse_rounded : Icons.sell_rounded,
                       size: 11,
-                      color: isHourly ? Colors.teal.shade800 : Colors.indigo.shade800,
+                      color: isHourly
+                          ? Colors.teal.shade800
+                          : Colors.indigo.shade800,
                     ),
                     const SizedBox(width: 4),
                     Text(
@@ -956,7 +1046,9 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
-                        color: isHourly ? Colors.teal.shade900 : Colors.indigo.shade900,
+                        color: isHourly
+                            ? Colors.teal.shade900
+                            : Colors.indigo.shade900,
                         letterSpacing: 0.6,
                       ),
                     ),
@@ -984,7 +1076,9 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      isHourly ? 'Billed by actual work hours' : 'Agreed complete service amount',
+                      isHourly
+                          ? 'Billed by actual work hours'
+                          : 'Agreed complete service amount',
                       style: TextStyle(fontSize: 12, color: palette.muted),
                     ),
                   ],
@@ -1043,7 +1137,11 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                   isHourly
                       ? 'Hourly rate applies upon arrival. Total calculated based on hours logged.'
                       : 'Fixed amount agreed. No hourly or hidden adjustments upon completion.',
-                  style: TextStyle(fontSize: 12, color: palette.muted, height: 1.3),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: palette.muted,
+                    height: 1.3,
+                  ),
                 ),
               ),
             ],
@@ -1082,7 +1180,9 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                 backgroundColor: palette.primary.withValues(alpha: 0.12),
                 child: Text(
                   _currentBooking.customerName.isNotEmpty
-                      ? _currentBooking.customerName.substring(0, 1).toUpperCase()
+                      ? _currentBooking.customerName
+                            .substring(0, 1)
+                            .toUpperCase()
                       : 'C',
                   style: TextStyle(
                     fontSize: 20,
@@ -1107,7 +1207,11 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                     const SizedBox(height: 3),
                     Row(
                       children: [
-                        Icon(Icons.verified_user_rounded, size: 14, color: Colors.green.shade700),
+                        Icon(
+                          Icons.verified_user_rounded,
+                          size: 14,
+                          color: Colors.green.shade700,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           'TaskBridge Client',
@@ -1131,7 +1235,9 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     foregroundColor: palette.primary,
-                    side: BorderSide(color: palette.primary.withValues(alpha: 0.4)),
+                    side: BorderSide(
+                      color: palette.primary.withValues(alpha: 0.4),
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -1140,13 +1246,18 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Calling customer ${_currentBooking.customerName}...'),
+                        content: Text(
+                          'Calling customer ${_currentBooking.customerName}...',
+                        ),
                         behavior: SnackBarBehavior.floating,
                       ),
                     );
                   },
                   icon: const Icon(Icons.phone_rounded, size: 16),
-                  label: const Text('Call', style: TextStyle(fontWeight: FontWeight.w700)),
+                  label: const Text(
+                    'Call',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -1154,7 +1265,9 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     foregroundColor: palette.primary,
-                    side: BorderSide(color: palette.primary.withValues(alpha: 0.4)),
+                    side: BorderSide(
+                      color: palette.primary.withValues(alpha: 0.4),
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -1163,13 +1276,18 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Opening chat with ${_currentBooking.customerName}...'),
+                        content: Text(
+                          'Opening chat with ${_currentBooking.customerName}...',
+                        ),
                         behavior: SnackBarBehavior.floating,
                       ),
                     );
                   },
                   icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
-                  label: const Text('Message', style: TextStyle(fontWeight: FontWeight.w700)),
+                  label: const Text(
+                    'Message',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
                 ),
               ),
             ],
@@ -1205,7 +1323,9 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
               ),
               InkWell(
                 onTap: () {
-                  Clipboard.setData(ClipboardData(text: _currentBooking.location));
+                  Clipboard.setData(
+                    ClipboardData(text: _currentBooking.location),
+                  );
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Address copied to clipboard!'),
@@ -1246,9 +1366,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                 children: [
                   // Vector road layout painter
                   Positioned.fill(
-                    child: CustomPaint(
-                      painter: _RealisticCityMapPainter(),
-                    ),
+                    child: CustomPaint(painter: _RealisticCityMapPainter()),
                   ),
 
                   // Top left GPS status pill
@@ -1256,7 +1374,10 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                     top: 10,
                     left: 10,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.92),
                         borderRadius: BorderRadius.circular(20),
@@ -1330,7 +1451,10 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                       children: [
                         // Tooltip callout badge above the pin
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFF0F172A),
                             borderRadius: BorderRadius.circular(8),
@@ -1371,10 +1495,15 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                               decoration: BoxDecoration(
                                 color: palette.primary,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2.5),
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 2.5,
+                                ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: palette.primary.withValues(alpha: 0.4),
+                                    color: palette.primary.withValues(
+                                      alpha: 0.4,
+                                    ),
                                     blurRadius: 10,
                                     offset: const Offset(0, 4),
                                   ),
@@ -1397,7 +1526,10 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                     bottom: 8,
                     left: 12,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.85),
                         borderRadius: BorderRadius.circular(4),
@@ -1442,18 +1574,25 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: palette.primary,
                 side: BorderSide(color: palette.primary),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Launching Navigation to ${_currentBooking.location}...'),
+                    content: Text(
+                      'Launching Navigation to ${_currentBooking.location}...',
+                    ),
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
               },
               icon: const Icon(Icons.directions_rounded, size: 18),
-              label: const Text('Open in Google Maps / Directions', style: TextStyle(fontWeight: FontWeight.w700)),
+              label: const Text(
+                'Open in Google Maps / Directions',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
           ),
         ],
@@ -1492,7 +1631,11 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                   color: palette.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(Icons.access_time_filled_rounded, color: palette.primary, size: 22),
+                child: Icon(
+                  Icons.access_time_filled_rounded,
+                  color: palette.primary,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -1511,7 +1654,11 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                     const SizedBox(height: 4),
                     Text(
                       'Please ensure tools and materials are ready 15 mins prior to arrival.',
-                      style: TextStyle(fontSize: 12, color: palette.muted, height: 1.3),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: palette.muted,
+                        height: 1.3,
+                      ),
                     ),
                   ],
                 ),
@@ -1543,10 +1690,15 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
             child: OutlinedButton(
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: palette.border),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onPressed: () => Navigator.pop(context, _currentBooking),
-              child: const Text('Back to Jobs', style: TextStyle(fontWeight: FontWeight.w700)),
+              child: const Text(
+                'Back to Jobs',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
           ),
         ),
@@ -1579,14 +1731,23 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.error,
-                          side: BorderSide(color: AppColors.error.withValues(alpha: 0.45)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          side: BorderSide(
+                            color: AppColors.error.withValues(alpha: 0.45),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           padding: EdgeInsets.zero,
                         ),
-                        onPressed: _isUpdating ? null : () => _updateJobStatus('Cancelled'),
+                        onPressed: _isUpdating
+                            ? null
+                            : () => _updateJobStatus('Cancelled'),
                         child: const Text(
                           'Cancel Job',
-                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ),
@@ -1602,19 +1763,27 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                           backgroundColor: palette.primary,
                           foregroundColor: palette.onPrimary,
                           elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         onPressed: _isUpdating ? null : _handleStartJobFlow,
                         icon: _isUpdating
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
                               )
                             : const Icon(Icons.play_arrow_rounded, size: 20),
                         label: const Text(
                           'Start Job',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                     ),
@@ -1622,47 +1791,62 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                 ],
               )
             : (isActive
-                ? SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.purple.shade700,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: _isUpdating ? null : _handleEndJobFlow,
-                      icon: const Icon(Icons.auto_awesome_rounded, size: 18),
-                      label: const Text(
-                        'End Job & Submit Proof (Agent 4)',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                  )
-                : (_currentBooking.status == 'PendingCustomerSignOff'
-                    ? Container(
-                        width: double.infinity,
-                        height: 48,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.green.withValues(alpha: 0.4)),
+                  ? SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.purple.shade700,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.hourglass_top_rounded, color: Colors.green, size: 18),
-                            SizedBox(width: 8),
-                            Text(
-                              'Awaiting Customer Sign-Off (Agent 4 Verified)',
-                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 13),
+                        onPressed: _isUpdating ? null : _handleEndJobFlow,
+                        icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+                        label: const Text(
+                          'End Job & Submit Proof (Agent 4)',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    )
+                  : (_currentBooking.status == 'PendingCustomerSignOff'
+                        ? Container(
+                            width: double.infinity,
+                            height: 48,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.green.withValues(alpha: 0.4),
+                              ),
                             ),
-                          ],
-                        ),
-                      )
-                    : const SizedBox.shrink())),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: const [
+                                Icon(
+                                  Icons.hourglass_top_rounded,
+                                  color: Colors.green,
+                                  size: 18,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Awaiting Customer Sign-Off (Agent 4 Verified)',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : const SizedBox.shrink())),
       ),
     );
   }
@@ -1689,7 +1873,12 @@ class _RealisticCityMapPainter extends CustomPainter {
     // Park polygon 2 (South-east)
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromLTWH(size.width * 0.68, size.height * 0.55, size.width * 0.26, size.height * 0.35),
+        Rect.fromLTWH(
+          size.width * 0.68,
+          size.height * 0.55,
+          size.width * 0.26,
+          size.height * 0.35,
+        ),
         const Radius.circular(8),
       ),
       parkPaint,
@@ -1702,7 +1891,12 @@ class _RealisticCityMapPainter extends CustomPainter {
 
     final canalPath = Path()
       ..moveTo(0, size.height * 0.8)
-      ..quadraticBezierTo(size.width * 0.35, size.height * 0.72, size.width * 0.6, size.height)
+      ..quadraticBezierTo(
+        size.width * 0.35,
+        size.height * 0.72,
+        size.width * 0.6,
+        size.height,
+      )
       ..lineTo(0, size.height)
       ..close();
     canvas.drawPath(canalPath, waterPaint);
@@ -1715,7 +1909,12 @@ class _RealisticCityMapPainter extends CustomPainter {
     // Block cluster 1
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromLTWH(size.width * 0.35, 14, size.width * 0.28, size.height * 0.26),
+        Rect.fromLTWH(
+          size.width * 0.35,
+          14,
+          size.width * 0.28,
+          size.height * 0.26,
+        ),
         const Radius.circular(6),
       ),
       blockPaint,
@@ -1724,7 +1923,12 @@ class _RealisticCityMapPainter extends CustomPainter {
     // Block cluster 2
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromLTWH(size.width * 0.7, 14, size.width * 0.24, size.height * 0.3),
+        Rect.fromLTWH(
+          size.width * 0.7,
+          14,
+          size.width * 0.24,
+          size.height * 0.3,
+        ),
         const Radius.circular(6),
       ),
       blockPaint,
@@ -1775,7 +1979,12 @@ class _RealisticCityMapPainter extends CustomPainter {
 
     final avenuePath = Path()
       ..moveTo(0, size.height * 0.22)
-      ..quadraticBezierTo(size.width * 0.48, size.height * 0.38, size.width, size.height * 0.68);
+      ..quadraticBezierTo(
+        size.width * 0.48,
+        size.height * 0.38,
+        size.width,
+        size.height * 0.68,
+      );
     canvas.drawPath(avenuePath, avenueCasing);
     canvas.drawPath(avenuePath, avenueFill);
 
@@ -1790,11 +1999,13 @@ class _RealisticCityMapPainter extends CustomPainter {
       final t1 = i;
       final t2 = i + 0.04;
       final x1 = size.width * t1;
-      final y1 = (size.height * 0.22) * (1 - t1) * (1 - t1) +
+      final y1 =
+          (size.height * 0.22) * (1 - t1) * (1 - t1) +
           (size.height * 0.38) * 2 * (1 - t1) * t1 +
           (size.height * 0.68) * t1 * t1;
       final x2 = size.width * t2;
-      final y2 = (size.height * 0.22) * (1 - t2) * (1 - t2) +
+      final y2 =
+          (size.height * 0.22) * (1 - t2) * (1 - t2) +
           (size.height * 0.38) * 2 * (1 - t2) * t2 +
           (size.height * 0.68) * t2 * t2;
       canvas.drawLine(Offset(x1, y1), Offset(x2, y2), dashPaint);

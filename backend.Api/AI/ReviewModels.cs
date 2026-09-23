@@ -64,6 +64,9 @@ public class SubmitCompletionRequest
     [JsonPropertyName("beforePhotoUrl")]
     public string? BeforePhotoUrl { get; set; }
 
+    [JsonPropertyName("beforePhotoUrls")]
+    public List<string> BeforePhotoUrls { get; set; } = new();
+
     [JsonPropertyName("afterPhotoUrls")]
     public List<string> AfterPhotoUrls { get; set; } = new();
 

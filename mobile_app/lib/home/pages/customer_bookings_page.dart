@@ -34,6 +34,7 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
   late final TabController _tabController;
   List<BookingItem> _bookings = [];
   bool _isLoading = true;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
@@ -41,10 +42,16 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
     _tabController = TabController(length: 4, vsync: this);
     BookingsSyncService.instance.addListener(_onSyncUpdate);
     _loadBookings();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (mounted) {
+        _loadBookings(silent: true);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
     BookingsSyncService.instance.removeListener(_onSyncUpdate);
     _tabController.dispose();
     super.dispose();
@@ -97,24 +104,17 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
 
         final combinedMap = <String, BookingItem>{};
 
+        for (final b in filteredBookings) {
+          // If a booking is just a proposal pseudo-entry (PR-), skip it here
+          // because filteredProposals is the authoritative source for all PR- items.
+          if (b.bookingReference.startsWith('PR-')) continue;
+          combinedMap[b.bookingReference] = b;
+        }
+
         for (final p in filteredProposals) {
           // If proposal was accepted, it has already been converted into a confirmed BookingItem
           if (p.status.toLowerCase() == 'accepted') continue;
           combinedMap[p.bookingReference] = p;
-        }
-
-        for (final b in filteredBookings) {
-          final isPr = b.bookingReference.startsWith('PR-');
-          if (isPr && combinedMap.containsKey(b.bookingReference)) {
-            final prop = combinedMap[b.bookingReference]!;
-            if (prop.isCancelled) {
-              combinedMap[b.bookingReference] = b.copyWith(status: prop.status);
-            } else {
-              combinedMap[b.bookingReference] = b;
-            }
-          } else {
-            combinedMap[b.bookingReference] = b;
-          }
         }
 
         final combined = combinedMap.values.toList()

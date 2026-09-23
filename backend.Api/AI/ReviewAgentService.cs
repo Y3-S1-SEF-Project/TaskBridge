@@ -82,13 +82,25 @@ public class ReviewAgentService
         var minutes = totalMinutes % 60;
 
         var hourlyRate = request.HourlyRate ?? (booking != null && booking.Price > 0 ? booking.Price : 5000m);
-        // Formula: (Hours * Rate) + (Minutes * (Rate / 60))
-        var calculatedPrice = Math.Round((hours * hourlyRate) + (minutes * (hourlyRate / 60m)), 2);
+        // Minimum 1-hour charge: first 60 mins = 1 full hour rate; subsequent mins prorated
+        decimal calculatedPrice;
+        if (totalMinutes <= 60)
+        {
+            calculatedPrice = hourlyRate;
+        }
+        else
+        {
+            var extraMinutes = totalMinutes - 60;
+            calculatedPrice = Math.Round(hourlyRate + (extraMinutes * (hourlyRate / 60m)), 2);
+        }
 
         var durationFormatted = hours > 0 ? $"{hours} hr {minutes} min" : $"{minutes} min";
         var priceFormatted = $"Rs. {calculatedPrice:N2}";
 
-        var beforePhoto = request.BeforePhotoUrl ?? booking?.BeforePhotoUrl;
+        var beforePhotos = (request.BeforePhotoUrls != null && request.BeforePhotoUrls.Count > 0)
+            ? request.BeforePhotoUrls
+            : (!string.IsNullOrWhiteSpace(request.BeforePhotoUrl) ? new List<string> { request.BeforePhotoUrl } : (booking?.BeforePhotoUrl != null ? new List<string> { booking.BeforePhotoUrl } : new List<string>()));
+        var beforePhoto = beforePhotos.FirstOrDefault();
         var afterPhotos = request.AfterPhotoUrls ?? new List<string>();
 
         // Extract acceptance checklist
@@ -110,9 +122,9 @@ public class ReviewAgentService
         Console.WriteLine("\n============================================================");
         Console.WriteLine($"[🤖 TASKBRIDGE AI: AGENT 4 - REVIEW AGENT]");
         Console.WriteLine($"🔍 Evaluating Job Completion: #{request.BookingReference}");
-        Console.WriteLine($"⏱ Duration: {durationFormatted} ({totalMinutes} total mins)");
+        Console.WriteLine($"⏱ Duration: {durationFormatted} ({totalMinutes} total mins) [Min 1-hr baseline]");
         Console.WriteLine($"💰 Calculated Price: {priceFormatted} (Rate: Rs. {hourlyRate:N0}/hr)");
-        Console.WriteLine($"📷 Before: {beforePhoto ?? "None"} | After Photos: {afterPhotos.Count}");
+        Console.WriteLine($"📷 Before Photos: {beforePhotos.Count} | After Photos: {afterPhotos.Count}");
         Console.WriteLine($"📝 Provider Notes: \"{request.ProviderNotes}\"");
         Console.WriteLine("============================================================\n");
         Console.ResetColor();
@@ -122,19 +134,19 @@ public class ReviewAgentService
         if (string.IsNullOrWhiteSpace(apiKey) || apiKey.StartsWith("YOUR_"))
         {
             _logger.LogWarning("OpenAI API Key not set. Using rule-based review evaluation.");
-            aiResult = GenerateFallbackReview(checklist, request.ProviderNotes, beforePhoto, afterPhotos);
+            aiResult = GenerateFallbackReview(checklist, request.ProviderNotes, beforePhotos, afterPhotos);
         }
         else
         {
             try
             {
                 aiResult = await CallOpenAiVisionReviewAsync(
-                    apiKey, model, booking, request.ProviderNotes, beforePhoto, afterPhotos, checklist, ct);
+                    apiKey, model, booking, request.ProviderNotes, beforePhotos, afterPhotos, checklist, ct);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "OpenAI Vision review call failed. Falling back to rule-based evaluation.");
-                aiResult = GenerateFallbackReview(checklist, request.ProviderNotes, beforePhoto, afterPhotos);
+                aiResult = GenerateFallbackReview(checklist, request.ProviderNotes, beforePhotos, afterPhotos);
             }
         }
 
@@ -235,7 +247,7 @@ public class ReviewAgentService
         string model,
         BookingEntity? booking,
         string providerNotes,
-        string? beforePhoto,
+        List<string> beforePhotos,
         List<string> afterPhotos,
         List<string> checklist,
         CancellationToken ct)
@@ -247,7 +259,7 @@ public class ReviewAgentService
             TaskBridge is an on-demand home service marketplace in Sri Lanka.
             Your job is to rigorously review the provider's proof of work upon job completion.
             You must:
-            1. Inspect and compare the Before photo and the After photo(s).
+            1. Inspect and compare the Before photo(s) and the After photo(s).
             2. Read the provider's work notes and verify whether the agreed acceptance criteria were met.
             3. If the after photo demonstrates quality completion and the work notes confirm the task, pass verification (verificationPassed: true, confidenceScore 85-99).
             4. If there are obvious defects, damage, or completely unaddressed checklist items, flag them in missingDetails.
@@ -272,22 +284,28 @@ public class ReviewAgentService
                        $"Category: {booking?.Category ?? "Home Service"}\n" +
                        $"Provider Work Notes: \"{providerNotes}\"\n" +
                        $"Agreed Acceptance Checklist:\n- {checklistFormatted}\n\n" +
-                       $"Please analyze the provided Before Photo and After Photo(s) against the checklist and notes."
+                       $"Please analyze the provided Before Photo(s) and After Photo(s) against the checklist and notes."
             }
         };
 
-        if (!string.IsNullOrWhiteSpace(beforePhoto))
+        if (beforePhotos.Count > 0)
         {
             userContentList.Add(new
             {
                 type = "text",
-                text = "--- BEFORE SERVICE PHOTO ---"
+                text = "--- BEFORE SERVICE PHOTO(S) ---"
             });
-            userContentList.Add(new
+            foreach (var photo in beforePhotos)
             {
-                type = "image_url",
-                image_url = new { url = beforePhoto, detail = "auto" }
-            });
+                if (!string.IsNullOrWhiteSpace(photo))
+                {
+                    userContentList.Add(new
+                    {
+                        type = "image_url",
+                        image_url = new { url = photo, detail = "auto" }
+                    });
+                }
+            }
         }
 
         if (afterPhotos.Count > 0)
@@ -334,25 +352,25 @@ public class ReviewAgentService
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogError("OpenAI Vision error {Status}: {Response}", response.StatusCode, responseString);
-            return GenerateFallbackReview(checklist, providerNotes, beforePhoto, afterPhotos);
+            return GenerateFallbackReview(checklist, providerNotes, beforePhotos, afterPhotos);
         }
 
         using var doc = JsonDocument.Parse(responseString);
         var content = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? "{}";
 
         var parsed = JsonSerializer.Deserialize<ReviewAnalyzeResult>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-        return parsed ?? GenerateFallbackReview(checklist, providerNotes, beforePhoto, afterPhotos);
+        return parsed ?? GenerateFallbackReview(checklist, providerNotes, beforePhotos, afterPhotos);
     }
 
     private static ReviewAnalyzeResult GenerateFallbackReview(
         List<string> checklist,
         string providerNotes,
-        string? beforePhoto,
+        List<string> beforePhotos,
         List<string> afterPhotos)
     {
         var hasAfterPhotos = afterPhotos.Count > 0;
         var hasNotes = !string.IsNullOrWhiteSpace(providerNotes) && providerNotes.Length > 10;
-        var hasBefore = !string.IsNullOrWhiteSpace(beforePhoto);
+        var hasBefore = beforePhotos.Count > 0;
 
         var verified = new List<string>();
         var missing = new List<string>();
@@ -425,7 +443,7 @@ public class ReviewAgentService
             var duration = booking.DurationMinutes ?? 52;
             var hourlyRate = (double)booking.Price;
             if (hourlyRate <= 0) hourlyRate = 3750;
-            var finalPrice = (double)(booking.FinalCalculatedPrice ?? (decimal)((duration / 60.0) * hourlyRate));
+            var finalPrice = (double)(booking.FinalCalculatedPrice ?? (decimal)(duration <= 60 ? hourlyRate : (hourlyRate + ((duration - 60) / 60.0 * hourlyRate))));
 
             var fallbackComp = new JobCompletionEntity
             {

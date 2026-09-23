@@ -11,12 +11,14 @@ import '../../core/theme/app_palette.dart';
 class JobCompletionProofPage extends StatefulWidget {
   final BookingItem booking;
   final DateTime? startedAt;
+  final DateTime? endedAt;
   final String? beforePhotoUrl;
 
   const JobCompletionProofPage({
     super.key,
     required this.booking,
     this.startedAt,
+    this.endedAt,
     this.beforePhotoUrl,
   });
 
@@ -28,7 +30,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
   final TextEditingController _notesController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
 
-  String? _beforePhotoUrl;
+  final List<String> _beforePhotoUrls = [];
   final List<String> _afterPhotoUrls = [];
   bool _isUploadingBefore = false;
   bool _isUploadingAfter = false;
@@ -43,8 +45,11 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
   void initState() {
     super.initState();
     _jobStartedAt = widget.startedAt ?? DateTime.now().subtract(const Duration(minutes: 52));
-    _jobEndedAt = DateTime.now();
-    _beforePhotoUrl = widget.beforePhotoUrl;
+    // Frozen to the exact moment provider tapped "End Job"
+    _jobEndedAt = widget.endedAt ?? DateTime.now();
+    if (widget.beforePhotoUrl != null && widget.beforePhotoUrl!.isNotEmpty) {
+      _beforePhotoUrls.add(widget.beforePhotoUrl!);
+    }
 
     _notesController.text =
         'Completed full servicing of ${widget.booking.serviceTitle}. Replaced defective parts, thoroughly tested under pressure, and cleaned the workspace.';
@@ -62,12 +67,48 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
 
   double get _estimatedFee {
     final rate = widget.booking.price > 0 ? widget.booking.price : 5000.0;
-    final hours = _elapsedMinutes ~/ 60;
-    final minutes = _elapsedMinutes % 60;
-    return (hours * rate) + (minutes * (rate / 60.0));
+    // Minimum 1-hour charge: first 60 mins = full 1-hr rate; subsequent mins prorated
+    if (_elapsedMinutes <= 60) {
+      return rate;
+    }
+    final extraMinutes = _elapsedMinutes - 60;
+    return rate + (extraMinutes * (rate / 60.0));
+  }
+
+  void _removePhoto({required bool isBefore, required int index}) {
+    setState(() {
+      if (isBefore) {
+        if (index < _beforePhotoUrls.length) {
+          _beforePhotoUrls.removeAt(index);
+        }
+      } else {
+        if (index < _afterPhotoUrls.length) {
+          _afterPhotoUrls.removeAt(index);
+        }
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Photo removed.'),
+        duration: Duration(milliseconds: 1200),
+      ),
+    );
   }
 
   Future<void> _pickAndUploadPhoto({required bool isBefore}) async {
+    final currentList = isBefore ? _beforePhotoUrls : _afterPhotoUrls;
+    if (currentList.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(isBefore
+              ? 'Maximum 5 Before photos reached.'
+              : 'Maximum 5 After photos reached.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -82,7 +123,9 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                isBefore ? 'Select Before Photo' : 'Add After-Work Proof Photo',
+                isBefore
+                    ? 'Add Before Photo (${currentList.length}/5)'
+                    : 'Add After-Work Proof Photo (${currentList.length}/5)',
                 style: GoogleFonts.plusJakartaSans(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
@@ -128,7 +171,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
         setState(() {
           if (isBefore) {
             _isUploadingBefore = false;
-            if (uploadedUrl != null) _beforePhotoUrl = uploadedUrl;
+            if (uploadedUrl != null) _beforePhotoUrls.add(uploadedUrl);
           } else {
             _isUploadingAfter = false;
             if (uploadedUrl != null) _afterPhotoUrls.add(uploadedUrl);
@@ -138,7 +181,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
         if (uploadedUrl != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('📷 Proof photo uploaded to Cloudflare R2 successfully!'),
+              content: Text('📷 Proof photo uploaded successfully!'),
               backgroundColor: AppColors.primary,
             ),
           );
@@ -177,13 +220,14 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
 
     setState(() {
       _isEvaluating = true;
-      _jobEndedAt = DateTime.now();
+      // Do NOT overwrite _jobEndedAt here - it is already frozen at End Job button click!
     });
 
     final result = await ReviewApi.evaluateCompletion(
       bookingReference: widget.booking.bookingReference,
       providerNotes: _notesController.text.trim(),
-      beforePhotoUrl: _beforePhotoUrl,
+      beforePhotoUrl: _beforePhotoUrls.isNotEmpty ? _beforePhotoUrls.first : null,
+      beforePhotoUrls: _beforePhotoUrls,
       afterPhotoUrls: _afterPhotoUrls,
       startedAt: _jobStartedAt,
       endedAt: _jobEndedAt,
@@ -426,7 +470,9 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Fee formula: ($hours × Rs. ${rate.toInt()}) + ($minutes × Rs. ${(rate / 60).toStringAsFixed(2)}/min)',
+                    _elapsedMinutes <= 60
+                        ? 'Fee formula: Flat 1-hr minimum rate = Rs. ${rate.toInt()} (${_elapsedMinutes}m worked)'
+                        : 'Fee formula: 1 hr base (Rs. ${rate.toInt()}) + ${_elapsedMinutes - 60}m (Rs. ${((_elapsedMinutes - 60) * (rate / 60)).toStringAsFixed(2)})',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11,
                       color: AppColors.textSecondary,
@@ -524,139 +570,179 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Before Photo Box
+            // Before Photos Card (1 to 5)
             Expanded(
-              child: _buildPhotoBox(
+              child: _buildPhotoCategoryCard(
                 title: 'Before Service',
                 tag: 'Initial Condition',
-                url: _beforePhotoUrl,
+                photos: _beforePhotoUrls,
                 isLoading: _isUploadingBefore,
                 isBefore: true,
-                onTap: () => _pickAndUploadPhoto(isBefore: true),
+                onAdd: () => _pickAndUploadPhoto(isBefore: true),
+                onRemove: (idx) => _removePhoto(isBefore: true, index: idx),
               ),
             ),
             const SizedBox(width: 12),
-            // After Photo Box
+            // After Photos Card (1 to 5)
             Expanded(
-              child: _buildPhotoBox(
+              child: _buildPhotoCategoryCard(
                 title: 'After Service',
                 tag: 'Completed Result',
-                url: _afterPhotoUrls.isNotEmpty ? _afterPhotoUrls.first : null,
+                photos: _afterPhotoUrls,
                 isLoading: _isUploadingAfter,
                 isBefore: false,
-                count: _afterPhotoUrls.length,
-                onTap: () => _pickAndUploadPhoto(isBefore: false),
+                onAdd: () => _pickAndUploadPhoto(isBefore: false),
+                onRemove: (idx) => _removePhoto(isBefore: false, index: idx),
               ),
             ),
           ],
         ),
-        if (_afterPhotoUrls.length > 1) ...[
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 60,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: _afterPhotoUrls.length,
-              separatorBuilder: (context, index) => const SizedBox(width: 8),
-              itemBuilder: (ctx, i) => ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: CachedNetworkImage(
-                  imageUrl: _afterPhotoUrls[i],
-                  width: 60,
-                  height: 60,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-          ),
-        ],
       ],
     );
   }
 
-  Widget _buildPhotoBox({
+  Widget _buildPhotoCategoryCard({
     required String title,
     required String tag,
-    String? url,
+    required List<String> photos,
     required bool isLoading,
     required bool isBefore,
-    int count = 1,
-    required VoidCallback onTap,
+    required VoidCallback onAdd,
+    required Function(int) onRemove,
   }) {
-    final hasPhoto = url != null && url.isNotEmpty;
+    final hasPhotos = photos.isNotEmpty;
 
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: hasPhoto ? AppColors.primary.withValues(alpha: 0.5) : Colors.grey.withValues(alpha: 0.3),
+          color: hasPhotos
+              ? AppColors.primary.withValues(alpha: 0.5)
+              : Colors.grey.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  title,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                Expanded(
+                  child: Text(
+                    title,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (hasPhoto)
-                  const Icon(Icons.check_circle, color: Colors.green, size: 14),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: hasPhotos
+                        ? Colors.green.withValues(alpha: 0.15)
+                        : Colors.grey.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${photos.length}/5',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: hasPhotos ? Colors.green.shade700 : Colors.grey.shade600,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
+          // Main Preview Box / Upload Box
           InkWell(
-            onTap: isLoading ? null : onTap,
-            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
+            onTap: isLoading
+                ? null
+                : (photos.length < 5 ? onAdd : null),
             child: Container(
               height: 120,
               width: double.infinity,
               decoration: BoxDecoration(
                 color: Colors.grey.withValues(alpha: 0.08),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
+                borderRadius: hasPhotos
+                    ? BorderRadius.zero
+                    : const BorderRadius.vertical(bottom: Radius.circular(14)),
               ),
               child: isLoading
                   ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-                  : (hasPhoto
+                  : (hasPhotos
                       ? Stack(
                           fit: StackFit.expand,
                           children: [
-                            ClipRRect(
-                              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
-                              child: CachedNetworkImage(
-                                imageUrl: url,
-                                fit: BoxFit.cover,
-                                placeholder: (context, urlStr) => const Center(
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                ),
-                                errorWidget: (context, urlStr, error) => const Center(
-                                  child: Icon(Icons.broken_image, color: Colors.grey),
-                                ),
+                            CachedNetworkImage(
+                              imageUrl: photos.first,
+                              fit: BoxFit.cover,
+                              placeholder: (context, urlStr) => const Center(
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                              errorWidget: (context, urlStr, error) => const Center(
+                                child: Icon(Icons.broken_image, color: Colors.grey),
                               ),
                             ),
+                            // Cross remove button on main photo
                             Positioned(
-                              bottom: 6,
+                              top: 6,
                               right: 6,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.6),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  isBefore ? 'Retake' : 'Add More ($count)',
-                                  style: const TextStyle(color: Colors.white, fontSize: 10),
+                              child: GestureDetector(
+                                onTap: () => onRemove(0),
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.redAccent,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black26,
+                                        blurRadius: 4,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.close_rounded,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                             ),
+                            if (photos.length < 5)
+                              Positioned(
+                                bottom: 6,
+                                right: 6,
+                                child: GestureDetector(
+                                  onTap: onAdd,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.7),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.add_photo_alternate_rounded, size: 12, color: Colors.white),
+                                        const SizedBox(width: 3),
+                                        Text(
+                                          'Add (${photos.length}/5)',
+                                          style: const TextStyle(color: Colors.white, fontSize: 10),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
                           ],
                         )
                       : Column(
@@ -665,11 +751,11 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                             Icon(
                               isBefore ? Icons.camera_enhance_outlined : Icons.add_a_photo_outlined,
                               color: AppColors.primary,
-                              size: 28,
+                              size: 26,
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 4),
                             Text(
-                              isBefore ? 'Upload Before' : 'Upload After',
+                              isBefore ? '+ Before Photo' : '+ After Photo',
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -677,7 +763,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                               ),
                             ),
                             Text(
-                              tag,
+                              'Up to 5 photos',
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 9,
                                 color: AppColors.textSecondary,
@@ -687,6 +773,94 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                         )),
             ),
           ),
+          // Thumbnails row with Remove Cross Button
+          if (hasPhotos)
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.05),
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
+              ),
+              child: SizedBox(
+                height: 52,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: photos.length + (photos.length < 5 ? 1 : 0),
+                  separatorBuilder: (context, index) => const SizedBox(width: 6),
+                  itemBuilder: (ctx, i) {
+                    if (i == photos.length) {
+                      // Add Photo Tile
+                      return InkWell(
+                        onTap: isLoading ? null : onAdd,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: AppColors.primary.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: const Center(
+                            child: Icon(Icons.add, color: AppColors.primary, size: 20),
+                          ),
+                        ),
+                      );
+                    }
+
+                    final photoUrl = photos[i];
+                    return Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: CachedNetworkImage(
+                            imageUrl: photoUrl,
+                            width: 52,
+                            height: 52,
+                            fit: BoxFit.cover,
+                            placeholder: (context, urlStr) => const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            errorWidget: (context, urlStr, error) => const Center(
+                              child: Icon(Icons.broken_image, size: 20, color: Colors.grey),
+                            ),
+                          ),
+                        ),
+                        // Remove Cross Button on Thumbnail
+                        Positioned(
+                          top: -3,
+                          right: -3,
+                          child: GestureDetector(
+                            onTap: () => onRemove(i),
+                            child: Container(
+                              padding: const EdgeInsets.all(2.5),
+                              decoration: const BoxDecoration(
+                                color: Colors.redAccent,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black38,
+                                    blurRadius: 3,
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                size: 11,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
         ],
       ),
     );

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../ai/models/coordination_models.dart';
 import '../../ai/services/bookings_sync_service.dart';
@@ -22,16 +23,23 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
   List<BookingItem> _bookings = [];
   List<ProposalItem> _proposals = [];
   bool _isLoading = true;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
     BookingsSyncService.instance.addListener(_onSyncUpdate);
     _loadBookings();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (mounted) {
+        _loadBookings(silent: true);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
     BookingsSyncService.instance.removeListener(_onSyncUpdate);
     super.dispose();
   }
@@ -784,7 +792,9 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
         .map((p) => p.toBookingItem())
         .toList();
     final upcomingList = _bookings.where((b) => b.isUpcoming).toList();
-    final activeList = _bookings.where((b) => b.isActive || b.isPendingSignOff || b.isRevisionRequested).toList();
+    final activeList = _bookings
+        .where((b) => b.isActive || b.isPendingSignOff || b.isRevisionRequested)
+        .toList();
 
     // Past jobs: completed bookings, cancelled bookings, AND cancelled/declined proposals
     final completedOrCancelledBookings = _bookings

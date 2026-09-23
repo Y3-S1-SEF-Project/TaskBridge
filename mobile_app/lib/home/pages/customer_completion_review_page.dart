@@ -680,7 +680,7 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
     final remMins = mins % 60;
     final rate = _completion?.hourlyRate ?? (widget.booking.price > 0 ? widget.booking.price : 5000.0);
     final calculatedPrice = _completion?.calculatedPrice ??
-        ((hours * rate) + (remMins * (rate / 60.0)));
+        (mins <= 60 ? rate : (rate + ((mins - 60) * (rate / 60.0))));
 
     return Container(
       padding: const EdgeInsets.all(16),

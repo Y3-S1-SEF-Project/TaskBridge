@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../ai/models/coordination_models.dart';
 import '../../ai/services/bookings_sync_service.dart';
@@ -28,16 +29,23 @@ class ProviderDashboardPage extends StatefulWidget {
 class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
   List<BookingItem> _bookings = [];
   bool _isLoading = true;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
     BookingsSyncService.instance.addListener(_onSyncUpdate);
     _loadBookings();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (mounted) {
+        _loadBookings(silent: true);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
     BookingsSyncService.instance.removeListener(_onSyncUpdate);
     super.dispose();
   }
@@ -94,8 +102,21 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
             .map((p) => p.toBookingItem())
             .toList();
 
+        final bookingRefs = <String>{};
+        final combined = <BookingItem>[];
+        for (final p in filteredProposals) {
+          bookingRefs.add(p.bookingReference);
+          combined.add(p);
+        }
+        for (final b in filteredBookings) {
+          if (b.bookingReference.startsWith('PR-') && bookingRefs.contains(b.bookingReference)) {
+            continue;
+          }
+          combined.add(b);
+        }
+
         setState(() {
-          _bookings = [...filteredProposals, ...filteredBookings];
+          _bookings = combined;
           _isLoading = false;
         });
       }

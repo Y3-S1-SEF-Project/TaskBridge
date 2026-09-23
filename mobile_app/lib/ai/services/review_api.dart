@@ -85,6 +85,7 @@ class ReviewApi {
     required String bookingReference,
     required String providerNotes,
     String? beforePhotoUrl,
+    List<String>? beforePhotoUrls,
     required List<String> afterPhotoUrls,
     DateTime? startedAt,
     DateTime? endedAt,
@@ -94,7 +95,8 @@ class ReviewApi {
     final payload = jsonEncode({
       'bookingReference': bookingReference,
       'providerNotes': providerNotes,
-      'beforePhotoUrl': beforePhotoUrl,
+      'beforePhotoUrl': beforePhotoUrl ?? (beforePhotoUrls != null && beforePhotoUrls.isNotEmpty ? beforePhotoUrls.first : null),
+      'beforePhotoUrls': beforePhotoUrls ?? (beforePhotoUrl != null ? [beforePhotoUrl] : []),
       'afterPhotoUrls': afterPhotoUrls,
       'startedAt': startedAt?.toUtc().toIso8601String(),
       'endedAt': endedAt?.toUtc().toIso8601String(),

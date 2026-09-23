@@ -667,11 +667,12 @@ class CoordinationApi {
             for (var i = 0; i < _localBookings.length; i++) {
               if (_localBookings[i].bookingReference == p.proposalReference ||
                   _localBookings[i].bookingReference == alt) {
-                if (p.isCancelled) {
-                  _localBookings[i] = _localBookings[i].copyWith(
-                    status: p.status,
-                  );
-                }
+                _localBookings[i] = _localBookings[i].copyWith(
+                  status: p.status,
+                  price: p.estimatedRate,
+                  schedule: p.preferredSchedule,
+                  rateType: p.rateType,
+                );
               }
             }
           }
