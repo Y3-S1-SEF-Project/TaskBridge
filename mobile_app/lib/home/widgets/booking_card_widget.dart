@@ -27,6 +27,8 @@ enum BookingStatus {
         return BookingStatus.completed;
       case 'cancelled':
       case 'canceled':
+      case 'declined':
+      case 'rejected':
         return BookingStatus.cancelled;
       default:
         return BookingStatus.upcoming;
@@ -102,8 +104,8 @@ class BookingCardWidget extends StatelessWidget {
         tagBgColor = palette.primary.withValues(alpha: 0.12);
         break;
       case BookingStatus.cancelled:
-        tagTextColor = palette.muted;
-        tagBgColor = palette.soft;
+        tagTextColor = Colors.red.shade900;
+        tagBgColor = Colors.red.shade100;
         break;
     }
 

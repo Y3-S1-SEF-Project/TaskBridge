@@ -114,11 +114,14 @@ class CoordinationApi {
     required BookingDetails booking,
     required String category,
     required String providerId,
+    String? rateType = 'Hourly',
   }) async {
     developer.log(
       '📝 [TASKBRIDGE AI: AGENT 3] Creating quotation proposal "${booking.bookingReference}" for ${booking.providerName}',
       name: 'CoordinationAgent',
     );
+
+    final resolvedRateType = rateType ?? 'Hourly';
 
     final newProp = ProposalItem(
       id: 'pr-${DateTime.now().millisecondsSinceEpoch}',
@@ -133,6 +136,7 @@ class CoordinationApi {
       location: booking.location,
       preferredSchedule: booking.schedule,
       estimatedRate: booking.price,
+      rateType: resolvedRateType,
       status: 'Pending',
       createdAt: DateTime.now(),
     );
@@ -154,6 +158,7 @@ class CoordinationApi {
       location: booking.location,
       schedule: booking.schedule,
       price: booking.price,
+      rateType: resolvedRateType,
       status: 'Requested',
       createdAt: DateTime.now(),
     );
@@ -173,6 +178,7 @@ class CoordinationApi {
       'location': booking.location,
       'schedule': booking.schedule,
       'price': booking.price,
+      'rateType': resolvedRateType,
       'status': 'Requested',
     });
 
@@ -201,6 +207,7 @@ class CoordinationApi {
   static Future<bool> submitCounterBid({
     required String bookingReference,
     required double counterPrice,
+    String? rateType,
     String? availableTime,
     String? notes,
     String? sender,
@@ -226,6 +233,32 @@ class CoordinationApi {
         location: old.location,
         schedule: newSchedule,
         price: counterPrice,
+        rateType: rateType ?? old.rateType,
+        status: targetStatus,
+        createdAt: old.createdAt,
+      );
+    }
+
+    final pIdx = _localProposals.indexWhere(
+      (p) => p.proposalReference == bookingReference,
+    );
+    if (pIdx != -1) {
+      final old = _localProposals[pIdx];
+      final newSchedule = availableTime != null && availableTime.isNotEmpty
+          ? '$availableTime · ${old.location}'
+          : old.preferredSchedule;
+      _localProposals[pIdx] = ProposalItem(
+        id: old.id,
+        proposalReference: old.proposalReference,
+        serviceTitle: old.serviceTitle,
+        category: old.category,
+        providerName: old.providerName,
+        providerId: old.providerId,
+        customerName: old.customerName,
+        location: old.location,
+        preferredSchedule: newSchedule,
+        estimatedRate: counterPrice,
+        rateType: rateType ?? old.rateType,
         status: targetStatus,
         createdAt: old.createdAt,
       );
@@ -234,6 +267,7 @@ class CoordinationApi {
     final payload = jsonEncode({
       'bookingReference': bookingReference,
       'counterPrice': counterPrice,
+      'rateType': rateType,
       'availableTime': availableTime,
       'notes': notes,
       'sender': sender ?? 'provider',
@@ -264,24 +298,24 @@ class CoordinationApi {
     required String bookingReference,
     String? reason,
   }) async {
-    final idx = _localBookings.indexWhere(
-      (b) => b.bookingReference == bookingReference,
-    );
-    if (idx != -1) {
-      final old = _localBookings[idx];
-      _localBookings[idx] = BookingItem(
-        id: old.id,
-        bookingReference: old.bookingReference,
-        customerName: old.customerName,
-        providerName: old.providerName,
-        serviceTitle: old.serviceTitle,
-        category: old.category,
-        location: old.location,
-        schedule: old.schedule,
-        price: old.price,
-        status: 'Cancelled',
-        createdAt: old.createdAt,
-      );
+    final altRef = bookingReference.startsWith('TB-')
+        ? bookingReference.replaceFirst('TB-', 'PR-')
+        : bookingReference.replaceFirst('PR-', 'TB-');
+
+    for (var i = 0; i < _localBookings.length; i++) {
+      final b = _localBookings[i];
+      if (b.bookingReference == bookingReference ||
+          b.bookingReference == altRef) {
+        _localBookings[i] = b.copyWith(status: 'Cancelled');
+      }
+    }
+
+    for (var i = 0; i < _localProposals.length; i++) {
+      final p = _localProposals[i];
+      if (p.proposalReference == bookingReference ||
+          p.proposalReference == altRef) {
+        _localProposals[i] = p.copyWith(status: 'Cancelled');
+      }
     }
 
     final payload = jsonEncode({
@@ -314,11 +348,14 @@ class CoordinationApi {
     required BookingDetails booking,
     required String category,
     required String providerId,
+    String? rateType = 'Hourly',
   }) async {
     developer.log(
       '🤝 [TASKBRIDGE AI: AGENT 3] Confirming booking "${booking.bookingReference}" for ${booking.providerName}',
       name: 'CoordinationAgent',
     );
+
+    final resolvedRateType = rateType ?? 'Hourly';
 
     // Save to local cache immediately
     final newItem = BookingItem(
@@ -333,6 +370,7 @@ class CoordinationApi {
       location: booking.location,
       schedule: booking.schedule,
       price: booking.price,
+      rateType: resolvedRateType,
       status: 'Upcoming',
       createdAt: DateTime.now(),
     );
@@ -351,6 +389,7 @@ class CoordinationApi {
       'location': booking.location,
       'schedule': booking.schedule,
       'price': booking.price,
+      'rateType': resolvedRateType,
       'status': 'Upcoming',
     });
 
@@ -422,6 +461,24 @@ class CoordinationApi {
           }
           for (final b in remoteBookings) {
             mergedMap[b.bookingReference] = b;
+            final idx = _localBookings.indexWhere(
+              (x) => x.bookingReference == b.bookingReference,
+            );
+            if (idx != -1) {
+              _localBookings[idx] = b;
+            }
+            if (b.isCancelled) {
+              final alt = b.bookingReference.startsWith('TB-')
+                  ? b.bookingReference.replaceFirst('TB-', 'PR-')
+                  : b.bookingReference.replaceFirst('PR-', 'TB-');
+              for (var i = 0; i < _localProposals.length; i++) {
+                if (_localProposals[i].proposalReference == b.bookingReference ||
+                    _localProposals[i].proposalReference == alt) {
+                  _localProposals[i] =
+                      _localProposals[i].copyWith(status: b.status);
+                }
+              }
+            }
           }
 
           var result = mergedMap.values.toList();
@@ -476,25 +533,33 @@ class CoordinationApi {
     String? schedule,
     double? price,
   }) async {
-    // Update locally immediately
-    final idx = _localBookings.indexWhere(
-      (b) => b.bookingReference == bookingReference,
-    );
-    if (idx != -1) {
-      final old = _localBookings[idx];
-      _localBookings[idx] = BookingItem(
-        id: old.id,
-        bookingReference: old.bookingReference,
-        customerName: old.customerName,
-        providerName: old.providerName,
-        serviceTitle: old.serviceTitle,
-        category: old.category,
-        location: old.location,
-        schedule: schedule ?? old.schedule,
-        price: price ?? old.price,
-        status: newStatus,
-        createdAt: old.createdAt,
-      );
+    // Update locally immediately across both bookings and proposals
+    final altRef = bookingReference.startsWith('TB-')
+        ? bookingReference.replaceFirst('TB-', 'PR-')
+        : bookingReference.replaceFirst('PR-', 'TB-');
+
+    for (var i = 0; i < _localBookings.length; i++) {
+      final b = _localBookings[i];
+      if (b.bookingReference == bookingReference ||
+          b.bookingReference == altRef) {
+        _localBookings[i] = b.copyWith(
+          status: newStatus,
+          schedule: schedule ?? b.schedule,
+          price: price ?? b.price,
+        );
+      }
+    }
+
+    for (var i = 0; i < _localProposals.length; i++) {
+      final p = _localProposals[i];
+      if (p.proposalReference == bookingReference ||
+          p.proposalReference == altRef) {
+        _localProposals[i] = p.copyWith(
+          status: newStatus,
+          preferredSchedule: schedule ?? p.preferredSchedule,
+          estimatedRate: price ?? p.estimatedRate,
+        );
+      }
     }
 
     final candidates = _candidateUrls;
@@ -573,6 +638,20 @@ class CoordinationApi {
             } else {
               _localProposals.add(p);
             }
+
+            // Also keep _localBookings in sync if it has this reference
+            final alt = p.proposalReference.startsWith('PR-')
+                ? p.proposalReference.replaceFirst('PR-', 'TB-')
+                : p.proposalReference.replaceFirst('TB-', 'PR-');
+            for (var i = 0; i < _localBookings.length; i++) {
+              if (_localBookings[i].bookingReference == p.proposalReference ||
+                  _localBookings[i].bookingReference == alt) {
+                if (p.isCancelled) {
+                  _localBookings[i] =
+                      _localBookings[i].copyWith(status: p.status);
+                }
+              }
+            }
           }
 
           return parsed;
@@ -595,6 +674,7 @@ class CoordinationApi {
     required String proposalReference,
     required String schedule,
     required double price,
+    String? rateType,
   }) async {
     // Update local proposal
     final idx = _localProposals.indexWhere(
@@ -613,6 +693,7 @@ class CoordinationApi {
         location: old.location,
         preferredSchedule: schedule,
         estimatedRate: price,
+        rateType: rateType ?? old.rateType,
         status: 'Accepted',
         createdAt: old.createdAt,
       );
@@ -623,6 +704,7 @@ class CoordinationApi {
       'proposalReference': proposalReference,
       'confirmedSchedule': schedule,
       'confirmedPrice': price,
+      'rateType': rateType,
     });
 
     for (final candidate in candidates) {
@@ -652,25 +734,24 @@ class CoordinationApi {
     required String proposalReference,
     String? reason,
   }) async {
-    final idx = _localProposals.indexWhere(
-      (p) => p.proposalReference == proposalReference,
-    );
-    if (idx != -1) {
-      final old = _localProposals[idx];
-      _localProposals[idx] = ProposalItem(
-        id: old.id,
-        proposalReference: old.proposalReference,
-        serviceTitle: old.serviceTitle,
-        category: old.category,
-        providerName: old.providerName,
-        providerId: old.providerId,
-        customerName: old.customerName,
-        location: old.location,
-        preferredSchedule: old.preferredSchedule,
-        estimatedRate: old.estimatedRate,
-        status: 'Declined',
-        createdAt: old.createdAt,
-      );
+    final altRef = proposalReference.startsWith('PR-')
+        ? proposalReference.replaceFirst('PR-', 'TB-')
+        : proposalReference.replaceFirst('TB-', 'PR-');
+
+    for (var i = 0; i < _localProposals.length; i++) {
+      final p = _localProposals[i];
+      if (p.proposalReference == proposalReference ||
+          p.proposalReference == altRef) {
+        _localProposals[i] = p.copyWith(status: 'Declined');
+      }
+    }
+
+    for (var i = 0; i < _localBookings.length; i++) {
+      final b = _localBookings[i];
+      if (b.bookingReference == proposalReference ||
+          b.bookingReference == altRef) {
+        _localBookings[i] = b.copyWith(status: 'Cancelled');
+      }
     }
 
     final candidates = _candidateUrls;

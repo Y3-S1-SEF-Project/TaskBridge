@@ -155,6 +155,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
 
   void _showCounterBidModal(BookingItem booking) {
     final palette = AppPalette.of(context);
+    String rateType = booking.rateType;
     final priceController = TextEditingController(
       text: booking.price.toInt().toString(),
     );
@@ -266,9 +267,116 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
                     ),
                     const SizedBox(height: 16),
 
+                    // Pricing Type Selector (Hourly vs Fixed)
+                    Text(
+                      'Pricing Type',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: palette.text,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => setSheetState(() => rateType = 'Hourly'),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: rateType.toLowerCase() == 'hourly'
+                                    ? palette.primary.withValues(alpha: 0.12)
+                                    : palette.surface,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: rateType.toLowerCase() == 'hourly'
+                                      ? palette.primary
+                                      : palette.border,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.timer_outlined,
+                                    size: 16,
+                                    color: rateType.toLowerCase() == 'hourly'
+                                        ? palette.primary
+                                        : palette.muted,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Hourly (/hr)',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: rateType.toLowerCase() == 'hourly'
+                                          ? palette.primary
+                                          : palette.text,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => setSheetState(() => rateType = 'Fixed'),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: rateType.toLowerCase() == 'fixed'
+                                    ? palette.primary.withValues(alpha: 0.12)
+                                    : palette.surface,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: rateType.toLowerCase() == 'fixed'
+                                      ? palette.primary
+                                      : palette.border,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.sell_outlined,
+                                    size: 16,
+                                    color: rateType.toLowerCase() == 'fixed'
+                                        ? palette.primary
+                                        : palette.muted,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Fixed Total',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: rateType.toLowerCase() == 'fixed'
+                                          ? palette.primary
+                                          : palette.text,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
                     // Price field
                     Text(
-                      'Your Quoted Price (Rs.)',
+                      rateType.toLowerCase() == 'hourly'
+                          ? 'Your Quoted Hourly Rate (Rs./hr)'
+                          : 'Your Quoted Total Price (Rs.)',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -281,6 +389,12 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         prefixText: 'Rs. ',
+                        suffixText: rateType.toLowerCase() == 'hourly' ? '/ hr' : 'fixed total',
+                        suffixStyle: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: palette.muted,
+                        ),
                         prefixStyle: TextStyle(
                           fontWeight: FontWeight.w700,
                           color: palette.primary,
@@ -517,8 +631,10 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
                               await CoordinationApi.submitCounterBid(
                                 bookingReference: booking.bookingReference,
                                 counterPrice: price,
+                                rateType: rateType,
                                 availableTime: time,
                                 notes: note,
+                                sender: 'provider',
                               );
 
                           if (success && mounted) {
@@ -832,7 +948,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
                         providerName: booking.customerName,
                         reference: booking.bookingReference,
                         schedule: booking.schedule,
-                        price: 'Rs. ${booking.price.toInt()}',
+                        price: booking.isHourly ? 'Rs. ${booking.price.toInt()}/hr' : 'Rs. ${booking.price.toInt()}',
                         status: BookingStatus.upcoming,
                         onTap: () async {
                           await Navigator.push(

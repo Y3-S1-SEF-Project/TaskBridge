@@ -82,14 +82,43 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
             .map((p) => p.toBookingItem())
             .toList();
 
-        final existingBookingRefs = filteredBookings
-            .map((b) => b.bookingReference)
-            .toSet();
-        final proposalsToAdd = filteredProposals
-            .where((p) => !existingBookingRefs.contains(p.bookingReference))
-            .toList();
+        final combinedMap = <String, BookingItem>{};
 
-        final combined = [...proposalsToAdd, ...filteredBookings];
+        for (final p in filteredProposals) {
+          combinedMap[p.bookingReference] = p;
+        }
+
+        for (final b in filteredBookings) {
+          final isPr = b.bookingReference.startsWith('PR-');
+          if (isPr && combinedMap.containsKey(b.bookingReference)) {
+            final prop = combinedMap[b.bookingReference]!;
+            if (prop.isCancelled) {
+              combinedMap[b.bookingReference] = b.copyWith(status: prop.status);
+            } else {
+              combinedMap[b.bookingReference] = b;
+            }
+          } else {
+            final altPr = b.bookingReference.startsWith('TB-')
+                ? b.bookingReference.replaceFirst('TB-', 'PR-')
+                : null;
+            if (altPr != null && combinedMap.containsKey(altPr)) {
+              final prop = combinedMap[altPr]!;
+              combinedMap.remove(altPr);
+              if (b.isCancelled || prop.isCancelled) {
+                combinedMap[b.bookingReference] = b.copyWith(
+                  status: 'Cancelled',
+                );
+              } else {
+                combinedMap[b.bookingReference] = b;
+              }
+            } else {
+              combinedMap[b.bookingReference] = b;
+            }
+          }
+        }
+
+        final combined = combinedMap.values.toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
         setState(() {
           _bookings = combined;
@@ -537,6 +566,7 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                           proposalReference: booking.bookingReference,
                           schedule: booking.schedule,
                           price: booking.price,
+                          rateType: booking.rateType,
                         );
                         if (success && mounted) {
                           messenger.showSnackBar(
@@ -628,6 +658,7 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
 
   void _showCustomerCounterBidModal(BookingItem booking) {
     final palette = AppPalette.of(context);
+    String rateType = booking.rateType;
     final priceController = TextEditingController(
       text: booking.price.toInt().toString(),
     );
@@ -740,9 +771,118 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                     ),
                     const SizedBox(height: 16),
 
+                    // Pricing Type Selector (Hourly vs Fixed)
+                    Text(
+                      'Pricing Type',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: palette.text,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () =>
+                                setSheetState(() => rateType = 'Hourly'),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: rateType.toLowerCase() == 'hourly'
+                                    ? palette.primary.withValues(alpha: 0.12)
+                                    : palette.surface,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: rateType.toLowerCase() == 'hourly'
+                                      ? palette.primary
+                                      : palette.border,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.timer_outlined,
+                                    size: 16,
+                                    color: rateType.toLowerCase() == 'hourly'
+                                        ? palette.primary
+                                        : palette.muted,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Hourly (/hr)',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: rateType.toLowerCase() == 'hourly'
+                                          ? palette.primary
+                                          : palette.text,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () =>
+                                setSheetState(() => rateType = 'Fixed'),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: rateType.toLowerCase() == 'fixed'
+                                    ? palette.primary.withValues(alpha: 0.12)
+                                    : palette.surface,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: rateType.toLowerCase() == 'fixed'
+                                      ? palette.primary
+                                      : palette.border,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.sell_outlined,
+                                    size: 16,
+                                    color: rateType.toLowerCase() == 'fixed'
+                                        ? palette.primary
+                                        : palette.muted,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Fixed Total',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: rateType.toLowerCase() == 'fixed'
+                                          ? palette.primary
+                                          : palette.text,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
                     // Your Proposed Budget
                     Text(
-                      'Your Proposed Budget (Rs.)',
+                      rateType.toLowerCase() == 'hourly'
+                          ? 'Your Proposed Hourly Rate (Rs./hr)'
+                          : 'Your Proposed Total Budget (Rs.)',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -755,6 +895,14 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         prefixText: 'Rs. ',
+                        suffixText: rateType.toLowerCase() == 'hourly'
+                            ? '/ hr'
+                            : 'fixed total',
+                        suffixStyle: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: palette.muted,
+                        ),
                         prefixStyle: TextStyle(
                           fontWeight: FontWeight.w700,
                           color: palette.primary,
@@ -992,6 +1140,7 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                               await CoordinationApi.submitCounterBid(
                                 bookingReference: booking.bookingReference,
                                 counterPrice: price,
+                                rateType: rateType,
                                 availableTime: time,
                                 notes: note,
                                 sender: 'customer',
@@ -1346,7 +1495,12 @@ class _BookingsListView extends StatelessWidget {
           Color badgeColor;
           String badgeText;
 
-          if (b.isProviderCountered) {
+          if (b.isCancelled) {
+            badgeColor = AppColors.error;
+            badgeText = b.status.toLowerCase() == 'declined'
+                ? 'Declined by Provider'
+                : 'Cancelled';
+          } else if (b.isProviderCountered) {
             badgeColor = Colors.green.shade700;
             badgeText = 'Counter-Bid Received';
           } else if (b.isCustomerCountered) {

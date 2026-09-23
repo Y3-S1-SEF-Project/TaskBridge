@@ -172,6 +172,7 @@ class BookingItem {
   final String location;
   final String schedule;
   final double price;
+  final String rateType;
   final String status;
   final DateTime createdAt;
 
@@ -186,6 +187,7 @@ class BookingItem {
     required this.location,
     required this.schedule,
     required this.price,
+    this.rateType = 'Hourly',
     required this.status,
     required this.createdAt,
   });
@@ -202,6 +204,7 @@ class BookingItem {
       location: json['location'] as String? ?? 'Colombo',
       schedule: json['schedule'] as String? ?? '17 Sep · 4:00 PM · Colombo 05',
       price: (json['price'] as num?)?.toDouble() ?? 4500.0,
+      rateType: json['rateType'] as String? ?? 'Hourly',
       status: json['status'] as String? ?? 'Upcoming',
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
@@ -209,25 +212,43 @@ class BookingItem {
     );
   }
 
-  String get priceFormatted => 'Rs. ${price.toInt()}';
-  bool get isProviderCountered =>
-      status.toLowerCase() == 'providercountered' ||
-      status.toLowerCase() == 'counterbidreceived';
-  bool get isCustomerCountered => status.toLowerCase() == 'customercountered';
-  bool get isRequested =>
-      status.toLowerCase() == 'requested' ||
-      status.toLowerCase() == 'pending' ||
-      status.toLowerCase() == 'quotationpending' ||
-      isProviderCountered ||
-      isCustomerCountered;
-  bool get isUpcoming => status.toLowerCase() == 'upcoming';
-  bool get isActive =>
-      status.toLowerCase() == 'active' || status.toLowerCase() == 'in progress';
-  bool get isOngoing => isRequested || isActive;
+  bool get isHourly => rateType.toLowerCase() == 'hourly';
+  String get priceFormatted =>
+      isHourly ? 'Rs. ${price.toInt()}/hr' : 'Rs. ${price.toInt()}';
+  bool get isCancelled =>
+      status.toLowerCase() == 'cancelled' ||
+      status.toLowerCase() == 'canceled' ||
+      status.toLowerCase() == 'declined' ||
+      status.toLowerCase() == 'rejected';
   bool get isCompleted => status.toLowerCase() == 'completed';
-  bool get isCancelled => status.toLowerCase() == 'cancelled';
+  bool get isProviderCountered =>
+      !isCancelled &&
+      (status.toLowerCase() == 'providercountered' ||
+          status.toLowerCase() == 'counterbidreceived');
+  bool get isCustomerCountered =>
+      !isCancelled && status.toLowerCase() == 'customercountered';
+  bool get isRequested =>
+      !isCancelled &&
+      !isCompleted &&
+      (status.toLowerCase() == 'requested' ||
+          status.toLowerCase() == 'pending' ||
+          status.toLowerCase() == 'quotationpending' ||
+          isProviderCountered ||
+          isCustomerCountered);
+  bool get isUpcoming => !isCancelled && status.toLowerCase() == 'upcoming';
+  bool get isActive =>
+      !isCancelled &&
+      (status.toLowerCase() == 'active' ||
+          status.toLowerCase() == 'in progress');
+  bool get isOngoing =>
+      (isRequested || isActive) && !isCancelled && !isCompleted;
 
-  BookingItem copyWith({String? status}) {
+  BookingItem copyWith({
+    String? status,
+    String? rateType,
+    double? price,
+    String? schedule,
+  }) {
     return BookingItem(
       id: id,
       bookingReference: bookingReference,
@@ -237,8 +258,9 @@ class BookingItem {
       providerId: providerId,
       customerName: customerName,
       location: location,
-      schedule: schedule,
-      price: price,
+      schedule: schedule ?? this.schedule,
+      price: price ?? this.price,
+      rateType: rateType ?? this.rateType,
       status: status ?? this.status,
       createdAt: createdAt,
     );
@@ -256,6 +278,7 @@ class ProposalItem {
   final String location;
   final String preferredSchedule;
   final double estimatedRate;
+  final String rateType;
   final String status;
   final DateTime createdAt;
 
@@ -270,6 +293,7 @@ class ProposalItem {
     required this.location,
     required this.preferredSchedule,
     required this.estimatedRate,
+    this.rateType = 'Hourly',
     required this.status,
     required this.createdAt,
   });
@@ -286,10 +310,53 @@ class ProposalItem {
       location: json['location'] as String? ?? 'Colombo',
       preferredSchedule: json['preferredSchedule'] as String? ?? '',
       estimatedRate: (json['estimatedRate'] as num?)?.toDouble() ?? 3500.0,
+      rateType: json['rateType'] as String? ?? 'Hourly',
       status: json['status'] as String? ?? 'Pending',
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
           : DateTime.now(),
+    );
+  }
+
+  bool get isHourly => rateType.toLowerCase() == 'hourly';
+  String get priceFormatted => isHourly
+      ? 'Rs. ${estimatedRate.toInt()}/hr'
+      : 'Rs. ${estimatedRate.toInt()}';
+  bool get isCancelled =>
+      status.toLowerCase() == 'cancelled' ||
+      status.toLowerCase() == 'canceled' ||
+      status.toLowerCase() == 'declined' ||
+      status.toLowerCase() == 'rejected';
+  bool get isDeclined => status.toLowerCase() == 'declined';
+  bool get isRequested =>
+      !isCancelled &&
+      (status.toLowerCase() == 'pending' ||
+          status.toLowerCase() == 'requested' ||
+          status.toLowerCase() == 'quotationpending' ||
+          status.toLowerCase() == 'providercountered' ||
+          status.toLowerCase() == 'counterbidreceived' ||
+          status.toLowerCase() == 'customercountered');
+
+  ProposalItem copyWith({
+    String? status,
+    String? rateType,
+    double? estimatedRate,
+    String? preferredSchedule,
+  }) {
+    return ProposalItem(
+      id: id,
+      proposalReference: proposalReference,
+      serviceTitle: serviceTitle,
+      category: category,
+      providerName: providerName,
+      providerId: providerId,
+      customerName: customerName,
+      location: location,
+      preferredSchedule: preferredSchedule ?? this.preferredSchedule,
+      estimatedRate: estimatedRate ?? this.estimatedRate,
+      rateType: rateType ?? this.rateType,
+      status: status ?? this.status,
+      createdAt: createdAt,
     );
   }
 
@@ -305,6 +372,7 @@ class ProposalItem {
       location: location,
       schedule: preferredSchedule,
       price: estimatedRate,
+      rateType: rateType,
       status: status,
       createdAt: createdAt,
     );

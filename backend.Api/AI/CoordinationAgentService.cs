@@ -257,12 +257,13 @@ public class CoordinationAgentService
         {
             existing.Status = req.Status ?? "Upcoming";
             if (req.Price > 0) existing.Price = req.Price;
+            if (!string.IsNullOrWhiteSpace(req.RateType)) existing.RateType = req.RateType;
             if (!string.IsNullOrWhiteSpace(req.ProviderName)) existing.ProviderName = req.ProviderName;
             existing.UpdatedAt = DateTimeOffset.UtcNow;
             await _dbContext.SaveChangesAsync(ct);
 
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"[🎉 BOOKING CONFIRMED] Ref: {existing.BookingReference} | Provider: {existing.ProviderName} | Price: Rs. {existing.Price:N0}");
+            Console.WriteLine($"[🎉 BOOKING CONFIRMED] Ref: {existing.BookingReference} | Provider: {existing.ProviderName} | Price: Rs. {existing.Price:N0} ({existing.RateType})");
             Console.ResetColor();
             return existing;
         }
@@ -283,6 +284,7 @@ public class CoordinationAgentService
             Location = req.Location,
             Schedule = req.Schedule,
             Price = req.Price,
+            RateType = !string.IsNullOrWhiteSpace(req.RateType) ? req.RateType : "Hourly",
             Status = req.Status ?? "Upcoming",
             CreatedAt = DateTimeOffset.UtcNow
         };
@@ -291,7 +293,7 @@ public class CoordinationAgentService
         await _dbContext.SaveChangesAsync(ct);
 
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"[🎉 BOOKING CONFIRMED] Ref: {entity.BookingReference} | Provider: {entity.ProviderName} | CustomerId: {entity.CustomerId} | Price: Rs. {entity.Price:N0}");
+        Console.WriteLine($"[🎉 BOOKING CONFIRMED] Ref: {entity.BookingReference} | Provider: {entity.ProviderName} | CustomerId: {entity.CustomerId} | Price: Rs. {entity.Price:N0} ({entity.RateType})");
         Console.ResetColor();
 
         return entity;
@@ -312,6 +314,7 @@ public class CoordinationAgentService
         if (existing != null)
         {
             existing.EstimatedRate = req.Price;
+            if (!string.IsNullOrWhiteSpace(req.RateType)) existing.RateType = req.RateType;
             existing.PreferredSchedule = req.Schedule;
             existing.Location = req.Location;
             existing.ServiceTitle = req.ServiceTitle;
@@ -341,6 +344,7 @@ public class CoordinationAgentService
             Location = req.Location,
             PreferredSchedule = req.Schedule,
             EstimatedRate = req.Price,
+            RateType = !string.IsNullOrWhiteSpace(req.RateType) ? req.RateType : "Hourly",
             Status = "Pending",
             CreatedAt = DateTimeOffset.UtcNow
         };
@@ -395,6 +399,7 @@ public class CoordinationAgentService
             Location = proposal.Location,
             Schedule = !string.IsNullOrWhiteSpace(req.ConfirmedSchedule) ? req.ConfirmedSchedule : proposal.PreferredSchedule,
             Price = req.ConfirmedPrice > 0 ? req.ConfirmedPrice : proposal.EstimatedRate,
+            RateType = !string.IsNullOrWhiteSpace(req.RateType) ? req.RateType : proposal.RateType,
             Status = "Upcoming",
             CreatedAt = DateTimeOffset.UtcNow
         };
@@ -403,7 +408,7 @@ public class CoordinationAgentService
         await _dbContext.SaveChangesAsync(ct);
 
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"[🎉 PROPOSAL ACCEPTED -> NEW BOOKING CREATED] Proposal: {proposal.ProposalReference} -> Booking: {confirmedBooking.BookingReference} | CustomerId: {confirmedBooking.CustomerId} | Price: Rs. {confirmedBooking.Price:N0} | Schedule: {confirmedBooking.Schedule}");
+        Console.WriteLine($"[🎉 PROPOSAL ACCEPTED -> NEW BOOKING CREATED] Proposal: {proposal.ProposalReference} -> Booking: {confirmedBooking.BookingReference} | CustomerId: {confirmedBooking.CustomerId} | Price: Rs. {confirmedBooking.Price:N0} ({confirmedBooking.RateType}) | Schedule: {confirmedBooking.Schedule}");
         Console.ResetColor();
 
         return confirmedBooking;
@@ -425,6 +430,17 @@ public class CoordinationAgentService
 
         proposal.Status = "Declined";
         proposal.UpdatedAt = DateTimeOffset.UtcNow;
+
+        var linkedB = await _dbContext.Bookings.FirstOrDefaultAsync(b => 
+            b.ProposalId == proposal.Id || 
+            b.BookingReference == proposal.ProposalReference ||
+            b.BookingReference == proposal.ProposalReference.Replace("PR-", "TB-"), ct);
+        if (linkedB != null)
+        {
+            linkedB.Status = "Cancelled";
+            linkedB.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
         await _dbContext.SaveChangesAsync(ct);
 
         Console.ForegroundColor = ConsoleColor.Yellow;
@@ -553,6 +569,10 @@ public class CoordinationAgentService
         if (booking != null)
         {
             booking.Price = req.CounterPrice;
+            if (!string.IsNullOrWhiteSpace(req.RateType))
+            {
+                booking.RateType = req.RateType;
+            }
             if (!string.IsNullOrWhiteSpace(req.AvailableTime))
             {
                 booking.Schedule = $"{req.AvailableTime} · {booking.Location}";
@@ -567,6 +587,10 @@ public class CoordinationAgentService
         if (proposal != null)
         {
             proposal.EstimatedRate = req.CounterPrice;
+            if (!string.IsNullOrWhiteSpace(req.RateType))
+            {
+                proposal.RateType = req.RateType;
+            }
             if (!string.IsNullOrWhiteSpace(req.AvailableTime))
             {
                 proposal.PreferredSchedule = $"{req.AvailableTime} · {proposal.Location}";
@@ -585,6 +609,7 @@ public class CoordinationAgentService
                 Location = proposal.Location,
                 Schedule = proposal.PreferredSchedule,
                 Price = proposal.EstimatedRate,
+                RateType = proposal.RateType,
                 Status = targetStatus
             };
         }
@@ -597,20 +622,56 @@ public class CoordinationAgentService
     /// </summary>
     public async Task<BookingEntity?> CancelBookingAsync(CancelBookingRequest req, CancellationToken ct = default)
     {
-        var booking = await _dbContext.Bookings.FirstOrDefaultAsync(b => b.BookingReference == req.BookingReference, ct);
+        var booking = await _dbContext.Bookings.FirstOrDefaultAsync(b => 
+            b.BookingReference == req.BookingReference ||
+            b.BookingReference == req.BookingReference.Replace("PR-", "TB-"), ct);
+
         if (booking != null)
         {
             booking.Status = "Cancelled";
             booking.UpdatedAt = DateTimeOffset.UtcNow;
+
+            if (booking.ProposalId.HasValue)
+            {
+                var p = await _dbContext.Proposals.FirstOrDefaultAsync(x => x.Id == booking.ProposalId.Value, ct);
+                if (p != null)
+                {
+                    p.Status = "Cancelled";
+                    p.UpdatedAt = DateTimeOffset.UtcNow;
+                }
+            }
+            var pByRef = await _dbContext.Proposals.FirstOrDefaultAsync(x => 
+                x.ProposalReference == booking.BookingReference || 
+                x.ProposalReference == booking.BookingReference.Replace("TB-", "PR-"), ct);
+            if (pByRef != null)
+            {
+                pByRef.Status = "Cancelled";
+                pByRef.UpdatedAt = DateTimeOffset.UtcNow;
+            }
+
             await _dbContext.SaveChangesAsync(ct);
             return booking;
         }
 
-        var proposal = await _dbContext.Proposals.FirstOrDefaultAsync(p => p.ProposalReference == req.BookingReference, ct);
+        var proposal = await _dbContext.Proposals.FirstOrDefaultAsync(p => 
+            p.ProposalReference == req.BookingReference ||
+            p.ProposalReference == req.BookingReference.Replace("TB-", "PR-"), ct);
+
         if (proposal != null)
         {
             proposal.Status = "Cancelled";
             proposal.UpdatedAt = DateTimeOffset.UtcNow;
+
+            var linkedB = await _dbContext.Bookings.FirstOrDefaultAsync(b => 
+                b.ProposalId == proposal.Id || 
+                b.BookingReference == proposal.ProposalReference ||
+                b.BookingReference == proposal.ProposalReference.Replace("PR-", "TB-"), ct);
+            if (linkedB != null)
+            {
+                linkedB.Status = "Cancelled";
+                linkedB.UpdatedAt = DateTimeOffset.UtcNow;
+            }
+
             await _dbContext.SaveChangesAsync(ct);
             return new BookingEntity
             {
@@ -623,6 +684,7 @@ public class CoordinationAgentService
                 Location = proposal.Location,
                 Schedule = proposal.PreferredSchedule,
                 Price = proposal.EstimatedRate,
+                RateType = proposal.RateType,
                 Status = "Cancelled"
             };
         }
@@ -694,17 +756,85 @@ public class CoordinationAgentService
         }
         else if (!string.IsNullOrWhiteSpace(req.BookingReference))
         {
-            booking = await _dbContext.Bookings.FirstOrDefaultAsync(b => b.BookingReference == req.BookingReference, ct);
+            booking = await _dbContext.Bookings.FirstOrDefaultAsync(b => 
+                b.BookingReference == req.BookingReference ||
+                b.BookingReference == req.BookingReference.Replace("PR-", "TB-"), ct);
         }
 
-        if (booking == null) return null;
+        if (booking != null)
+        {
+            booking.Status = req.NewStatus;
+            if (!string.IsNullOrWhiteSpace(req.Schedule)) booking.Schedule = req.Schedule;
+            if (req.Price.HasValue && req.Price.Value > 0) booking.Price = req.Price.Value;
+            booking.UpdatedAt = DateTimeOffset.UtcNow;
 
-        booking.Status = req.NewStatus;
-        if (!string.IsNullOrWhiteSpace(req.Schedule)) booking.Schedule = req.Schedule;
-        if (req.Price.HasValue && req.Price.Value > 0) booking.Price = req.Price.Value;
-        booking.UpdatedAt = DateTimeOffset.UtcNow;
-        await _dbContext.SaveChangesAsync(ct);
-        return booking;
+            // Synchronize cancelled/declined status to any linked proposal
+            if (req.NewStatus == "Cancelled" || req.NewStatus == "Declined")
+            {
+                if (booking.ProposalId.HasValue)
+                {
+                    var p = await _dbContext.Proposals.FirstOrDefaultAsync(x => x.Id == booking.ProposalId.Value, ct);
+                    if (p != null)
+                    {
+                        p.Status = req.NewStatus;
+                        p.UpdatedAt = DateTimeOffset.UtcNow;
+                    }
+                }
+                var pByRef = await _dbContext.Proposals.FirstOrDefaultAsync(x => 
+                    x.ProposalReference == booking.BookingReference || 
+                    x.ProposalReference == booking.BookingReference.Replace("TB-", "PR-"), ct);
+                if (pByRef != null)
+                {
+                    pByRef.Status = req.NewStatus;
+                    pByRef.UpdatedAt = DateTimeOffset.UtcNow;
+                }
+            }
+
+            await _dbContext.SaveChangesAsync(ct);
+            return booking;
+        }
+
+        // What if the reference was a proposal reference (e.g. PR-1001)?
+        if (!string.IsNullOrWhiteSpace(req.BookingReference))
+        {
+            var proposal = await _dbContext.Proposals.FirstOrDefaultAsync(p => 
+                p.ProposalReference == req.BookingReference ||
+                p.ProposalReference == req.BookingReference.Replace("TB-", "PR-"), ct);
+
+            if (proposal != null)
+            {
+                proposal.Status = req.NewStatus;
+                proposal.UpdatedAt = DateTimeOffset.UtcNow;
+
+                var linkedB = await _dbContext.Bookings.FirstOrDefaultAsync(b => 
+                    b.ProposalId == proposal.Id || 
+                    b.BookingReference == proposal.ProposalReference ||
+                    b.BookingReference == proposal.ProposalReference.Replace("PR-", "TB-"), ct);
+                if (linkedB != null)
+                {
+                    linkedB.Status = req.NewStatus;
+                    linkedB.UpdatedAt = DateTimeOffset.UtcNow;
+                }
+
+                await _dbContext.SaveChangesAsync(ct);
+                return new BookingEntity
+                {
+                    Id = proposal.Id,
+                    BookingReference = proposal.ProposalReference,
+                    CustomerName = proposal.CustomerName,
+                    ProviderName = proposal.ProviderName,
+                    ServiceTitle = proposal.ServiceTitle,
+                    Category = proposal.Category,
+                    Location = proposal.Location,
+                    Schedule = proposal.PreferredSchedule,
+                    Price = proposal.EstimatedRate,
+                    RateType = proposal.RateType,
+                    Status = proposal.Status
+                };
+            }
+        }
+
+        return null;
     }
 
     private async Task<string> GenerateOpenAiRationaleAsync(

@@ -66,7 +66,7 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
 
         final filteredProposals = propList.where((p) {
           final s = p.status.toLowerCase();
-          if (s == 'accepted' || s == 'declined' || s == 'cancelled') {
+          if (s == 'accepted') {
             return false;
           }
           if (widget.user == null) return true;
@@ -97,10 +97,9 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
     }
   }
 
-
-
   void _showProposalReviewModal(BookingItem booking) {
     final palette = AppPalette.of(context);
+    String rateType = booking.rateType;
     final scheduleCtrl = TextEditingController(text: booking.schedule);
     final priceCtrl = TextEditingController(
       text: booking.price.toInt().toString(),
@@ -486,9 +485,123 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
 
                       const SizedBox(height: 16),
 
+                      // Pricing Type Selector (Hourly vs Fixed)
+                      Text(
+                        'Pricing Type',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: palette.text,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: () =>
+                                  setSheetState(() => rateType = 'Hourly'),
+                              borderRadius: BorderRadius.circular(10),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: rateType.toLowerCase() == 'hourly'
+                                      ? palette.primary.withValues(alpha: 0.12)
+                                      : palette.surface,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: rateType.toLowerCase() == 'hourly'
+                                        ? palette.primary
+                                        : palette.border,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.timer_outlined,
+                                      size: 16,
+                                      color: rateType.toLowerCase() == 'hourly'
+                                          ? palette.primary
+                                          : palette.muted,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Hourly (/hr)',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color:
+                                            rateType.toLowerCase() == 'hourly'
+                                            ? palette.primary
+                                            : palette.text,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () =>
+                                  setSheetState(() => rateType = 'Fixed'),
+                              borderRadius: BorderRadius.circular(10),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: rateType.toLowerCase() == 'fixed'
+                                      ? palette.primary.withValues(alpha: 0.12)
+                                      : palette.surface,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: rateType.toLowerCase() == 'fixed'
+                                        ? palette.primary
+                                        : palette.border,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.sell_outlined,
+                                      size: 16,
+                                      color: rateType.toLowerCase() == 'fixed'
+                                          ? palette.primary
+                                          : palette.muted,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Fixed Total',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: rateType.toLowerCase() == 'fixed'
+                                            ? palette.primary
+                                            : palette.text,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
                       // Field 2: Confirmed Price / Quote
                       Text(
-                        'Quoted Price / Final Amount (Rs.)',
+                        rateType.toLowerCase() == 'hourly'
+                            ? 'Quoted Hourly Rate (Rs./hr)'
+                            : 'Quoted Total Fixed Price (Rs.)',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
@@ -501,6 +614,14 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           prefixIcon: const Icon(Icons.payments_outlined),
+                          suffixText: rateType.toLowerCase() == 'hourly'
+                              ? '/ hr'
+                              : 'fixed total',
+                          suffixStyle: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: palette.muted,
+                          ),
                           hintText: 'e.g., 3500',
                           filled: true,
                           fillColor: palette.background,
@@ -545,6 +666,7 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                                   proposalReference: booking.bookingReference,
                                   schedule: confSchedule,
                                   price: parsedPrice,
+                                  rateType: rateType,
                                 );
 
                             if (success && mounted) {
@@ -637,18 +759,37 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
     );
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
 
-    final requestsList = _proposals.map((p) => p.toBookingItem()).toList();
+    final requestsList = _proposals
+        .where((p) => !p.isCancelled && p.status.toLowerCase() != 'accepted')
+        .map((p) => p.toBookingItem())
+        .toList();
     final upcomingList = _bookings.where((b) => b.isUpcoming).toList();
     final activeList = _bookings.where((b) => b.isActive).toList();
-    final pastList = _bookings
+
+    // Past jobs: completed bookings, cancelled bookings, AND cancelled/declined proposals
+    final completedOrCancelledBookings = _bookings
         .where((b) => b.isCompleted || b.isCancelled)
         .toList();
+    final existingPastBookingRefs = completedOrCancelledBookings
+        .map((b) => b.bookingReference)
+        .toSet();
+
+    final cancelledProposals = _proposals
+        .where((p) => p.isCancelled)
+        .map((p) => p.toBookingItem())
+        .where((p) {
+          final altRef = p.bookingReference.replaceFirst('PR-', 'TB-');
+          return !existingPastBookingRefs.contains(p.bookingReference) &&
+              !existingPastBookingRefs.contains(altRef);
+        })
+        .toList();
+
+    final pastList = [...completedOrCancelledBookings, ...cancelledProposals]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     return Scaffold(
       backgroundColor: palette.background,
@@ -869,7 +1010,13 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
           Color? tagTextCol;
           Color? tagBgCol;
 
-          if (b.isCustomerCountered) {
+          if (b.isCancelled) {
+            customLabel = b.status.toLowerCase() == 'declined'
+                ? 'Declined'
+                : 'Cancelled';
+            tagTextCol = Colors.red.shade900;
+            tagBgCol = Colors.red.shade100;
+          } else if (b.isCustomerCountered) {
             customLabel = 'Re-Bid Received';
             tagTextCol = Colors.teal.shade900;
             tagBgCol = Colors.teal.shade100;
@@ -888,15 +1035,15 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
             providerName: b.customerName,
             reference: b.bookingReference,
             schedule: b.schedule,
-            price: parsedStatus == BookingStatus.requested
+            price: b.isHourly
                 ? 'Rate: Rs. ${b.price.toInt()}/hr'
-                : 'Rs. ${b.price.toInt()}',
+                : 'Fixed: Rs. ${b.price.toInt()}',
             status: parsedStatus,
             customStatusLabel: customLabel,
             customTagTextColor: tagTextCol,
             customTagBgColor: tagBgCol,
             onTap: () async {
-              if (parsedStatus == BookingStatus.requested) {
+              if (parsedStatus == BookingStatus.requested && !b.isCancelled) {
                 _showProposalReviewModal(b);
               } else {
                 await Navigator.push(

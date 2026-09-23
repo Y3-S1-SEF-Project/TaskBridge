@@ -145,6 +145,9 @@ public class ConfirmBookingRequest
     [JsonPropertyName("price")]
     public decimal Price { get; set; }
 
+    [JsonPropertyName("rateType")]
+    public string? RateType { get; set; } = "Hourly";
+
     [JsonPropertyName("status")]
     public string Status { get; set; } = "Requested";
 }
@@ -199,6 +202,9 @@ public class CreateQuotationRequest
     [JsonPropertyName("price")]
     public decimal Price { get; set; }
 
+    [JsonPropertyName("rateType")]
+    public string? RateType { get; set; } = "Hourly";
+
     [JsonPropertyName("status")]
     public string Status { get; set; } = "Requested";
 }
@@ -210,6 +216,9 @@ public class ProviderCounterBidRequest
 
     [JsonPropertyName("counterPrice")]
     public decimal CounterPrice { get; set; }
+
+    [JsonPropertyName("rateType")]
+    public string? RateType { get; set; }
 
     [JsonPropertyName("availableTime")]
     public string? AvailableTime { get; set; }
@@ -265,6 +274,9 @@ public class ProposalDto
     [JsonPropertyName("estimatedRate")]
     public decimal EstimatedRate { get; set; }
 
+    [JsonPropertyName("rateType")]
+    public string RateType { get; set; } = "Hourly";
+
     [JsonPropertyName("status")]
     public string Status { get; set; } = "Pending";
 
@@ -282,6 +294,9 @@ public class AcceptProposalRequest
 
     [JsonPropertyName("confirmedPrice")]
     public decimal ConfirmedPrice { get; set; }
+
+    [JsonPropertyName("rateType")]
+    public string? RateType { get; set; }
 }
 
 public class DeclineProposalRequest

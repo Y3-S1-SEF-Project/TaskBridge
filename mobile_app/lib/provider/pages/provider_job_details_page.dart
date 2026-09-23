@@ -8,7 +8,8 @@ import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 
 /// Full Job Details page for providers displaying complete customer info,
-/// confirmed schedule, exact location with direction actions, price breakdown, and lifecycle controls.
+/// confirmed schedule, realistic interactive location map, rate type (hourly vs fixed),
+/// and flush unified bottom action controls.
 class ProviderJobDetailsPage extends StatefulWidget {
   final BookingItem booking;
 
@@ -131,7 +132,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
             _buildStatusHeader(palette),
             const SizedBox(height: 18),
 
-            // ── Service & Price Card ──
+            // ── Service & Price Card with Hourly vs Fixed details ──
             _buildServiceCard(palette),
             const SizedBox(height: 16),
 
@@ -139,17 +140,18 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
             _buildCustomerCard(palette),
             const SizedBox(height: 16),
 
-            // ── Location & Navigation Card ──
+            // ── Location & High-Fidelity Map Card ──
             _buildLocationCard(palette),
             const SizedBox(height: 16),
 
             // ── Schedule & Time Card ──
             _buildScheduleCard(palette),
-            const SizedBox(height: 100), // padding for bottom bar
+            const SizedBox(height: 24),
           ],
         ),
       ),
-      bottomSheet: _buildBottomActions(palette, isUpcoming, isActive, isCompleted),
+      // Clean, flush bottom action bar docked to the screen bottom (replaces problematic bottomSheet)
+      bottomNavigationBar: _buildBottomActionBar(palette, isUpcoming, isActive, isCompleted),
     );
   }
 
@@ -236,6 +238,8 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
   }
 
   Widget _buildServiceCard(AppPalette palette) {
+    final isHourly = _currentBooking.isHourly;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -266,48 +270,120 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                   ),
                 ),
               ),
-              Text(
-                'Earnings',
-                style: TextStyle(fontSize: 12, color: palette.muted),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  _currentBooking.serviceTitle,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: palette.text,
+              // Pill explicitly showing rate type (Hourly Rate vs Fixed Total)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isHourly ? Colors.teal.shade50 : Colors.indigo.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: isHourly ? Colors.teal.shade200 : Colors.indigo.shade200,
+                    width: 0.8,
                   ),
                 ),
-              ),
-              Text(
-                'Rs. ${_currentBooking.price.toInt()}',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: palette.primary,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isHourly ? Icons.timelapse_rounded : Icons.sell_rounded,
+                      size: 11,
+                      color: isHourly ? Colors.teal.shade800 : Colors.indigo.shade800,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      isHourly ? 'HOURLY RATE' : 'FIXED TOTAL',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: isHourly ? Colors.teal.shade900 : Colors.indigo.shade900,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _currentBooking.serviceTitle,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: palette.text,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isHourly ? 'Billed by actual work hours' : 'Agreed complete service amount',
+                      style: TextStyle(fontSize: 12, color: palette.muted),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        'Rs. ${_currentBooking.price.toInt()}',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: palette.primary,
+                        ),
+                      ),
+                      if (isHourly)
+                        Text(
+                          ' / hr',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: palette.muted,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Agreed Earnings',
+                    style: TextStyle(fontSize: 11, color: palette.muted),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
           Divider(height: 1, color: palette.border),
           const SizedBox(height: 12),
           Row(
             children: [
-              Icon(Icons.payment_rounded, size: 16, color: palette.muted),
+              Icon(
+                isHourly ? Icons.info_outline_rounded : Icons.verified_outlined,
+                size: 16,
+                color: palette.primary,
+              ),
               const SizedBox(width: 8),
-              Text(
-                'Payment Method: Cash or Bank Transfer upon arrival',
-                style: TextStyle(fontSize: 12, color: palette.muted),
+              Expanded(
+                child: Text(
+                  isHourly
+                      ? 'Hourly rate applies upon arrival. Total calculated based on hours logged.'
+                      : 'Fixed amount agreed. No hourly or hidden adjustments upon completion.',
+                  style: TextStyle(fontSize: 12, color: palette.muted, height: 1.3),
+                ),
               ),
             ],
           ),
@@ -495,68 +571,188 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
           ),
           const SizedBox(height: 12),
 
-          // Styled Map Preview Card
-          Container(
-            height: 110,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: palette.soft,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: palette.border),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Abstract road lines
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: _MapRoadsPainter(color: palette.border.withValues(alpha: 0.6)),
+          // High-Fidelity Realistic Simulated Map Card
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              height: 160,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE5E9E4), // Map ground tone
+                border: Border.all(color: palette.border),
+              ),
+              child: Stack(
+                children: [
+                  // Vector road layout painter
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _RealisticCityMapPainter(),
+                    ),
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: palette.primary,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: palette.primary.withValues(alpha: 0.35),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+
+                  // Top left GPS status pill
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
                       ),
-                    ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF22C55E),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          const Text(
+                            'Verified Destination',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.location_on_rounded,
-                    color: Colors.white,
-                    size: 26,
+
+                  // Top right Compass indicator
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'N',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFFDC2626),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                Positioned(
-                  bottom: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: palette.surface,
-                      borderRadius: BorderRadius.circular(6),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 4,
+
+                  // Center Pin Marker with Radar Rings
+                  Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Tooltip callout badge above the pin
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0F172A),
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.2),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            _currentBooking.location,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        // Drop pin
+                        Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // Radar wave ring
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: palette.primary.withValues(alpha: 0.18),
+                              ),
+                            ),
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: palette.primary,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2.5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: palette.primary.withValues(alpha: 0.4),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.location_on_rounded,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                    child: Text(
-                      _currentBooking.location,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: palette.text,
+                  ),
+
+                  // Bottom road label
+                  Positioned(
+                    bottom: 8,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'Map Preview · Street Level',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF64748B),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -570,7 +766,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                   _currentBooking.location,
                   style: TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: palette.text,
                   ),
                 ),
@@ -580,6 +776,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
+            height: 44,
             child: OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 foregroundColor: palette.primary,
@@ -589,13 +786,13 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Opening Navigation to ${_currentBooking.location}...'),
+                    content: Text('Launching Navigation to ${_currentBooking.location}...'),
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
               },
               icon: const Icon(Icons.directions_rounded, size: 18),
-              label: const Text('Open in Google Maps / Directions'),
+              label: const Text('Open in Google Maps / Directions', style: TextStyle(fontWeight: FontWeight.w700)),
             ),
           ),
         ],
@@ -665,21 +862,30 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
     );
   }
 
-  Widget _buildBottomActions(AppPalette palette, bool isUpcoming, bool isActive, bool isCompleted) {
+  /// Clean, docked bottom action bar with side-by-side or full-width buttons.
+  /// No weird detached floating sheet or overlapping navigation bar look.
+  Widget _buildBottomActionBar(
+    AppPalette palette,
+    bool isUpcoming,
+    bool isActive,
+    bool isCompleted,
+  ) {
     if (isCompleted) {
       return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: palette.surface,
-          border: Border(top: BorderSide(color: palette.border)),
-        ),
+        color: palette.surface,
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         child: SafeArea(
+          top: false,
           child: SizedBox(
             width: double.infinity,
             height: 48,
             child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: palette.border),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
               onPressed: () => Navigator.pop(context, _currentBooking),
-              child: const Text('Back to Jobs'),
+              child: const Text('Back to Jobs', style: TextStyle(fontWeight: FontWeight.w700)),
             ),
           ),
         ),
@@ -687,107 +893,235 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: palette.surface,
         border: Border(top: BorderSide(color: palette.border)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
             offset: const Offset(0, -3),
           ),
         ],
       ),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isUpcoming) ...[
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: palette.primary,
-                    foregroundColor: palette.onPrimary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        top: false,
+        child: isUpcoming
+            ? Row(
+                children: [
+                  // Unified side-by-side Cancel Job button
+                  Expanded(
+                    flex: 1,
+                    child: SizedBox(
+                      height: 48,
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.error,
+                          side: BorderSide(color: AppColors.error.withValues(alpha: 0.45)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: EdgeInsets.zero,
+                        ),
+                        onPressed: _isUpdating ? null : () => _updateJobStatus('Cancelled'),
+                        child: const Text(
+                          'Cancel Job',
+                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                        ),
+                      ),
+                    ),
                   ),
-                  onPressed: _isUpdating ? null : () => _updateJobStatus('Active'),
-                  icon: _isUpdating
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Icon(Icons.play_arrow_rounded, size: 20),
-                  label: const Text(
-                    'Start Job (Set Active / En Route)',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                  const SizedBox(width: 12),
+                  // Prominent Start Job button
+                  Expanded(
+                    flex: 2,
+                    child: SizedBox(
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: palette.primary,
+                          foregroundColor: palette.onPrimary,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: _isUpdating ? null : () => _updateJobStatus('Active'),
+                        icon: _isUpdating
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.play_arrow_rounded, size: 20),
+                        label: const Text(
+                          'Start Job',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                height: 44,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.error,
-                    side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: _isUpdating ? null : () => _updateJobStatus('Cancelled'),
-                  child: const Text('Cancel Job', style: TextStyle(fontWeight: FontWeight.w700)),
-                ),
-              ),
-            ] else if (isActive) ...[
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade700,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: _isUpdating ? null : () => _updateJobStatus('Completed'),
-                  icon: _isUpdating
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Icon(Icons.check_circle_rounded, size: 20),
-                  label: const Text(
-                    'Mark Job as Completed',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
+                ],
+              )
+            : (isActive
+                ? SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade700,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: _isUpdating ? null : () => _updateJobStatus('Completed'),
+                      icon: _isUpdating
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.check_circle_rounded, size: 20),
+                      label: const Text(
+                        'Mark Job as Completed',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink()),
       ),
     );
   }
 }
 
-class _MapRoadsPainter extends CustomPainter {
-  final Color color;
-  _MapRoadsPainter({required this.color});
-
+/// Custom vector painter creating a realistic city street map layout.
+class _RealisticCityMapPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 3
+    // 1. Parks and Green Spaces
+    final parkPaint = Paint()
+      ..color = const Color(0xFFD3E7D3)
+      ..style = PaintingStyle.fill;
+
+    // Park polygon 1 (North-west)
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(12, 12, size.width * 0.28, size.height * 0.35),
+        const Radius.circular(8),
+      ),
+      parkPaint,
+    );
+
+    // Park polygon 2 (South-east)
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(size.width * 0.68, size.height * 0.55, size.width * 0.26, size.height * 0.35),
+        const Radius.circular(8),
+      ),
+      parkPaint,
+    );
+
+    // 2. Water canal / lake
+    final waterPaint = Paint()
+      ..color = const Color(0xFFCFE2FE)
+      ..style = PaintingStyle.fill;
+
+    final canalPath = Path()
+      ..moveTo(0, size.height * 0.8)
+      ..quadraticBezierTo(size.width * 0.35, size.height * 0.72, size.width * 0.6, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(canalPath, waterPaint);
+
+    // 3. City Blocks / Buildings (soft grey parcels)
+    final blockPaint = Paint()
+      ..color = const Color(0xFFDFE4DE)
+      ..style = PaintingStyle.fill;
+
+    // Block cluster 1
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(size.width * 0.35, 14, size.width * 0.28, size.height * 0.26),
+        const Radius.circular(6),
+      ),
+      blockPaint,
+    );
+
+    // Block cluster 2
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(size.width * 0.7, 14, size.width * 0.24, size.height * 0.3),
+        const Radius.circular(6),
+      ),
+      blockPaint,
+    );
+
+    // 4. Secondary Streets (White with subtle road edge)
+    final streetCasing = Paint()
+      ..color = const Color(0xFFCBD2CC)
+      ..strokeWidth = 6.0
       ..style = PaintingStyle.stroke;
 
-    // Diagonal crossing lines to simulate a map grid
-    canvas.drawLine(const Offset(0, 30), Offset(size.width, 80), paint);
-    canvas.drawLine(Offset(size.width * 0.3, 0), Offset(size.width * 0.7, size.height), paint);
-    canvas.drawLine(const Offset(0, 90), Offset(size.width, 20), paint);
+    final streetFill = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 4.5
+      ..style = PaintingStyle.stroke;
+
+    // Cross street 1
+    final streetPath1 = Path()
+      ..moveTo(size.width * 0.32, 0)
+      ..lineTo(size.width * 0.32, size.height);
+    canvas.drawPath(streetPath1, streetCasing);
+    canvas.drawPath(streetPath1, streetFill);
+
+    // Cross street 2
+    final streetPath2 = Path()
+      ..moveTo(size.width * 0.66, 0)
+      ..lineTo(size.width * 0.66, size.height);
+    canvas.drawPath(streetPath2, streetCasing);
+    canvas.drawPath(streetPath2, streetFill);
+
+    // Horizontal street
+    final streetPath3 = Path()
+      ..moveTo(0, size.height * 0.48)
+      ..lineTo(size.width, size.height * 0.48);
+    canvas.drawPath(streetPath3, streetCasing);
+    canvas.drawPath(streetPath3, streetFill);
+
+    // 5. Main Arterial Avenue (Warm golden highway with dark casing)
+    final avenueCasing = Paint()
+      ..color = const Color(0xFFC7BC99)
+      ..strokeWidth = 10.0
+      ..style = PaintingStyle.stroke;
+
+    final avenueFill = Paint()
+      ..color = const Color(0xFFFFF7DB)
+      ..strokeWidth = 8.0
+      ..style = PaintingStyle.stroke;
+
+    final avenuePath = Path()
+      ..moveTo(0, size.height * 0.22)
+      ..quadraticBezierTo(size.width * 0.48, size.height * 0.38, size.width, size.height * 0.68);
+    canvas.drawPath(avenuePath, avenueCasing);
+    canvas.drawPath(avenuePath, avenueFill);
+
+    // Dashed center line for main avenue
+    final dashPaint = Paint()
+      ..color = const Color(0xFFE2A83B)
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+
+    // Small dashed markers on avenue
+    for (double i = 0.1; i < 0.9; i += 0.1) {
+      final t1 = i;
+      final t2 = i + 0.04;
+      final x1 = size.width * t1;
+      final y1 = (size.height * 0.22) * (1 - t1) * (1 - t1) +
+          (size.height * 0.38) * 2 * (1 - t1) * t1 +
+          (size.height * 0.68) * t1 * t1;
+      final x2 = size.width * t2;
+      final y2 = (size.height * 0.22) * (1 - t2) * (1 - t2) +
+          (size.height * 0.38) * 2 * (1 - t2) * t2 +
+          (size.height * 0.68) * t2 * t2;
+      canvas.drawLine(Offset(x1, y1), Offset(x2, y2), dashPaint);
+    }
   }
 
   @override
