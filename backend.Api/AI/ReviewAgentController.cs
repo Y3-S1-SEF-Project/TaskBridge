@@ -87,9 +87,25 @@ public class ReviewAgentController : ControllerBase
     }
 
     [HttpGet("feedbacks/{providerId}")]
-    public async Task<IActionResult> GetProviderFeedbacks(Guid providerId, CancellationToken ct)
+    public async Task<IActionResult> GetProviderFeedbacks(string providerId, CancellationToken ct)
     {
         var list = await _reviewService.GetFeedbacksForProviderAsync(providerId, ct);
         return Ok(list);
+    }
+
+    [HttpGet("feedback/booking/{bookingReference}")]
+    public async Task<IActionResult> GetFeedbackForBooking(string bookingReference, CancellationToken ct)
+    {
+        var feedback = await _reviewService.GetFeedbackForBookingAsync(bookingReference, ct);
+        if (feedback == null) return NotFound(new { message = "No feedback found for this booking." });
+        return Ok(feedback);
+    }
+
+    [HttpDelete("feedback/booking/{bookingReference}")]
+    public async Task<IActionResult> DeleteFeedbackForBooking(string bookingReference, CancellationToken ct)
+    {
+        var deleted = await _reviewService.DeleteFeedbackForBookingAsync(bookingReference, ct);
+        if (!deleted) return NotFound(new { message = "No feedback found for this booking." });
+        return Ok(new { success = true, message = "Feedback deleted successfully." });
     }
 }

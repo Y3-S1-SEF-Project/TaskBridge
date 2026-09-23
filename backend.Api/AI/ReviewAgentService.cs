@@ -599,6 +599,28 @@ public class ReviewAgentService
         Guid? custId = Guid.TryParse(request.CustomerId, out var cid) ? cid : null;
         Guid? provId = Guid.TryParse(request.ProviderId, out var pid) ? pid : null;
 
+        if (!provId.HasValue || !custId.HasValue || string.IsNullOrWhiteSpace(request.ProviderName) || string.IsNullOrWhiteSpace(request.CustomerName))
+        {
+            var b = await _dbContext.Bookings.FirstOrDefaultAsync(x => x.BookingReference == request.BookingReference, ct);
+            if (b != null)
+            {
+                if (!provId.HasValue) provId = b.ProviderId;
+                if (string.IsNullOrWhiteSpace(request.ProviderName)) request.ProviderName = b.ProviderName;
+                if (!custId.HasValue) custId = b.CustomerId;
+                if (string.IsNullOrWhiteSpace(request.CustomerName)) request.CustomerName = b.CustomerName;
+            }
+        }
+
+        // Remove ALL existing feedback for this booking (prevents duplicates)
+        var existingList = await _dbContext.Feedbacks
+            .Where(f => f.BookingReference == request.BookingReference)
+            .ToListAsync(ct);
+        if (existingList.Count > 0)
+        {
+            _dbContext.Feedbacks.RemoveRange(existingList);
+            await _dbContext.SaveChangesAsync(ct);
+        }
+
         var entity = new FeedbackEntity
         {
             Id = Guid.NewGuid(),
@@ -615,6 +637,28 @@ public class ReviewAgentService
         _dbContext.Feedbacks.Add(entity);
         await _dbContext.SaveChangesAsync(ct);
 
+        // Update provider rating & review count in DB
+        if (provId.HasValue)
+        {
+            var providerFeedbacks = await _dbContext.Feedbacks
+                .Where(f => f.ProviderId == provId)
+                .ToListAsync(ct);
+            if (providerFeedbacks.Count > 0)
+            {
+                var avg = providerFeedbacks.Average(f => f.Rating);
+                var count = providerFeedbacks.Count;
+
+                var provProfile = await _dbContext.Providers
+                    .FirstOrDefaultAsync(p => p.Id == provId || p.UserId == provId, ct);
+                if (provProfile != null)
+                {
+                    provProfile.Rating = Math.Round(avg, 1);
+                    provProfile.ReviewCount = count;
+                }
+                await _dbContext.SaveChangesAsync(ct);
+            }
+        }
+
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine($"\n[⭐ FEEDBACK SUBMITTED] Rating: {entity.Rating}/5 for {entity.ProviderName}");
         Console.WriteLine($"💬 \"{entity.Comment}\"");
@@ -623,13 +667,93 @@ public class ReviewAgentService
         return entity;
     }
 
-    public async Task<List<FeedbackEntity>> GetFeedbacksForProviderAsync(Guid providerId, CancellationToken ct = default)
+    public async Task<bool> DeleteFeedbackForBookingAsync(string bookingReference, CancellationToken ct = default)
+    {
+        var feedbacks = await _dbContext.Feedbacks
+            .Where(f => f.BookingReference == bookingReference)
+            .ToListAsync(ct);
+
+        if (feedbacks.Count == 0) return false;
+
+        // Get provider ID before deleting so we can recalculate rating
+        var provId = feedbacks.FirstOrDefault()?.ProviderId;
+
+        _dbContext.Feedbacks.RemoveRange(feedbacks);
+        await _dbContext.SaveChangesAsync(ct);
+
+        // Recalculate provider rating
+        if (provId.HasValue)
+        {
+            var remaining = await _dbContext.Feedbacks
+                .Where(f => f.ProviderId == provId)
+                .ToListAsync(ct);
+
+            var provProfile = await _dbContext.Providers
+                .FirstOrDefaultAsync(p => p.Id == provId || p.UserId == provId, ct);
+            if (provProfile != null)
+            {
+                if (remaining.Count > 0)
+                {
+                    provProfile.Rating = Math.Round(remaining.Average(f => f.Rating), 1);
+                    provProfile.ReviewCount = remaining.Count;
+                }
+                else
+                {
+                    provProfile.Rating = 0;
+                    provProfile.ReviewCount = 0;
+                }
+                await _dbContext.SaveChangesAsync(ct);
+            }
+        }
+
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"\n[🗑️ FEEDBACK DELETED] BookingRef: {bookingReference} ({feedbacks.Count} entries removed)");
+        Console.ResetColor();
+
+        return true;
+    }
+
+    public async Task<List<FeedbackEntity>> GetFeedbacksForProviderAsync(string idOrName, CancellationToken ct = default)
+    {
+        Guid? parsed = Guid.TryParse(idOrName, out var g) ? g : null;
+        var query = _dbContext.Feedbacks.AsNoTracking();
+
+        if (parsed.HasValue)
+        {
+            var provProfile = await _dbContext.Providers.AsNoTracking()
+                .Include(p => p.User)
+                .FirstOrDefaultAsync(p => p.Id == parsed.Value || p.UserId == parsed.Value, ct);
+            var targetIds = new List<Guid> { parsed.Value };
+            if (provProfile != null)
+            {
+                targetIds.Add(provProfile.Id);
+                targetIds.Add(provProfile.UserId);
+            }
+
+            var provName = provProfile?.User?.FullName?.Trim().ToLower();
+
+            return await query
+                .Where(f => (f.ProviderId.HasValue && targetIds.Contains(f.ProviderId.Value)) ||
+                            (!string.IsNullOrEmpty(provName) && f.ProviderName.ToLower() == provName))
+                .OrderByDescending(f => f.CreatedAt)
+                .ToListAsync(ct);
+        }
+        else
+        {
+            var lowName = idOrName.Trim().ToLower();
+            return await query
+                .Where(f => f.ProviderName.ToLower() == lowName)
+                .OrderByDescending(f => f.CreatedAt)
+                .ToListAsync(ct);
+        }
+    }
+
+    public async Task<FeedbackEntity?> GetFeedbackForBookingAsync(string bookingReference, CancellationToken ct = default)
     {
         return await _dbContext.Feedbacks
             .AsNoTracking()
-            .Where(f => f.ProviderId == providerId)
             .OrderByDescending(f => f.CreatedAt)
-            .ToListAsync(ct);
+            .FirstOrDefaultAsync(f => f.BookingReference == bookingReference, ct);
     }
 
     private static List<string> GetDefaultChecklist(string category, string title)

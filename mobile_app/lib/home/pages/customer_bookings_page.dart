@@ -480,10 +480,7 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                   decoration: BoxDecoration(
                     color: Colors.amber.shade50,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.amber.shade300,
-                      width: 1,
-                    ),
+                    border: Border.all(color: Colors.amber.shade300, width: 1),
                   ),
                   child: Row(
                     children: [
@@ -527,7 +524,9 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Calling ${booking.providerName}...'),
+                              content: Text(
+                                'Calling ${booking.providerName}...',
+                              ),
                               behavior: SnackBarBehavior.floating,
                             ),
                           );
@@ -554,7 +553,10 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                           Navigator.pop(ctx);
                           widget.onSwitchTab?.call(2);
                         },
-                        icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                        icon: const Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          size: 18,
+                        ),
                         label: const Text(
                           'Message',
                           style: TextStyle(fontWeight: FontWeight.w700),
@@ -1687,9 +1689,13 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                               ),
                               decoration: BoxDecoration(
                                 color: palette.primary.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(AppRadius.r12),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.r12,
+                                ),
                                 border: Border.all(
-                                  color: palette.primary.withValues(alpha: 0.35),
+                                  color: palette.primary.withValues(
+                                    alpha: 0.35,
+                                  ),
                                   width: 1.2,
                                 ),
                               ),
@@ -2220,13 +2226,17 @@ class _BookingsListView extends StatelessWidget {
                         ),
                       ),
                     ],
-                    if (b.status == 'PendingCustomerSignOff' || b.status == 'RevisionRequested' || b.isCompleted) ...[
+                    if (b.status == 'PendingCustomerSignOff' ||
+                        b.status == 'RevisionRequested' ||
+                        b.isCompleted) ...[
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: b.isCompleted ? Colors.blue.shade700 : Colors.purple.shade700,
+                            backgroundColor: b.isCompleted
+                                ? Colors.blue.shade700
+                                : Colors.purple.shade700,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -2237,15 +2247,26 @@ class _BookingsListView extends StatelessWidget {
                             await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => CustomerCompletionReviewPage(booking: b),
+                                builder: (_) =>
+                                    CustomerCompletionReviewPage(booking: b),
                               ),
                             );
                             await onRefresh();
                           },
-                          icon: const Icon(Icons.verified_rounded, size: 18),
+                          icon: Icon(
+                            b.isCompleted
+                                ? Icons.visibility_rounded
+                                : Icons.verified_rounded,
+                            size: 18,
+                          ),
                           label: Text(
-                            b.isCompleted ? 'View Proof & Rating' : 'Review Proof & Sign-Off (Agent 4)',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            b.isCompleted
+                                ? 'View Job'
+                                : 'Review Proof & Sign-Off',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       ),

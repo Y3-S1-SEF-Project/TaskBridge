@@ -1,15 +1,57 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../ai/models/review_models.dart';
+import '../../ai/services/review_api.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_spacing.dart';
 import '../models/provider_item.dart';
 
-class ProviderDetailPage extends StatelessWidget {
+class ProviderDetailPage extends StatefulWidget {
   final ProviderItem provider;
 
   const ProviderDetailPage({super.key, required this.provider});
+
+  @override
+  State<ProviderDetailPage> createState() => _ProviderDetailPageState();
+}
+
+class _ProviderDetailPageState extends State<ProviderDetailPage> {
+  ProviderItem get provider => widget.provider;
+  List<FeedbackModel> _feedbacks = [];
+  bool _isLoadingFeedbacks = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFeedbacks();
+  }
+
+  Future<void> _loadFeedbacks() async {
+    setState(() => _isLoadingFeedbacks = true);
+    final target = widget.provider.id.isNotEmpty
+        ? widget.provider.id
+        : widget.provider.fullName;
+    final list = await ReviewApi.getProviderFeedbacks(target);
+    if (mounted) {
+      setState(() {
+        _isLoadingFeedbacks = false;
+        _feedbacks = list;
+      });
+    }
+  }
+
+  double get _displayRating {
+    if (_feedbacks.isEmpty) return widget.provider.rating;
+    return _feedbacks.fold<double>(0.0, (acc, f) => acc + f.rating.toDouble()) /
+        _feedbacks.length;
+  }
+
+  int get _displayReviewCount {
+    if (_feedbacks.isEmpty) return widget.provider.reviewCount;
+    return _feedbacks.length;
+  }
 
   Future<void> _callProvider(BuildContext context) async {
     final rawPhone = provider.phone.trim();
@@ -250,7 +292,7 @@ class ProviderDetailPage extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        provider.rating.toStringAsFixed(1),
+                        _displayRating.toStringAsFixed(1),
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
@@ -259,7 +301,7 @@ class ProviderDetailPage extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        '(${provider.reviewCount} customer reviews)',
+                        '($_displayReviewCount customer ${_displayReviewCount == 1 ? 'review' : 'reviews'})',
                         style: TextStyle(fontSize: 13, color: palette.muted),
                       ),
                     ],
@@ -467,33 +509,90 @@ class ProviderDetailPage extends StatelessWidget {
               const SizedBox(height: AppSpacing.s20),
             ],
 
-            // ── Customer Reviews Preview ──
-            Text(
-              'Recent Reviews',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                color: palette.text,
-              ),
+            // ── Customer Reviews Preview (Real Feedbacks) ──
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Recent Reviews',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: palette.text,
+                  ),
+                ),
+                if (_feedbacks.isNotEmpty)
+                  Text(
+                    '${_displayRating.toStringAsFixed(1)} ★ (${_feedbacks.length})',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: palette.primary,
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 8),
-            _buildReviewCard(
-              name: 'Dilshan Silva',
-              date: '2 days ago',
-              rating: 5.0,
-              comment:
-                  'Arrived promptly on time and resolved the issue with high professionalism. Clean and very polite!',
-              palette: palette,
-            ),
-            const SizedBox(height: 8),
-            _buildReviewCard(
-              name: 'Anoma Fernando',
-              date: '1 week ago',
-              rating: 5.0,
-              comment:
-                  'Excellent work and very reasonable pricing. Highly recommended for any household tasks.',
-              palette: palette,
-            ),
+            if (_isLoadingFeedbacks)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else if (_feedbacks.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppSpacing.s20),
+                decoration: BoxDecoration(
+                  color: palette.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: palette.border),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.rate_review_outlined,
+                      size: 36,
+                      color: palette.muted,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'No reviews yet',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: palette.text,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Completed jobs with client sign-off ratings will appear here.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: palette.muted),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ..._feedbacks.map((fb) {
+                final dateStr =
+                    '${fb.createdAt.year}-${fb.createdAt.month.toString().padLeft(2, '0')}-${fb.createdAt.day.toString().padLeft(2, '0')}';
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _buildReviewCard(
+                    name: fb.customerName.isNotEmpty
+                        ? fb.customerName
+                        : 'Verified Customer',
+                    date: dateStr,
+                    rating: fb.rating.toDouble(),
+                    comment: fb.comment.isNotEmpty
+                        ? fb.comment
+                        : 'Service completed and approved with quality sign-off.',
+                    palette: palette,
+                  ),
+                );
+              }),
             const SizedBox(height: 100), // clearance for sticky bottom bar
           ],
         ),

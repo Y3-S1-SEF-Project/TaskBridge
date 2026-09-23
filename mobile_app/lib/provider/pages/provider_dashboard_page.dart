@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../ai/models/coordination_models.dart';
+import '../../ai/models/review_models.dart';
 import '../../ai/services/bookings_sync_service.dart';
 import '../../ai/services/coordination_api.dart';
+import '../../ai/services/review_api.dart';
 import '../../auth/data/auth_models.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_icons.dart';
@@ -28,8 +30,17 @@ class ProviderDashboardPage extends StatefulWidget {
 
 class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
   List<BookingItem> _bookings = [];
+  List<FeedbackModel> _feedbacks = [];
   bool _isLoading = true;
   Timer? _pollingTimer;
+
+  String get _ratingText {
+    if (_feedbacks.isEmpty) return '5.0 ★';
+    final avg =
+        _feedbacks.fold<double>(0.0, (acc, f) => acc + f.rating.toDouble()) /
+        _feedbacks.length;
+    return '${avg.toStringAsFixed(1)} ★';
+  }
 
   @override
   void initState() {
@@ -69,10 +80,16 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
         providerId: widget.user.id,
         providerName: widget.user.fullName,
       );
+      final feedbacksFuture = ReviewApi.getProviderFeedbacks(widget.user.id);
 
-      final results = await Future.wait([bookingsFuture, proposalsFuture]);
+      final results = await Future.wait([
+        bookingsFuture,
+        proposalsFuture,
+        feedbacksFuture,
+      ]);
       final list = results[0] as List<BookingItem>;
       final propList = results[1] as List<ProposalItem>;
+      final feedbackList = results[2] as List<FeedbackModel>;
 
       if (mounted) {
         final provName = widget.user.fullName.trim().toLowerCase();
@@ -117,6 +134,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
 
         setState(() {
           _bookings = combined;
+          _feedbacks = feedbackList;
           _isLoading = false;
         });
       }
@@ -834,10 +852,10 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: _MetricCard(
                         label: 'Rating',
-                        value: '4.9 ★',
+                        value: _ratingText,
                         icon: AppIcons.star,
                       ),
                     ),

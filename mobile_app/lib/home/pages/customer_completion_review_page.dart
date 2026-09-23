@@ -24,10 +24,16 @@ class CustomerCompletionReviewPage extends StatefulWidget {
 class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewPage> {
   bool _isLoading = true;
   JobCompletionModel? _completion;
+  FeedbackModel? _existingFeedback;
   bool _isApproving = false;
   bool _isRequestingRevision = false;
   int _selectedRating = 5;
   final TextEditingController _feedbackController = TextEditingController();
+
+  bool get _isJobFinished =>
+      widget.booking.isCompleted ||
+      _completion?.status.toLowerCase() == 'completed' ||
+      _existingFeedback != null;
 
   @override
   void initState() {
@@ -44,11 +50,13 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
   Future<void> _loadCompletionDetails() async {
     setState(() => _isLoading = true);
     final data = await ReviewApi.getCompletionDetails(widget.booking.bookingReference);
+    final feedback = await ReviewApi.getFeedbackForBooking(widget.booking.bookingReference);
 
     if (mounted) {
       setState(() {
         _isLoading = false;
         _completion = data;
+        _existingFeedback = feedback;
       });
     }
   }
@@ -197,6 +205,267 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
     }
   }
 
+  Future<void> _showEditFeedbackDialog() async {
+    final palette = AppPalette.of(context);
+    int editRating = _existingFeedback?.rating ?? 5;
+    final editController = TextEditingController(
+      text: _existingFeedback?.comment ?? '',
+    );
+    bool isSaving = false;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (modalCtx, setModalState) => Container(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 24,
+            bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 24,
+          ),
+          decoration: BoxDecoration(
+            color: palette.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 48,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Icon(
+                Icons.rate_review_rounded,
+                color: Colors.amber,
+                size: 44,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Edit Your Feedback',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: palette.text,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Update your rating and comment for ${widget.booking.providerName}',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Star Rating Row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  final starNum = index + 1;
+                  return IconButton(
+                    iconSize: 34,
+                    icon: Icon(
+                      starNum <= editRating
+                          ? Icons.star_rounded
+                          : Icons.star_outline_rounded,
+                      color: Colors.amber,
+                    ),
+                    onPressed: () {
+                      setModalState(() => editRating = starNum);
+                    },
+                  );
+                }),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: editController,
+                maxLines: 3,
+                style: GoogleFonts.plusJakartaSans(fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'Share your updated feedback...',
+                  filled: true,
+                  fillColor: palette.background,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Colors.grey.withValues(alpha: 0.2),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade700,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          setModalState(() => isSaving = true);
+                          final updated = await ReviewApi.submitFeedback(
+                            bookingReference: widget.booking.bookingReference,
+                            customerId: null,
+                            customerName: widget.booking.customerName,
+                            providerId: widget.booking.providerId,
+                            providerName: widget.booking.providerName,
+                            rating: editRating,
+                            comment: editController.text.trim().isEmpty
+                                ? 'Great service, highly satisfied!'
+                                : editController.text.trim(),
+                          );
+                          if (modalCtx.mounted) {
+                            Navigator.pop(modalCtx);
+                          }
+                          if (mounted) {
+                            setState(() {
+                              _existingFeedback =
+                                  updated ??
+                                  FeedbackModel(
+                                    id: _existingFeedback?.id ?? '',
+                                    bookingReference:
+                                        widget.booking.bookingReference,
+                                    customerName: widget.booking.customerName,
+                                    providerName: widget.booking.providerName,
+                                    rating: editRating,
+                                    comment: editController.text.trim(),
+                                    createdAt: DateTime.now(),
+                                  );
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  '⭐ Feedback updated successfully!',
+                                ),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        },
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          'Update Feedback',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showDeleteFeedbackConfirm() async {
+    final palette = AppPalette.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: palette.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 24),
+            const SizedBox(width: 8),
+            Text(
+              'Delete Feedback',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: palette.text,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete your feedback? This action cannot be undone.',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 13,
+            color: palette.textSecondary,
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w600,
+                color: palette.textSecondary,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Delete',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final deleted = await ReviewApi.deleteFeedbackForBooking(
+        widget.booking.bookingReference,
+      );
+      if (mounted) {
+        if (deleted) {
+          setState(() {
+            _existingFeedback = null;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('🗑️ Feedback deleted successfully.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❌ Failed to delete feedback. Try again.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   Future<void> _showRevisionDialog() async {
     final reasonController = TextEditingController();
     final palette = AppPalette.of(context);
@@ -289,38 +558,13 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Agent 4: Quality Sign-Off',
+          'Quality Sign-Off',
           style: GoogleFonts.plusJakartaSans(
             fontSize: 18,
             fontWeight: FontWeight.bold,
             color: palette.text,
           ),
         ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.verified, color: Colors.green, size: 14),
-                const SizedBox(width: 4),
-                Text(
-                  'Verified',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green.shade800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -337,7 +581,7 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                   _buildPhotoComparison(palette),
                   const SizedBox(height: 18),
 
-                  // Agent 4 AI QA Report Card
+                  // AI QA Report Card
                   _buildAgent4ReportCard(palette),
                   const SizedBox(height: 18),
 
@@ -345,8 +589,11 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                   _buildDurationAndPriceCard(palette),
                   const SizedBox(height: 24),
 
-                  // Actions: Confirm & Close or Request Revision
-                  _buildCustomerActionButtons(palette),
+                  // Actions: If completed, show feedback & inquiry; else show approve/revision buttons
+                  if (_isJobFinished)
+                    _buildCompletedFeedbackAndInquirySection(palette)
+                  else
+                    _buildCustomerActionButtons(palette),
                   const SizedBox(height: 30),
                 ],
               ),
@@ -693,7 +940,7 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
     final passed = _completion?.aiVerificationPassed ?? true;
     final score = _completion?.aiConfidenceScore ?? 95;
     final analysis = _completion?.aiComparisonAnalysis ??
-        'Agent 4 analyzed the proof images and verified that the service requirements were met with clean execution.';
+        'AI analyzed the proof images and verified that the service requirements were met with clean execution.';
     final verified = _completion?.aiVerifiedTasks ?? [];
 
     return Container(
@@ -716,7 +963,7 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                   const Icon(Icons.auto_awesome, color: Colors.purple, size: 20),
                   const SizedBox(width: 8),
                   Text(
-                    'Agent 4 Quality Assessment',
+                    'Quality Assessment',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
@@ -925,6 +1172,385 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCompletedFeedbackAndInquirySection(AppPalette palette) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Feedback Card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: palette.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.green.withValues(alpha: 0.3), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.green.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.star_rounded,
+                          color: Colors.amber,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'Your Feedback',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: palette.text,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      InkWell(
+                        onTap: _showEditFeedbackDialog,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: palette.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: palette.primary.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.edit_outlined,
+                                size: 13,
+                                color: palette.primary,
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                'Edit',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: palette.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      InkWell(
+                        onTap: _showDeleteFeedbackConfirm,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.red.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.delete_outline_rounded,
+                                size: 13,
+                                color: Colors.red,
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                'Delete',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  ...List.generate(5, (index) {
+                    final ratingVal = _existingFeedback?.rating ?? 5;
+                    return Icon(
+                      index < ratingVal
+                          ? Icons.star_rounded
+                          : Icons.star_outline_rounded,
+                      color: Colors.amber,
+                      size: 24,
+                    );
+                  }),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${_existingFeedback?.rating ?? 5}.0 / 5.0',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: palette.text,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: palette.background,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: palette.border.withValues(alpha: 0.6),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.format_quote_rounded,
+                      size: 18,
+                      color: palette.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        (_existingFeedback != null &&
+                                _existingFeedback!.comment.trim().isNotEmpty)
+                            ? _existingFeedback!.comment.trim()
+                            : 'Service completed and verified.',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontStyle: FontStyle.italic,
+                          color: palette.text,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Inquiry Button
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary, width: 1.4),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            onPressed: _showInquiryDialog,
+            icon: const Icon(Icons.help_outline_rounded, size: 20),
+            label: Text(
+              'Make an Inquiry',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showInquiryDialog() async {
+    final palette = AppPalette.of(context);
+    final inquiryController = TextEditingController();
+    String selectedCategory = 'General Inquiry';
+    final categories = ['General Inquiry', 'Service Quality', 'Billing & Payment', 'Follow-up Request'];
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalCtx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Container(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          decoration: BoxDecoration(
+            color: palette.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.help_outline_rounded, color: AppColors.primary, size: 24),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Make an Inquiry',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: palette.text,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Regarding Booking #${widget.booking.bookingReference} with ${widget.booking.providerName}',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Inquiry Type',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: palette.text,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: categories.map((cat) {
+                  final isSelected = selectedCategory == cat;
+                  return ChoiceChip(
+                    label: Text(
+                      cat,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                        color: isSelected ? Colors.white : palette.text,
+                      ),
+                    ),
+                    selected: isSelected,
+                    selectedColor: AppColors.primary,
+                    backgroundColor: palette.background,
+                    onSelected: (val) {
+                      if (val) setModalState(() => selectedCategory = cat);
+                    },
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Your Message or Question',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: palette.text,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: inquiryController,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  hintText: 'Describe your inquiry or question in detail...',
+                  hintStyle: GoogleFonts.plusJakartaSans(fontSize: 13, color: Colors.grey),
+                  filled: true,
+                  fillColor: palette.background,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    final msg = inquiryController.text.trim();
+                    if (msg.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter an inquiry message.')),
+                      );
+                      return;
+                    }
+                    Navigator.pop(modalCtx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Inquiry submitted! Our support team and ${widget.booking.providerName} have been notified.'),
+                        backgroundColor: AppColors.primary,
+                        duration: const Duration(seconds: 4),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.send_rounded, size: 18),
+                  label: Text(
+                    'Submit Inquiry',
+                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

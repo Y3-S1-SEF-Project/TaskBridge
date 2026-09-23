@@ -214,7 +214,7 @@ public class CoordinationAgentService
     {
         try
         {
-            var nullProposals = await _dbContext.Proposals.Where(p => p.CustomerId == null).Take(20).ToListAsync(ct);
+            var nullProposals = await _dbContext.Proposals.Where(p => p.CustomerId == null).OrderByDescending(p => p.CreatedAt).Take(20).ToListAsync(ct);
             bool changed = false;
             foreach (var p in nullProposals)
             {
@@ -226,7 +226,7 @@ public class CoordinationAgentService
                 }
             }
 
-            var nullBookings = await _dbContext.Bookings.Where(b => b.CustomerId == null).Take(20).ToListAsync(ct);
+            var nullBookings = await _dbContext.Bookings.Where(b => b.CustomerId == null).OrderByDescending(b => b.CreatedAt).Take(20).ToListAsync(ct);
             foreach (var b in nullBookings)
             {
                 var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.FullName.ToLower() == b.CustomerName.Trim().ToLower(), ct);

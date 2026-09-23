@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
+import '../../ai/models/review_models.dart';
+import '../../ai/services/review_api.dart';
 import '../../auth/data/auth_api.dart';
 import '../../auth/data/auth_models.dart';
 import '../../auth/pages/login_page.dart';
@@ -29,11 +31,34 @@ class ProviderProfilePage extends StatefulWidget {
 
 class _ProviderProfilePageState extends State<ProviderProfilePage> {
   late AuthUser _currentUser;
+  List<FeedbackModel> _feedbacks = [];
+  bool _isLoadingFeedbacks = false;
 
   @override
   void initState() {
     super.initState();
     _currentUser = widget.user;
+    _loadFeedbacks();
+  }
+
+  Future<void> _loadFeedbacks() async {
+    setState(() => _isLoadingFeedbacks = true);
+    final list = await ReviewApi.getProviderFeedbacks(_currentUser.id);
+    if (mounted) {
+      setState(() {
+        _isLoadingFeedbacks = false;
+        _feedbacks = list;
+      });
+    }
+  }
+
+  double get _averageRating {
+    if (_feedbacks.isEmpty) return 5.0;
+    final sum = _feedbacks.fold<double>(
+      0.0,
+      (acc, f) => acc + f.rating.toDouble(),
+    );
+    return sum / _feedbacks.length;
   }
 
   String get _initials {
@@ -134,16 +159,218 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                   color: palette.primary,
                 ),
                 title: Text(
-                  '14 Completed Jobs',
+                  'Completed Jobs & Feedback',
                   style: TextStyle(color: palette.text),
                 ),
                 subtitle: Text(
-                  'Average rating 4.9 ★',
+                  _feedbacks.isEmpty
+                      ? 'No ratings yet'
+                      : 'Average rating ${_averageRating.toStringAsFixed(1)} ★ (${_feedbacks.length} ${_feedbacks.length == 1 ? 'review' : 'reviews'})',
                   style: TextStyle(color: palette.muted),
                 ),
                 contentPadding: EdgeInsets.zero,
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showFeedbacksSheet() {
+    final palette = AppPalette.of(context);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      backgroundColor: palette.surface,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.65,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (ctx, scrollController) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.s20,
+              vertical: AppSpacing.s16,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: palette.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Client Reviews',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: palette.text,
+                      ),
+                    ),
+                    if (_feedbacks.isNotEmpty)
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.star_rounded,
+                            color: Color(0xFFF59E0B),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _averageRating.toStringAsFixed(1),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: palette.text,
+                            ),
+                          ),
+                          Text(
+                            ' (${_feedbacks.length})',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: palette.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: _isLoadingFeedbacks
+                      ? const Center(child: CircularProgressIndicator())
+                      : _feedbacks.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.rate_review_outlined,
+                                    size: 48,
+                                    color: palette.muted,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'No reviews yet',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: palette.text,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Completed jobs with client ratings will appear here.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: palette.muted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              controller: scrollController,
+                              itemCount: _feedbacks.length,
+                              separatorBuilder: (_, _) =>
+                                  const SizedBox(height: 12),
+                          itemBuilder: (ctx, i) {
+                            final fb = _feedbacks[i];
+                            return Container(
+                              padding: const EdgeInsets.all(AppSpacing.s16),
+                              decoration: BoxDecoration(
+                                color: palette.soft,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: palette.border),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        fb.customerName.isNotEmpty
+                                            ? fb.customerName
+                                            : 'Customer',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          color: palette.text,
+                                        ),
+                                      ),
+                                      Row(
+                                        children: [
+                                          ...List.generate(5, (starIdx) {
+                                            return Icon(
+                                              starIdx < fb.rating.floor()
+                                                  ? Icons.star_rounded
+                                                  : (starIdx < fb.rating
+                                                      ? Icons.star_half_rounded
+                                                      : Icons
+                                                          .star_outline_rounded),
+                                              color: const Color(0xFFF59E0B),
+                                              size: 16,
+                                            );
+                                          }),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            fb.rating.toStringAsFixed(1),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: palette.text,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Booking #${fb.bookingReference}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: palette.muted,
+                                    ),
+                                  ),
+                                  if (fb.comment.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      fb.comment,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: palette.text,
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -387,6 +614,48 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                         color: palette.muted,
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: _showFeedbacksSheet,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: palette.soft,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: palette.border),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.star_rounded,
+                              size: 16,
+                              color: Color(0xFFF59E0B),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _feedbacks.isEmpty
+                                  ? 'New Provider'
+                                  : '${_averageRating.toStringAsFixed(1)} (${_feedbacks.length} ${_feedbacks.length == 1 ? 'review' : 'reviews'})',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: palette.text,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: 14,
+                              color: palette.muted,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -453,6 +722,16 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                     iconBgColor: const Color(0xFFFEF9C3),
                     iconColor: const Color(0xFFCA8A04),
                     onTap: _editProviderDetails,
+                  ),
+                  _SleekMenuTile(
+                    icon: Iconsax.star,
+                    title: 'Client reviews & ratings',
+                    subtitle: _feedbacks.isEmpty
+                        ? 'No client reviews yet'
+                        : '${_averageRating.toStringAsFixed(1)} ★ (${_feedbacks.length} ${_feedbacks.length == 1 ? 'review' : 'reviews'})',
+                    iconBgColor: const Color(0xFFFEF3C7),
+                    iconColor: const Color(0xFFD97706),
+                    onTap: _showFeedbacksSheet,
                   ),
                   _SleekMenuTile(
                     icon: Iconsax.wallet_2,
