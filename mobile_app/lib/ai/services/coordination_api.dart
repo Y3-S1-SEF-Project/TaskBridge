@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../models/coordination_models.dart';
 import '../models/matching_models.dart';
 import '../models/planning_models.dart';
+import 'bookings_sync_service.dart';
 
 class CoordinationApi {
   static String? _workingBaseUrl;
@@ -195,11 +196,13 @@ class CoordinationApi {
 
         if (response.statusCode == 200) {
           _workingBaseUrl = candidate;
+          BookingsSyncService.instance.triggerImmediateUpdate();
           return true;
         }
       } catch (_) {}
     }
 
+    BookingsSyncService.instance.triggerImmediateUpdate();
     return true;
   }
 
@@ -285,11 +288,13 @@ class CoordinationApi {
             .timeout(const Duration(seconds: 10));
 
         if (response.statusCode == 200) {
+          BookingsSyncService.instance.triggerImmediateUpdate();
           return true;
         }
       } catch (_) {}
     }
 
+    BookingsSyncService.instance.triggerImmediateUpdate();
     return true;
   }
 
@@ -335,11 +340,13 @@ class CoordinationApi {
             .timeout(const Duration(seconds: 10));
 
         if (response.statusCode == 200) {
+          BookingsSyncService.instance.triggerImmediateUpdate();
           return true;
         }
       } catch (_) {}
     }
 
+    BookingsSyncService.instance.triggerImmediateUpdate();
     return true;
   }
 
@@ -583,11 +590,13 @@ class CoordinationApi {
             .timeout(const Duration(seconds: 10));
 
         if (response.statusCode == 200) {
+          BookingsSyncService.instance.triggerImmediateUpdate();
           return true;
         }
       } catch (_) {}
     }
 
+    BookingsSyncService.instance.triggerImmediateUpdate();
     return true;
   }
 
@@ -699,6 +708,35 @@ class CoordinationApi {
       );
     }
 
+    // Optimistically insert confirmed booking into _localBookings immediately
+    if (idx != -1) {
+      final old = _localProposals[idx];
+      final optimisticBooking = BookingItem(
+        id: 'b-${DateTime.now().millisecondsSinceEpoch}',
+        bookingReference: proposalReference.startsWith('PR-')
+            ? proposalReference.replaceFirst('PR-', 'TB-')
+            : proposalReference,
+        customerName: old.customerName,
+        providerName: old.providerName,
+        providerId: old.providerId,
+        serviceTitle: old.serviceTitle,
+        category: old.category,
+        location: old.location,
+        schedule: schedule,
+        price: price,
+        rateType: rateType ?? old.rateType,
+        status: 'Upcoming',
+        createdAt: DateTime.now(),
+      );
+      _localBookings.removeWhere(
+        (b) =>
+            b.bookingReference == optimisticBooking.bookingReference ||
+            b.bookingReference == proposalReference,
+      );
+      _localBookings.insert(0, optimisticBooking);
+    }
+    BookingsSyncService.instance.triggerImmediateUpdate();
+
     final candidates = _candidateUrls;
     final payload = jsonEncode({
       'proposalReference': proposalReference,
@@ -721,11 +759,23 @@ class CoordinationApi {
             .timeout(const Duration(seconds: 10));
 
         if (response.statusCode == 200) {
+          try {
+            final json = jsonDecode(response.body) as Map<String, dynamic>;
+            final serverBooking = BookingItem.fromJson(json);
+            _localBookings.removeWhere(
+              (b) =>
+                  b.bookingReference == serverBooking.bookingReference ||
+                  b.bookingReference == proposalReference,
+            );
+            _localBookings.insert(0, serverBooking);
+          } catch (_) {}
+          BookingsSyncService.instance.triggerImmediateUpdate();
           return true;
         }
       } catch (_) {}
     }
 
+    BookingsSyncService.instance.triggerImmediateUpdate();
     return true;
   }
 
@@ -774,11 +824,13 @@ class CoordinationApi {
             .timeout(const Duration(seconds: 10));
 
         if (response.statusCode == 200) {
+          BookingsSyncService.instance.triggerImmediateUpdate();
           return true;
         }
       } catch (_) {}
     }
 
+    BookingsSyncService.instance.triggerImmediateUpdate();
     return true;
   }
 

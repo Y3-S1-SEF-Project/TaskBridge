@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../ai/models/coordination_models.dart';
+import '../../ai/services/bookings_sync_service.dart';
 import '../../ai/services/coordination_api.dart';
 import '../../auth/data/auth_models.dart';
 import '../../core/theme/app_colors.dart';
@@ -25,11 +26,26 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
   @override
   void initState() {
     super.initState();
+    BookingsSyncService.instance.addListener(_onSyncUpdate);
     _loadBookings();
   }
 
-  Future<void> _loadBookings() async {
-    setState(() => _isLoading = true);
+  @override
+  void dispose() {
+    BookingsSyncService.instance.removeListener(_onSyncUpdate);
+    super.dispose();
+  }
+
+  void _onSyncUpdate() {
+    if (mounted) {
+      _loadBookings(silent: true);
+    }
+  }
+
+  Future<void> _loadBookings({bool silent = false}) async {
+    if (!silent) {
+      setState(() => _isLoading = true);
+    }
     try {
       final provName = widget.user?.fullName.trim().toLowerCase();
       final provId = widget.user?.id.toLowerCase();

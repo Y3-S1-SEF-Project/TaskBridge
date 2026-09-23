@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../ai/models/coordination_models.dart';
+import '../../ai/services/bookings_sync_service.dart';
 import '../../ai/services/coordination_api.dart';
 import '../../auth/data/auth_models.dart';
 import '../../core/theme/app_colors.dart';
@@ -31,11 +32,26 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
   @override
   void initState() {
     super.initState();
+    BookingsSyncService.instance.addListener(_onSyncUpdate);
     _loadBookings();
   }
 
-  Future<void> _loadBookings() async {
-    setState(() => _isLoading = true);
+  @override
+  void dispose() {
+    BookingsSyncService.instance.removeListener(_onSyncUpdate);
+    super.dispose();
+  }
+
+  void _onSyncUpdate() {
+    if (mounted) {
+      _loadBookings(silent: true);
+    }
+  }
+
+  Future<void> _loadBookings({bool silent = false}) async {
+    if (!silent) {
+      setState(() => _isLoading = true);
+    }
     try {
       final bookingsFuture = CoordinationApi.getBookings(
         providerId: widget.user.id,
@@ -281,7 +297,8 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
                       children: [
                         Expanded(
                           child: InkWell(
-                            onTap: () => setSheetState(() => rateType = 'Hourly'),
+                            onTap: () =>
+                                setSheetState(() => rateType = 'Hourly'),
                             borderRadius: BorderRadius.circular(10),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 10),
@@ -326,7 +343,8 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: InkWell(
-                            onTap: () => setSheetState(() => rateType = 'Fixed'),
+                            onTap: () =>
+                                setSheetState(() => rateType = 'Fixed'),
                             borderRadius: BorderRadius.circular(10),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 10),
@@ -389,7 +407,9 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         prefixText: 'Rs. ',
-                        suffixText: rateType.toLowerCase() == 'hourly' ? '/ hr' : 'fixed total',
+                        suffixText: rateType.toLowerCase() == 'hourly'
+                            ? '/ hr'
+                            : 'fixed total',
                         suffixStyle: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -676,12 +696,8 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
 
-    final incomingRequests = _bookings
-        .where((b) => b.isRequested)
-        .toList();
-    final upcomingJobs = _bookings
-        .where((b) => b.isUpcoming)
-        .toList();
+    final incomingRequests = _bookings.where((b) => b.isRequested).toList();
+    final upcomingJobs = _bookings.where((b) => b.isUpcoming).toList();
     final activeJobs = _bookings
         .where(
           (b) =>
@@ -948,13 +964,16 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
                         providerName: booking.customerName,
                         reference: booking.bookingReference,
                         schedule: booking.schedule,
-                        price: booking.isHourly ? 'Rs. ${booking.price.toInt()}/hr' : 'Rs. ${booking.price.toInt()}',
+                        price: booking.isHourly
+                            ? 'Rs. ${booking.price.toInt()}/hr'
+                            : 'Rs. ${booking.price.toInt()}',
                         status: BookingStatus.upcoming,
                         onTap: () async {
                           await Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => ProviderJobDetailsPage(booking: booking),
+                              builder: (_) =>
+                                  ProviderJobDetailsPage(booking: booking),
                             ),
                           );
                           _loadBookings();

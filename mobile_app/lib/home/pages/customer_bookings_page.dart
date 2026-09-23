@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../ai/models/coordination_models.dart';
+import '../../ai/services/bookings_sync_service.dart';
 import '../../ai/services/coordination_api.dart';
 import '../../auth/data/auth_api.dart';
 import '../../auth/data/auth_models.dart';
@@ -36,17 +37,27 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    BookingsSyncService.instance.addListener(_onSyncUpdate);
     _loadBookings();
   }
 
   @override
   void dispose() {
+    BookingsSyncService.instance.removeListener(_onSyncUpdate);
     _tabController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadBookings() async {
-    setState(() => _isLoading = true);
+  void _onSyncUpdate() {
+    if (mounted) {
+      _loadBookings(silent: true);
+    }
+  }
+
+  Future<void> _loadBookings({bool silent = false}) async {
+    if (!silent) {
+      setState(() => _isLoading = true);
+    }
     try {
       final custName = widget.user?.fullName;
       final bookingsFuture = CoordinationApi.getBookings(
@@ -85,6 +96,8 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
         final combinedMap = <String, BookingItem>{};
 
         for (final p in filteredProposals) {
+          // If proposal was accepted, it has already been converted into a confirmed BookingItem
+          if (p.status.toLowerCase() == 'accepted') continue;
           combinedMap[p.bookingReference] = p;
         }
 
@@ -98,22 +111,7 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
               combinedMap[b.bookingReference] = b;
             }
           } else {
-            final altPr = b.bookingReference.startsWith('TB-')
-                ? b.bookingReference.replaceFirst('TB-', 'PR-')
-                : null;
-            if (altPr != null && combinedMap.containsKey(altPr)) {
-              final prop = combinedMap[altPr]!;
-              combinedMap.remove(altPr);
-              if (b.isCancelled || prop.isCancelled) {
-                combinedMap[b.bookingReference] = b.copyWith(
-                  status: 'Cancelled',
-                );
-              } else {
-                combinedMap[b.bookingReference] = b;
-              }
-            } else {
-              combinedMap[b.bookingReference] = b;
-            }
+            combinedMap[b.bookingReference] = b;
           }
         }
 
@@ -562,27 +560,59 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                       onPressed: () async {
                         final messenger = ScaffoldMessenger.of(context);
                         Navigator.pop(ctx);
-                        final success = await CoordinationApi.acceptProposal(
+
+                        // Super-fast reflective state update: immediately convert to upcoming
+                        final optimisticBooking = BookingItem(
+                          id: 'opt-${DateTime.now().millisecondsSinceEpoch}',
+                          bookingReference:
+                              booking.bookingReference.startsWith('PR-')
+                              ? booking.bookingReference.replaceFirst(
+                                  'PR-',
+                                  'TB-',
+                                )
+                              : booking.bookingReference,
+                          serviceTitle: booking.serviceTitle,
+                          category: booking.category,
+                          providerName: booking.providerName,
+                          providerId: booking.providerId,
+                          customerName: booking.customerName,
+                          location: booking.location,
+                          schedule: booking.schedule,
+                          price: booking.price,
+                          rateType: booking.rateType,
+                          status: 'Upcoming',
+                          createdAt: DateTime.now(),
+                        );
+                        setState(() {
+                          _bookings.removeWhere(
+                            (b) =>
+                                b.bookingReference == booking.bookingReference,
+                          );
+                          _bookings.insert(0, optimisticBooking);
+                        });
+                        _tabController.animateTo(1);
+
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              '🎉 Booking confirmed with ${booking.providerName}! Scheduled in Upcoming.',
+                            ),
+                            backgroundColor: AppColors.primary,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        );
+
+                        await CoordinationApi.acceptProposal(
                           proposalReference: booking.bookingReference,
                           schedule: booking.schedule,
                           price: booking.price,
                           rateType: booking.rateType,
                         );
-                        if (success && mounted) {
-                          messenger.showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                '🎉 Booking confirmed with ${booking.providerName}! Scheduled in Upcoming.',
-                              ),
-                              backgroundColor: AppColors.primary,
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          );
-                          await _loadBookings();
-                          _tabController.animateTo(1);
+                        if (mounted) {
+                          await _loadBookings(silent: true);
                         }
                       },
                       icon: const Icon(Icons.check_circle_rounded, size: 18),
