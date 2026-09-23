@@ -10,7 +10,6 @@ import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
-import '../../provider/pages/provider_main_page.dart';
 import 'customer_completion_review_page.dart';
 
 class CustomerBookingsPage extends StatefulWidget {
@@ -1593,18 +1592,6 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
     );
   }
 
-  void _switchToProvider() {
-    if (widget.user != null && widget.api != null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-              ProviderMainPage(user: widget.user!, api: widget.api!),
-        ),
-      ).then((_) => _loadBookings());
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
@@ -1652,75 +1639,6 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                           letterSpacing: -0.5,
                         ),
                       ),
-                    ],
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        tooltip: 'Refresh Bookings',
-                        icon: _isLoading
-                            ? SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: palette.primary,
-                                ),
-                              )
-                            : Icon(
-                                Icons.refresh_rounded,
-                                color: palette.primary,
-                                size: 22,
-                              ),
-                        onPressed: () => _loadBookings(),
-                      ),
-                      const SizedBox(width: 4),
-                      if (widget.user != null)
-                        Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: _switchToProvider,
-                            borderRadius: BorderRadius.circular(AppRadius.r12),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: palette.primary.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.r12,
-                                ),
-                                border: Border.all(
-                                  color: palette.primary.withValues(
-                                    alpha: 0.35,
-                                  ),
-                                  width: 1.2,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.swap_horiz_rounded,
-                                    size: 18,
-                                    color: palette.primary,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Provider',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700,
-                                      color: palette.primary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ],
@@ -2235,7 +2153,7 @@ class _BookingsListView extends StatelessWidget {
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: b.isCompleted
-                                ? Colors.blue.shade700
+                                ? Colors.green.shade700
                                 : Colors.purple.shade700,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
@@ -2254,9 +2172,7 @@ class _BookingsListView extends StatelessWidget {
                             await onRefresh();
                           },
                           icon: Icon(
-                            b.isCompleted
-                                ? Icons.visibility_rounded
-                                : Icons.verified_rounded,
+                            b.isCompleted ? AppIcons.eye : AppIcons.verify,
                             size: 18,
                           ),
                           label: Text(

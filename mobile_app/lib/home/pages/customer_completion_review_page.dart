@@ -6,22 +6,22 @@ import '../../ai/models/coordination_models.dart';
 import '../../ai/models/review_models.dart';
 import '../../ai/services/review_api.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_palette.dart';
 import '../widgets/fullscreen_photo_viewer.dart';
 
 class CustomerCompletionReviewPage extends StatefulWidget {
   final BookingItem booking;
 
-  const CustomerCompletionReviewPage({
-    super.key,
-    required this.booking,
-  });
+  const CustomerCompletionReviewPage({super.key, required this.booking});
 
   @override
-  State<CustomerCompletionReviewPage> createState() => _CustomerCompletionReviewPageState();
+  State<CustomerCompletionReviewPage> createState() =>
+      _CustomerCompletionReviewPageState();
 }
 
-class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewPage> {
+class _CustomerCompletionReviewPageState
+    extends State<CustomerCompletionReviewPage> {
   bool _isLoading = true;
   JobCompletionModel? _completion;
   FeedbackModel? _existingFeedback;
@@ -49,8 +49,12 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
 
   Future<void> _loadCompletionDetails() async {
     setState(() => _isLoading = true);
-    final data = await ReviewApi.getCompletionDetails(widget.booking.bookingReference);
-    final feedback = await ReviewApi.getFeedbackForBooking(widget.booking.bookingReference);
+    final data = await ReviewApi.getCompletionDetails(
+      widget.booking.bookingReference,
+    );
+    final feedback = await ReviewApi.getFeedbackForBooking(
+      widget.booking.bookingReference,
+    );
 
     if (mounted) {
       setState(() {
@@ -93,7 +97,7 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                 ),
               ),
               const SizedBox(height: 16),
-              const Icon(Icons.check_circle_rounded, color: Colors.green, size: 48),
+              const Icon(AppIcons.tickCircle, color: Colors.green, size: 48),
               const SizedBox(height: 8),
               Text(
                 'Confirm & Rate Service',
@@ -120,7 +124,9 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                   return IconButton(
                     iconSize: 34,
                     icon: Icon(
-                      starNum <= _selectedRating ? Icons.star_rounded : Icons.star_outline_rounded,
+                      starNum <= _selectedRating
+                          ? Icons.star_rounded
+                          : Icons.star_outline_rounded,
                       color: Colors.amber,
                     ),
                     onPressed: () {
@@ -136,12 +142,15 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                 maxLines: 3,
                 style: GoogleFonts.plusJakartaSans(fontSize: 13),
                 decoration: InputDecoration(
-                  hintText: 'Share your feedback (e.g. prompt, neat work, friendly)...',
+                  hintText:
+                      'Share your feedback (e.g. prompt, neat work, friendly)...',
                   filled: true,
                   fillColor: palette.background,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                    borderSide: BorderSide(
+                      color: Colors.grey.withValues(alpha: 0.2),
+                    ),
                   ),
                 ),
               ),
@@ -153,7 +162,9 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green.shade700,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   onPressed: _isApproving
                       ? null
@@ -163,7 +174,10 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                         },
                   child: Text(
                     'Confirm Sign-Off & Submit Review',
-                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 14),
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
               ),
@@ -242,11 +256,7 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                 ),
               ),
               const SizedBox(height: 16),
-              const Icon(
-                Icons.rate_review_rounded,
-                color: Colors.amber,
-                size: 44,
-              ),
+              const Icon(AppIcons.editBold, color: Colors.amber, size: 44),
               const SizedBox(height: 8),
               Text(
                 'Edit Your Feedback',
@@ -390,7 +400,7 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 24),
+            const Icon(AppIcons.warning_2, color: Colors.red, size: 24),
             const SizedBox(width: 8),
             Text(
               'Delete Feedback',
@@ -485,7 +495,10 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
           children: [
             Text(
               'Please describe what additional work or verification is needed from the provider:',
-              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AppColors.textSecondary),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -493,12 +506,15 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
               maxLines: 3,
               style: GoogleFonts.plusJakartaSans(fontSize: 13),
               decoration: InputDecoration(
-                hintText: 'e.g. Please check the secondary seal under the sink...',
+                hintText:
+                    'e.g. Please check the secondary seal under the sink...',
                 filled: true,
                 fillColor: palette.background,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
+                  borderSide: BorderSide(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                  ),
                 ),
               ),
             ),
@@ -513,7 +529,9 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange.shade800,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             onPressed: () async {
               Navigator.pop(ctx);
@@ -554,7 +572,7 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
         backgroundColor: palette.surface,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: palette.text),
+          icon: Icon(AppIcons.arrowLeft, color: palette.text),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -643,7 +661,11 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
           const SizedBox(height: 8),
           Row(
             children: [
-              const Icon(Icons.person_pin_rounded, size: 16, color: AppColors.primary),
+              const Icon(
+                AppIcons.personalcard,
+                size: 16,
+                color: AppColors.primary,
+              ),
               const SizedBox(width: 6),
               Text(
                 'Provider: ${widget.booking.providerName}',
@@ -661,29 +683,32 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
   }
 
   Widget _buildPhotoComparison(AppPalette palette) {
-    final isGardening = widget.booking.category.toLowerCase().contains('garden') ||
+    final isGardening =
+        widget.booking.category.toLowerCase().contains('garden') ||
         widget.booking.serviceTitle.toLowerCase().contains('garden');
-    final isPlumbing = widget.booking.category.toLowerCase().contains('plumb') ||
+    final isPlumbing =
+        widget.booking.category.toLowerCase().contains('plumb') ||
         widget.booking.serviceTitle.toLowerCase().contains('sink');
 
     final defaultBefore = isGardening
         ? 'https://images.unsplash.com/photo-1592417817098-8f3d6ef2c6e1?w=800&auto=format&fit=crop&q=80'
         : (isPlumbing
-            ? 'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=800&auto=format&fit=crop&q=80'
-            : 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&auto=format&fit=crop&q=80');
+              ? 'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=800&auto=format&fit=crop&q=80'
+              : 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&auto=format&fit=crop&q=80');
 
     final defaultAfter = isGardening
         ? 'https://images.unsplash.com/photo-1558904541-efa8c4a08931?w=800&auto=format&fit=crop&q=80'
         : (isPlumbing
-            ? 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=800&auto=format&fit=crop&q=80'
-            : 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?w=800&auto=format&fit=crop&q=80');
+              ? 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=800&auto=format&fit=crop&q=80'
+              : 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?w=800&auto=format&fit=crop&q=80');
 
     // Collect all before photos
     final compBeforeUrls = _completion?.beforePhotoUrls ?? [];
     final List<String> beforePhotos = [];
     if (compBeforeUrls.isNotEmpty) {
       beforePhotos.addAll(compBeforeUrls);
-    } else if (_completion?.beforePhotoUrl != null && _completion!.beforePhotoUrl!.isNotEmpty) {
+    } else if (_completion?.beforePhotoUrl != null &&
+        _completion!.beforePhotoUrl!.isNotEmpty) {
       beforePhotos.add(_completion!.beforePhotoUrl!);
     } else {
       beforePhotos.add(defaultBefore);
@@ -691,7 +716,9 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
 
     // Collect all after photos
     final compAfterUrls = _completion?.afterPhotoUrls ?? [];
-    final List<String> afterPhotos = compAfterUrls.isNotEmpty ? compAfterUrls : [defaultAfter];
+    final List<String> afterPhotos = compAfterUrls.isNotEmpty
+        ? compAfterUrls
+        : [defaultAfter];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -758,7 +785,11 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
     Widget buildSinglePhoto(String? url) {
       if (url == null || url.isEmpty) {
         return const Center(
-          child: Icon(Icons.image_not_supported_outlined, color: Colors.grey, size: 28),
+          child: Icon(
+            Icons.image_not_supported_outlined,
+            color: Colors.grey,
+            size: 28,
+          ),
         );
       }
       if (url.startsWith('/') || url.startsWith('file://')) {
@@ -766,23 +797,20 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
         return Image.file(
           File(cleanPath),
           fit: BoxFit.cover,
-          errorBuilder: (c, e, s) => const Center(
-            child: Icon(Icons.broken_image, color: Colors.grey),
-          ),
+          errorBuilder: (c, e, s) =>
+              const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
         );
       }
       return CachedNetworkImage(
         imageUrl: url,
         fit: BoxFit.cover,
-        placeholder: (context, urlStr) => const Center(
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
+        placeholder: (context, urlStr) =>
+            const Center(child: CircularProgressIndicator(strokeWidth: 2)),
         errorWidget: (context, urlStr, error) => Image.network(
           url,
           fit: BoxFit.cover,
-          errorBuilder: (c, e, s) => const Center(
-            child: Icon(Icons.broken_image, color: Colors.grey),
-          ),
+          errorBuilder: (c, e, s) =>
+              const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
         ),
       );
     }
@@ -812,7 +840,10 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: badgeColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
@@ -866,7 +897,10 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                       bottom: 6,
                       right: 6,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.black.withValues(alpha: 0.65),
                           borderRadius: BorderRadius.circular(6),
@@ -874,11 +908,19 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.fullscreen_rounded, size: 13, color: Colors.white),
+                            Icon(
+                              AppIcons.maximize,
+                              size: 13,
+                              color: Colors.white,
+                            ),
                             SizedBox(width: 3),
                             Text(
                               'View',
-                              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ],
                         ),
@@ -894,14 +936,17 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: Colors.grey.withValues(alpha: 0.05),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(14),
+                ),
               ),
               child: SizedBox(
                 height: 44,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: photos.length,
-                  separatorBuilder: (context, index) => const SizedBox(width: 5),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: 5),
                   itemBuilder: (ctx, i) {
                     final photoUrl = photos[i];
                     return GestureDetector(
@@ -917,7 +962,9 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(7),
                           border: Border.all(
-                            color: i == 0 ? badgeColor : Colors.grey.withValues(alpha: 0.3),
+                            color: i == 0
+                                ? badgeColor
+                                : Colors.grey.withValues(alpha: 0.3),
                             width: i == 0 ? 1.5 : 1.0,
                           ),
                         ),
@@ -939,17 +986,22 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
   Widget _buildAgent4ReportCard(AppPalette palette) {
     final passed = _completion?.aiVerificationPassed ?? true;
     final score = _completion?.aiConfidenceScore ?? 95;
-    final analysis = _completion?.aiComparisonAnalysis ??
+    final analysis =
+        _completion?.aiComparisonAnalysis ??
         'AI analyzed the proof images and verified that the service requirements were met with clean execution.';
     final verified = _completion?.aiVerifiedTasks ?? [];
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: passed ? Colors.green.withValues(alpha: 0.08) : Colors.orange.withValues(alpha: 0.08),
+        color: passed
+            ? Colors.green.withValues(alpha: 0.08)
+            : Colors.orange.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: passed ? Colors.green.withValues(alpha: 0.4) : Colors.orange.withValues(alpha: 0.4),
+          color: passed
+              ? Colors.green.withValues(alpha: 0.4)
+              : Colors.orange.withValues(alpha: 0.4),
         ),
       ),
       child: Column(
@@ -960,7 +1012,7 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
             children: [
               Row(
                 children: [
-                  const Icon(Icons.auto_awesome, color: Colors.purple, size: 20),
+                  const Icon(AppIcons.magicpen, color: Colors.purple, size: 20),
                   const SizedBox(width: 8),
                   Text(
                     'Quality Assessment',
@@ -1005,12 +1057,19 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                 padding: const EdgeInsets.only(bottom: 3),
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle_outline, size: 14, color: Colors.green),
+                    const Icon(
+                      AppIcons.tickCircle,
+                      size: 14,
+                      color: Colors.green,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         t,
-                        style: GoogleFonts.plusJakartaSans(fontSize: 12, color: palette.text),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          color: palette.text,
+                        ),
                       ),
                     ),
                   ],
@@ -1031,7 +1090,10 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
             const SizedBox(height: 4),
             Text(
               _completion!.providerNotes,
-              style: GoogleFonts.plusJakartaSans(fontSize: 13, fontStyle: FontStyle.italic),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ],
         ],
@@ -1043,8 +1105,11 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
     final mins = _completion?.durationMinutes ?? 52;
     final hours = mins ~/ 60;
     final remMins = mins % 60;
-    final rate = _completion?.hourlyRate ?? (widget.booking.price > 0 ? widget.booking.price : 5000.0);
-    final calculatedPrice = _completion?.calculatedPrice ??
+    final rate =
+        _completion?.hourlyRate ??
+        (widget.booking.price > 0 ? widget.booking.price : 5000.0);
+    final calculatedPrice =
+        _completion?.calculatedPrice ??
         (mins <= 60 ? rate : (rate + ((mins - 60) * (rate / 60.0))));
 
     return Container(
@@ -1084,11 +1149,17 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
             children: [
               Text(
                 'Agreed Rate:',
-                style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AppColors.textSecondary),
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
               ),
               Text(
                 'Rs. ${rate.toInt()} / hour',
-                style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600),
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -1098,11 +1169,17 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
             children: [
               Text(
                 'Calculation Breakdown:',
-                style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AppColors.textSecondary),
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
               ),
               Text(
                 '($hours × ${rate.toInt()}) + ($remMins × ${(rate / 60).toStringAsFixed(2)})',
-                style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AppColors.textSecondary),
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ],
           ),
@@ -1143,13 +1220,18 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
               backgroundColor: Colors.green.shade700,
               foregroundColor: Colors.white,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
             onPressed: _isApproving ? null : _showApprovalAndFeedbackDialog,
-            icon: const Icon(Icons.check_circle_rounded, size: 20),
+            icon: const Icon(AppIcons.tickCircle, size: 20),
             label: Text(
               'Confirm Sign-Off & Give Review',
-              style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.bold),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ),
@@ -1160,14 +1242,21 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
           child: OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.orange.shade800,
-              side: BorderSide(color: Colors.orange.shade800.withValues(alpha: 0.5)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              side: BorderSide(
+                color: Colors.orange.shade800.withValues(alpha: 0.5),
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
             onPressed: _isRequestingRevision ? null : _showRevisionDialog,
-            icon: const Icon(Icons.edit_note_rounded, size: 18),
+            icon: const Icon(AppIcons.edit, size: 18),
             label: Text(
               'Request Revision / More Proof',
-              style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ),
@@ -1186,7 +1275,10 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
           decoration: BoxDecoration(
             color: palette.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.green.withValues(alpha: 0.3), width: 1.2),
+            border: Border.all(
+              color: Colors.green.withValues(alpha: 0.3),
+              width: 1.2,
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.green.withValues(alpha: 0.04),
@@ -1206,7 +1298,7 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(
-                          Icons.star_rounded,
+                          AppIcons.starFilled,
                           color: Colors.amber,
                           size: 22,
                         ),
@@ -1248,7 +1340,7 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                Icons.edit_outlined,
+                                AppIcons.edit,
                                 size: 13,
                                 color: palette.primary,
                               ),
@@ -1285,7 +1377,7 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(
-                                Icons.delete_outline_rounded,
+                                AppIcons.trash,
                                 size: 13,
                                 color: Colors.red,
                               ),
@@ -1344,11 +1436,7 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.format_quote_rounded,
-                      size: 18,
-                      color: palette.primary,
-                    ),
+                    Icon(AppIcons.quote, size: 18, color: palette.primary),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -1380,10 +1468,12 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.primary,
               side: const BorderSide(color: AppColors.primary, width: 1.4),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
             onPressed: _showInquiryDialog,
-            icon: const Icon(Icons.help_outline_rounded, size: 20),
+            icon: const Icon(AppIcons.messageQuestion, size: 20),
             label: Text(
               'Make an Inquiry',
               style: GoogleFonts.plusJakartaSans(
@@ -1401,7 +1491,12 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
     final palette = AppPalette.of(context);
     final inquiryController = TextEditingController();
     String selectedCategory = 'General Inquiry';
-    final categories = ['General Inquiry', 'Service Quality', 'Billing & Payment', 'Follow-up Request'];
+    final categories = [
+      'General Inquiry',
+      'Service Quality',
+      'Billing & Payment',
+      'Follow-up Request',
+    ];
 
     await showModalBottomSheet(
       context: context,
@@ -1436,7 +1531,11 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
               const SizedBox(height: 16),
               Row(
                 children: [
-                  const Icon(Icons.help_outline_rounded, color: AppColors.primary, size: 24),
+                  const Icon(
+                    AppIcons.messageQuestion,
+                    color: AppColors.primary,
+                    size: 24,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Make an Inquiry',
@@ -1476,7 +1575,9 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                       cat,
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.w500,
                         color: isSelected ? Colors.white : palette.text,
                       ),
                     ),
@@ -1504,12 +1605,17 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                 maxLines: 4,
                 decoration: InputDecoration(
                   hintText: 'Describe your inquiry or question in detail...',
-                  hintStyle: GoogleFonts.plusJakartaSans(fontSize: 13, color: Colors.grey),
+                  hintStyle: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    color: Colors.grey,
+                  ),
                   filled: true,
                   fillColor: palette.background,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                    borderSide: BorderSide(
+                      color: Colors.grey.withValues(alpha: 0.2),
+                    ),
                   ),
                 ),
               ),
@@ -1521,29 +1627,38 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   onPressed: () {
                     final msg = inquiryController.text.trim();
                     if (msg.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please enter an inquiry message.')),
+                        const SnackBar(
+                          content: Text('Please enter an inquiry message.'),
+                        ),
                       );
                       return;
                     }
                     Navigator.pop(modalCtx);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Inquiry submitted! Our support team and ${widget.booking.providerName} have been notified.'),
+                        content: Text(
+                          'Inquiry submitted! Our support team and ${widget.booking.providerName} have been notified.',
+                        ),
                         backgroundColor: AppColors.primary,
                         duration: const Duration(seconds: 4),
                       ),
                     );
                   },
-                  icon: const Icon(Icons.send_rounded, size: 18),
+                  icon: const Icon(AppIcons.send, size: 18),
                   label: Text(
                     'Submit Inquiry',
-                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 14),
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
               ),

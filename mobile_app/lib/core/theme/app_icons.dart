@@ -32,6 +32,16 @@ abstract final class AppIcons {
   static const trendUp = Iconsax.trend_up;
   static const switchMode = Iconsax.repeat;
   static const magicpen = Iconsax.magicpen;
+  static const edit = Iconsax.edit;
+  static const editBold = Iconsax.edit_copy;
+  static const trash = Iconsax.trash;
+  static const eye = Iconsax.eye;
+  static const quote = Iconsax.quote_up;
+  static const maximize = Iconsax.maximize;
+  static const infoCircle = Iconsax.info_circle;
+  static const messageQuestion = Iconsax.message_question;
+  static const starFilled = Iconsax.star_1;
+  static const personalcard = Iconsax.personalcard;
 
   // Category Icons (Iconsax)
   static const plumbing = Iconsax.drop;
