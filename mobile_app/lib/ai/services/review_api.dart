@@ -128,12 +128,15 @@ class ReviewApi {
     for (final candidate in candidates) {
       try {
         final uri = Uri.parse('$candidate/api/agent/review/$bookingRef');
-        final response = await http.get(uri).timeout(const Duration(seconds: 15));
+        final response = await http.get(uri).timeout(const Duration(seconds: 4));
 
         if (response.statusCode == 200) {
           _workingBaseUrl = candidate;
           final json = jsonDecode(response.body) as Map<String, dynamic>;
           return JobCompletionModel.fromJson(json);
+        } else if (response.statusCode == 404) {
+          _workingBaseUrl = candidate;
+          return null;
         }
       } catch (e) {
         developer.log('Get completion details error on $candidate: $e', name: 'ReviewAgent');

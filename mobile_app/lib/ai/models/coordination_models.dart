@@ -240,8 +240,14 @@ class BookingItem {
       !isCancelled &&
       (status.toLowerCase() == 'active' ||
           status.toLowerCase() == 'in progress');
+  bool get isPendingSignOff =>
+      status.toLowerCase() == 'pendingcustomersignoff';
+  bool get isRevisionRequested =>
+      status.toLowerCase() == 'revisionrequested';
   bool get isOngoing =>
-      (isRequested || isActive) && !isCancelled && !isCompleted;
+      (isRequested || isActive || isPendingSignOff || isRevisionRequested) &&
+      !isCancelled &&
+      !isCompleted;
 
   BookingItem copyWith({
     String? status,

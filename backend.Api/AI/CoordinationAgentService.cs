@@ -568,6 +568,13 @@ public class CoordinationAgentService
         var booking = await _dbContext.Bookings.FirstOrDefaultAsync(b => b.BookingReference == req.BookingReference, ct);
         if (booking != null)
         {
+            if (string.Equals(booking.Status, "In Progress", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(booking.Status, "Active", StringComparison.OrdinalIgnoreCase) ||
+                booking.StartedAt.HasValue)
+            {
+                throw new InvalidOperationException("Cannot modify terms because the service is already in progress.");
+            }
+
             booking.Price = req.CounterPrice;
             if (!string.IsNullOrWhiteSpace(req.RateType))
             {
@@ -628,6 +635,13 @@ public class CoordinationAgentService
 
         if (booking != null)
         {
+            if (string.Equals(booking.Status, "In Progress", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(booking.Status, "Active", StringComparison.OrdinalIgnoreCase) ||
+                booking.StartedAt.HasValue)
+            {
+                throw new InvalidOperationException("Cannot cancel booking because the service is already in progress.");
+            }
+
             booking.Status = "Cancelled";
             booking.UpdatedAt = DateTimeOffset.UtcNow;
 

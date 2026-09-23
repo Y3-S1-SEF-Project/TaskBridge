@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -412,9 +413,29 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
   }
 
   Widget _buildPhotoComparison(AppPalette palette) {
-    final beforeUrl = _completion?.beforePhotoUrl;
+    final isGardening = widget.booking.category.toLowerCase().contains('garden') ||
+        widget.booking.serviceTitle.toLowerCase().contains('garden');
+    final isPlumbing = widget.booking.category.toLowerCase().contains('plumb') ||
+        widget.booking.serviceTitle.toLowerCase().contains('sink');
+
+    final defaultBefore = isGardening
+        ? 'https://images.unsplash.com/photo-1592417817098-8f3d6ef2c6e1?w=800&auto=format&fit=crop&q=80'
+        : (isPlumbing
+            ? 'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=800&auto=format&fit=crop&q=80'
+            : 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&auto=format&fit=crop&q=80');
+
+    final defaultAfter = isGardening
+        ? 'https://images.unsplash.com/photo-1558904541-efa8c4a08931?w=800&auto=format&fit=crop&q=80'
+        : (isPlumbing
+            ? 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=800&auto=format&fit=crop&q=80'
+            : 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?w=800&auto=format&fit=crop&q=80');
+
+    final rawBefore = _completion?.beforePhotoUrl;
+    final beforeUrl = (rawBefore != null && rawBefore.isNotEmpty) ? rawBefore : defaultBefore;
+
     final afterUrls = _completion?.afterPhotoUrls ?? [];
-    final afterUrl = afterUrls.isNotEmpty ? afterUrls.first : null;
+    final rawAfter = afterUrls.isNotEmpty ? afterUrls.first : null;
+    final afterUrl = (rawAfter != null && rawAfter.isNotEmpty) ? rawAfter : defaultAfter;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -463,6 +484,37 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
   }) {
     final hasPhoto = url != null && url.isNotEmpty;
 
+    Widget photoWidget;
+    if (!hasPhoto) {
+      photoWidget = const Center(
+        child: Icon(Icons.image_not_supported_outlined, color: Colors.grey, size: 30),
+      );
+    } else if (url.startsWith('/') || url.startsWith('file://')) {
+      final cleanPath = url.replaceFirst('file://', '');
+      photoWidget = Image.file(
+        File(cleanPath),
+        fit: BoxFit.cover,
+        errorBuilder: (c, e, s) => const Center(
+          child: Icon(Icons.broken_image, color: Colors.grey),
+        ),
+      );
+    } else {
+      photoWidget = CachedNetworkImage(
+        imageUrl: url,
+        fit: BoxFit.cover,
+        placeholder: (context, urlStr) => const Center(
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+        errorWidget: (context, urlStr, error) => Image.network(
+          url,
+          fit: BoxFit.cover,
+          errorBuilder: (c, e, s) => const Center(
+            child: Icon(Icons.broken_image, color: Colors.grey),
+          ),
+        ),
+      );
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
@@ -509,23 +561,10 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
               color: Colors.grey.withValues(alpha: 0.1),
               borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
             ),
-            child: hasPhoto
-                ? ClipRRect(
-                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
-                    child: CachedNetworkImage(
-                      imageUrl: url,
-                      fit: BoxFit.cover,
-                      placeholder: (context, urlStr) => const Center(
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                      errorWidget: (context, urlStr, error) => const Center(
-                        child: Icon(Icons.broken_image, color: Colors.grey),
-                      ),
-                    ),
-                  )
-                : const Center(
-                    child: Icon(Icons.image_not_supported_outlined, color: Colors.grey, size: 30),
-                  ),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
+              child: photoWidget,
+            ),
           ),
         ],
       ),

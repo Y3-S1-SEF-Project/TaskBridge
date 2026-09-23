@@ -784,7 +784,7 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
         .map((p) => p.toBookingItem())
         .toList();
     final upcomingList = _bookings.where((b) => b.isUpcoming).toList();
-    final activeList = _bookings.where((b) => b.isActive).toList();
+    final activeList = _bookings.where((b) => b.isActive || b.isPendingSignOff || b.isRevisionRequested).toList();
 
     // Past jobs: completed bookings, cancelled bookings, AND cancelled/declined proposals
     final completedOrCancelledBookings = _bookings
@@ -1032,6 +1032,14 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                 : 'Cancelled';
             tagTextCol = Colors.red.shade900;
             tagBgCol = Colors.red.shade100;
+          } else if (b.isPendingSignOff) {
+            customLabel = 'Awaiting Customer Sign-Off';
+            tagTextCol = Colors.purple.shade900;
+            tagBgCol = Colors.purple.shade100;
+          } else if (b.isRevisionRequested) {
+            customLabel = 'Revision Requested';
+            tagTextCol = Colors.orange.shade900;
+            tagBgCol = Colors.orange.shade100;
           } else if (b.isCustomerCountered) {
             customLabel = 'Re-Bid Received';
             tagTextCol = Colors.teal.shade900;

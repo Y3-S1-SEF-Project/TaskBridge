@@ -51,11 +51,36 @@ class AuthApi {
     return uri;
   }
 
+  Future<String?> _probeWorkingUrl() async {
+    if (_workingBaseUrl != null) return _workingBaseUrl;
+    final candidates = [
+      if (_configuredUrl.isNotEmpty) _configuredUrl,
+      'http://localhost:5298',
+      'http://10.0.2.2:5298',
+      'http://192.168.1.4:5298',
+      'http://192.168.1.2:5298',
+    ];
+    for (final candidate in candidates) {
+      try {
+        final uri = Uri.parse('$candidate/api/auth/me');
+        final res = await _client.get(uri).timeout(const Duration(milliseconds: 1200));
+        if (res.statusCode < 500) {
+          _workingBaseUrl = candidate;
+          return candidate;
+        }
+      } catch (_) {}
+    }
+    return candidates.first;
+  }
+
   Future<Map<String, dynamic>> _request(
     String path, {
     Map<String, dynamic>? body,
     bool get = false,
   }) async {
+    if (_workingBaseUrl == null) {
+      await _probeWorkingUrl();
+    }
     final candidates = _candidateUrls;
     Exception? lastNetworkError;
 
@@ -70,11 +95,8 @@ class AuthApi {
           'Content-Type': 'application/json',
           if (_token != null) 'Authorization': 'Bearer $_token',
         };
-        // Short timeout during discovery if candidate isn't proven yet
-        final isProven = _workingBaseUrl != null || candidates.length == 1;
-        final timeout = isProven
-            ? const Duration(seconds: 25)
-            : const Duration(seconds: 3);
+        // 25-second timeout ensures operations that send external emails (SMTP) don't time out
+        final timeout = const Duration(seconds: 25);
 
         final response =
             await (get

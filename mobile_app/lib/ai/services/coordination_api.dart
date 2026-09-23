@@ -223,6 +223,9 @@ class CoordinationApi {
     );
     if (idx != -1) {
       final old = _localBookings[idx];
+      if (old.isActive || old.status.toLowerCase() == 'in progress') {
+        return false;
+      }
       final newSchedule = availableTime != null && availableTime.isNotEmpty
           ? '$availableTime · ${old.location}'
           : old.schedule;
@@ -311,6 +314,9 @@ class CoordinationApi {
       final b = _localBookings[i];
       if (b.bookingReference == bookingReference ||
           b.bookingReference == altRef) {
+        if (b.isActive || b.status.toLowerCase() == 'in progress') {
+          return false;
+        }
         _localBookings[i] = b.copyWith(status: 'Cancelled');
       }
     }
@@ -479,10 +485,12 @@ class CoordinationApi {
                   ? b.bookingReference.replaceFirst('TB-', 'PR-')
                   : b.bookingReference.replaceFirst('PR-', 'TB-');
               for (var i = 0; i < _localProposals.length; i++) {
-                if (_localProposals[i].proposalReference == b.bookingReference ||
+                if (_localProposals[i].proposalReference ==
+                        b.bookingReference ||
                     _localProposals[i].proposalReference == alt) {
-                  _localProposals[i] =
-                      _localProposals[i].copyWith(status: b.status);
+                  _localProposals[i] = _localProposals[i].copyWith(
+                    status: b.status,
+                  );
                 }
               }
             }
@@ -496,23 +504,19 @@ class CoordinationApi {
           }
           if (providerName != null && providerName.isNotEmpty) {
             final pLow = providerName.trim().toLowerCase();
-            result = result
-                .where((b) {
-                  final bProv = b.providerName.trim().toLowerCase();
-                  return bProv.contains(pLow) || pLow.contains(bProv);
-                })
-                .toList();
+            result = result.where((b) {
+              final bProv = b.providerName.trim().toLowerCase();
+              return bProv.contains(pLow) || pLow.contains(bProv);
+            }).toList();
           }
           if (customerName != null && customerName.isNotEmpty) {
             final cLow = customerName.trim().toLowerCase();
-            result = result
-                .where((b) {
-                  final bCust = b.customerName.trim().toLowerCase();
-                  return bCust.contains(cLow) ||
-                      cLow.contains(bCust) ||
-                      bCust == 'customer';
-                })
-                .toList();
+            result = result.where((b) {
+              final bCust = b.customerName.trim().toLowerCase();
+              return bCust.contains(cLow) ||
+                  cLow.contains(bCust) ||
+                  bCust == 'customer';
+            }).toList();
           }
           return result;
         }
@@ -664,8 +668,9 @@ class CoordinationApi {
               if (_localBookings[i].bookingReference == p.proposalReference ||
                   _localBookings[i].bookingReference == alt) {
                 if (p.isCancelled) {
-                  _localBookings[i] =
-                      _localBookings[i].copyWith(status: p.status);
+                  _localBookings[i] = _localBookings[i].copyWith(
+                    status: p.status,
+                  );
                 }
               }
             }
