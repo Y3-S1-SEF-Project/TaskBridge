@@ -68,6 +68,7 @@ class BookingDetails {
   final String bookingReference;
   final String serviceTitle;
   final String providerName;
+  final String? customerId;
   final String customerName;
   final String location;
   final String schedule;
@@ -79,6 +80,7 @@ class BookingDetails {
     required this.bookingReference,
     required this.serviceTitle,
     required this.providerName,
+    this.customerId,
     required this.customerName,
     required this.location,
     required this.schedule,
@@ -92,6 +94,7 @@ class BookingDetails {
       bookingReference: json['bookingReference'] as String? ?? 'TB-1042',
       serviceTitle: json['serviceTitle'] as String? ?? 'Service Request',
       providerName: json['providerName'] as String? ?? 'Specialist',
+      customerId: json['customerId'] as String?,
       customerName: json['customerName'] as String? ?? 'Customer',
       location: json['location'] as String? ?? 'Colombo 05',
       schedule: json['schedule'] as String? ?? '17 Sep · 4:00 PM · Colombo 05',
@@ -105,6 +108,7 @@ class BookingDetails {
     'bookingReference': bookingReference,
     'serviceTitle': serviceTitle,
     'providerName': providerName,
+    if (customerId != null) 'customerId': customerId,
     'customerName': customerName,
     'location': location,
     'schedule': schedule,

@@ -7,12 +7,14 @@ import '../../ai/models/review_models.dart';
 import '../../ai/services/review_api.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_palette.dart';
+import '../../home/widgets/fullscreen_photo_viewer.dart';
 
 class JobCompletionProofPage extends StatefulWidget {
   final BookingItem booking;
   final DateTime? startedAt;
   final DateTime? endedAt;
   final String? beforePhotoUrl;
+  final JobCompletionModel? initialCompletion;
 
   const JobCompletionProofPage({
     super.key,
@@ -20,6 +22,7 @@ class JobCompletionProofPage extends StatefulWidget {
     this.startedAt,
     this.endedAt,
     this.beforePhotoUrl,
+    this.initialCompletion,
   });
 
   @override
@@ -36,23 +39,107 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
   bool _isUploadingAfter = false;
   bool _isEvaluating = false;
   bool _isSubmittingToCustomer = false;
+  bool _hasReEvaluated = false;
+  JobCompletionModel? _existingCompletion;
 
   late DateTime _jobStartedAt;
   late DateTime _jobEndedAt;
   ReviewAnalyzeResponseModel? _aiResult;
 
+  bool get _isRevisionRequested {
+    if (widget.booking.status == 'RevisionRequested' ||
+        widget.booking.isRevisionRequested) {
+      return true;
+    }
+    if (_existingCompletion?.status == 'RevisionRequested') {
+      return true;
+    }
+    final missing =
+        _aiResult?.missingDetails ??
+        _existingCompletion?.aiMissingDetails ??
+        [];
+    return missing.any((m) => m.toLowerCase().contains('customer request:'));
+  }
+
   @override
   void initState() {
     super.initState();
-    _jobStartedAt = widget.startedAt ?? DateTime.now().subtract(const Duration(minutes: 52));
-    // Frozen to the exact moment provider tapped "End Job"
-    _jobEndedAt = widget.endedAt ?? DateTime.now();
+    _jobStartedAt =
+        widget.startedAt ??
+        widget.initialCompletion?.startedAt ??
+        DateTime.now().subtract(const Duration(minutes: 52));
+    _jobEndedAt =
+        widget.endedAt ?? widget.initialCompletion?.endedAt ?? DateTime.now();
+
     if (widget.beforePhotoUrl != null && widget.beforePhotoUrl!.isNotEmpty) {
       _beforePhotoUrls.add(widget.beforePhotoUrl!);
     }
 
     _notesController.text =
         'Completed full servicing of ${widget.booking.serviceTitle}. Replaced defective parts, thoroughly tested under pressure, and cleaned the workspace.';
+
+    if (widget.initialCompletion != null) {
+      _applyCompletionData(widget.initialCompletion!);
+    } else {
+      _fetchExistingCompletionIfAvailable();
+    }
+  }
+
+  Future<void> _fetchExistingCompletionIfAvailable() async {
+    final data = await ReviewApi.getCompletionDetails(
+      widget.booking.bookingReference,
+    );
+    if (data != null && mounted) {
+      setState(() {
+        _applyCompletionData(data);
+      });
+    }
+  }
+
+  void _applyCompletionData(JobCompletionModel data) {
+    _existingCompletion = data;
+
+    if (data.beforePhotoUrls.isNotEmpty) {
+      _beforePhotoUrls.clear();
+      _beforePhotoUrls.addAll(data.beforePhotoUrls);
+    } else if (data.beforePhotoUrl != null && data.beforePhotoUrl!.isNotEmpty) {
+      if (!_beforePhotoUrls.contains(data.beforePhotoUrl!)) {
+        _beforePhotoUrls.add(data.beforePhotoUrl!);
+      }
+    }
+
+    if (data.afterPhotoUrls.isNotEmpty) {
+      _afterPhotoUrls.clear();
+      _afterPhotoUrls.addAll(data.afterPhotoUrls);
+    }
+
+    if (data.providerNotes.isNotEmpty) {
+      _notesController.text = data.providerNotes;
+    }
+
+    _jobStartedAt = data.startedAt;
+    _jobEndedAt = data.endedAt;
+
+    if (data.aiConfidenceScore > 0 || data.aiComparisonAnalysis.isNotEmpty) {
+      _aiResult = ReviewAnalyzeResponseModel(
+        success: true,
+        bookingReference: data.bookingReference,
+        verificationPassed: data.aiVerificationPassed,
+        confidenceScore: data.aiConfidenceScore,
+        comparisonAnalysis: data.aiComparisonAnalysis,
+        verifiedTasks: data.aiVerifiedTasks,
+        missingDetails: data.aiMissingDetails,
+        durationMinutes: data.durationMinutes,
+        durationFormatted:
+            '${data.durationMinutes ~/ 60}h ${data.durationMinutes % 60}m',
+        hourlyRate: data.hourlyRate,
+        calculatedPrice: data.calculatedPrice,
+        priceFormatted: 'Rs. ${data.calculatedPrice.toInt()}',
+        status: data.status,
+        model: 'gpt-4o-mini',
+        latencyMs: 350,
+      );
+    }
   }
 
   @override
@@ -100,9 +187,11 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
     if (currentList.length >= 5) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(isBefore
-              ? 'Maximum 5 Before photos reached.'
-              : 'Maximum 5 After photos reached.'),
+          content: Text(
+            isBefore
+                ? 'Maximum 5 Before photos reached.'
+                : 'Maximum 5 After photos reached.',
+          ),
           backgroundColor: Colors.orange,
         ),
       );
@@ -133,12 +222,18 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
               ),
               const SizedBox(height: 16),
               ListTile(
-                leading: const Icon(Icons.camera_alt_rounded, color: AppColors.primary),
+                leading: const Icon(
+                  Icons.camera_alt_rounded,
+                  color: AppColors.primary,
+                ),
                 title: const Text('Take Photo with Camera'),
                 onTap: () => Navigator.pop(ctx, ImageSource.camera),
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library_rounded, color: AppColors.primary),
+                leading: const Icon(
+                  Icons.photo_library_rounded,
+                  color: AppColors.primary,
+                ),
                 title: const Text('Choose from Gallery'),
                 onTap: () => Navigator.pop(ctx, ImageSource.gallery),
               ),
@@ -188,7 +283,9 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Failed to upload photo. Please check your connection.'),
+              content: Text(
+                'Failed to upload photo. Please check your connection.',
+              ),
               backgroundColor: Colors.red,
             ),
           );
@@ -201,7 +298,10 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
           _isUploadingAfter = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload failed: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Upload failed: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -211,7 +311,9 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
     if (_afterPhotoUrls.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please upload at least one After Photo to verify completion.'),
+          content: Text(
+            'Please upload at least one After Photo to verify completion.',
+          ),
           backgroundColor: Colors.amber,
         ),
       );
@@ -226,7 +328,9 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
     final result = await ReviewApi.evaluateCompletion(
       bookingReference: widget.booking.bookingReference,
       providerNotes: _notesController.text.trim(),
-      beforePhotoUrl: _beforePhotoUrls.isNotEmpty ? _beforePhotoUrls.first : null,
+      beforePhotoUrl: _beforePhotoUrls.isNotEmpty
+          ? _beforePhotoUrls.first
+          : null,
       beforePhotoUrls: _beforePhotoUrls,
       afterPhotoUrls: _afterPhotoUrls,
       startedAt: _jobStartedAt,
@@ -238,21 +342,30 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
       setState(() {
         _isEvaluating = false;
         _aiResult = result;
+        if (result != null) {
+          _hasReEvaluated = true;
+        }
       });
 
       if (result != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result.verificationPassed
-                ? '✅ Agent 4: Quality verification passed (${result.confidenceScore}% confidence)!'
-                : '⚠️ Agent 4: Additional details or proof requested.'),
-            backgroundColor: result.verificationPassed ? Colors.green : Colors.orange,
+            content: Text(
+              result.verificationPassed
+                  ? '✅ Agent 4: Quality verification passed (${result.confidenceScore}% confidence)!'
+                  : '⚠️ Agent 4: Additional details or proof requested.',
+            ),
+            backgroundColor: result.verificationPassed
+                ? Colors.green
+                : Colors.orange,
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Failed to run Agent 4 review. Check your backend status.'),
+            content: Text(
+              'Failed to run Agent 4 review. Check your backend status.',
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -262,29 +375,54 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
 
   Future<void> _submitToCustomer() async {
     setState(() => _isSubmittingToCustomer = true);
-    await Future.delayed(const Duration(milliseconds: 600));
+
+    final success = await ReviewApi.submitToCustomer(
+      bookingReference: widget.booking.bookingReference,
+    );
 
     if (mounted) {
       setState(() => _isSubmittingToCustomer = false);
+
+      if (!success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Failed to submit to customer. Please check your network.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final confidence = _aiResult?.confidenceScore ?? 0;
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Row(
             children: [
-              const Icon(Icons.check_circle_rounded, color: Colors.green, size: 28),
+              const Icon(
+                Icons.check_circle_rounded,
+                color: Colors.green,
+                size: 28,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Sent to Customer!',
-                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
           ),
           content: Text(
-            'Agent 4 has verified your proof of work. The customer (${widget.booking.customerName}) has been notified to review the before/after photos and confirm sign-off.',
+            'Agent 4 has verified your proof of work with $confidence% confidence. The customer (${widget.booking.customerName}) has now been notified to review the photos and confirm sign-off.',
             style: GoogleFonts.plusJakartaSans(fontSize: 14),
           ),
           actions: [
@@ -292,7 +430,9 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               onPressed: () {
                 Navigator.pop(ctx);
@@ -362,6 +502,12 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Revision Notice Banner (if revision was requested by customer)
+            if (_isRevisionRequested) ...[
+              _buildRevisionNoticeBanner(palette),
+              const SizedBox(height: 18),
+            ],
+
             // Service Info & Timer Banner
             _buildServiceDurationBanner(palette, hours, minutes, rate),
             const SizedBox(height: 18),
@@ -388,7 +534,12 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
     );
   }
 
-  Widget _buildServiceDurationBanner(AppPalette palette, int hours, int minutes, double rate) {
+  Widget _buildServiceDurationBanner(
+    AppPalette palette,
+    int hours,
+    int minutes,
+    double rate,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -466,7 +617,11 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.info_outline, size: 14, color: AppColors.textSecondary),
+                const Icon(
+                  Icons.info_outline,
+                  size: 14,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -500,7 +655,9 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isAccent ? Colors.green.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.2),
+          color: isAccent
+              ? Colors.green.withValues(alpha: 0.3)
+              : Colors.grey.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
@@ -508,7 +665,11 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
         children: [
           Row(
             children: [
-              Icon(icon, size: 16, color: isAccent ? Colors.green : AppColors.primary),
+              Icon(
+                icon,
+                size: 16,
+                color: isAccent ? Colors.green : AppColors.primary,
+              ),
               const SizedBox(width: 4),
               Text(
                 title,
@@ -641,7 +802,10 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: hasPhotos
                         ? Colors.green.withValues(alpha: 0.15)
@@ -653,7 +817,9 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      color: hasPhotos ? Colors.green.shade700 : Colors.grey.shade600,
+                      color: hasPhotos
+                          ? Colors.green.shade700
+                          : Colors.grey.shade600,
                     ),
                   ),
                 ),
@@ -662,9 +828,14 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
           ),
           // Main Preview Box / Upload Box
           InkWell(
-            onTap: isLoading
-                ? null
-                : (photos.length < 5 ? onAdd : null),
+            onTap: hasPhotos
+                ? () => openFullScreenPhotoViewer(
+                    context,
+                    imageUrls: photos,
+                    initialIndex: 0,
+                    title: '$title - Photo 1 of ${photos.length}',
+                  )
+                : (isLoading ? null : (photos.length < 5 ? onAdd : null)),
             child: Container(
               height: 120,
               width: double.infinity,
@@ -675,102 +846,157 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                     : const BorderRadius.vertical(bottom: Radius.circular(14)),
               ),
               child: isLoading
-                  ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : (hasPhotos
-                      ? Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            CachedNetworkImage(
-                              imageUrl: photos.first,
-                              fit: BoxFit.cover,
-                              placeholder: (context, urlStr) => const Center(
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                        ? Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              CachedNetworkImage(
+                                imageUrl: photos.first,
+                                fit: BoxFit.cover,
+                                placeholder: (context, urlStr) => const Center(
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                                errorWidget: (context, urlStr, error) =>
+                                    const Center(
+                                      child: Icon(
+                                        Icons.broken_image,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
                               ),
-                              errorWidget: (context, urlStr, error) => const Center(
-                                child: Icon(Icons.broken_image, color: Colors.grey),
-                              ),
-                            ),
-                            // Cross remove button on main photo
-                            Positioned(
-                              top: 6,
-                              right: 6,
-                              child: GestureDetector(
-                                onTap: () => onRemove(0),
+                              // Fullscreen icon hint
+                              Positioned(
+                                bottom: 6,
+                                left: 6,
                                 child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.redAccent,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black26,
-                                        blurRadius: 4,
-                                        offset: Offset(0, 2),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.65),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.fullscreen_rounded,
+                                        size: 12,
+                                        color: Colors.white,
+                                      ),
+                                      SizedBox(width: 3),
+                                      Text(
+                                        'View',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                        ),
                                       ),
                                     ],
                                   ),
-                                  child: const Icon(
-                                    Icons.close_rounded,
-                                    size: 14,
-                                    color: Colors.white,
-                                  ),
                                 ),
                               ),
-                            ),
-                            if (photos.length < 5)
+                              // Cross remove button on main photo
                               Positioned(
-                                bottom: 6,
+                                top: 6,
                                 right: 6,
                                 child: GestureDetector(
-                                  onTap: onAdd,
+                                  onTap: () => onRemove(0),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.7),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.add_photo_alternate_rounded, size: 12, color: Colors.white),
-                                        const SizedBox(width: 3),
-                                        Text(
-                                          'Add (${photos.length}/5)',
-                                          style: const TextStyle(color: Colors.white, fontSize: 10),
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.redAccent,
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black26,
+                                          blurRadius: 4,
+                                          offset: Offset(0, 2),
                                         ),
                                       ],
                                     ),
+                                    child: const Icon(
+                                      Icons.close_rounded,
+                                      size: 14,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
                               ),
-                          ],
-                        )
-                      : Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              isBefore ? Icons.camera_enhance_outlined : Icons.add_a_photo_outlined,
-                              color: AppColors.primary,
-                              size: 26,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              isBefore ? '+ Before Photo' : '+ After Photo',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
+                              if (photos.length < 5)
+                                Positioned(
+                                  bottom: 6,
+                                  right: 6,
+                                  child: GestureDetector(
+                                    onTap: onAdd,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 3,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.7,
+                                        ),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            Icons.add_photo_alternate_rounded,
+                                            size: 12,
+                                            color: Colors.white,
+                                          ),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            'Add (${photos.length}/5)',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                isBefore
+                                    ? Icons.camera_enhance_outlined
+                                    : Icons.add_a_photo_outlined,
                                 color: AppColors.primary,
+                                size: 26,
                               ),
-                            ),
-                            Text(
-                              'Up to 5 photos',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 9,
-                                color: AppColors.textSecondary,
+                              const SizedBox(height: 4),
+                              Text(
+                                isBefore ? '+ Before Photo' : '+ After Photo',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
                               ),
-                            ),
-                          ],
-                        )),
+                              Text(
+                                'Up to 5 photos',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 9,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          )),
             ),
           ),
           // Thumbnails row with Remove Cross Button
@@ -779,14 +1005,17 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: Colors.grey.withValues(alpha: 0.05),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(14),
+                ),
               ),
               child: SizedBox(
                 height: 52,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: photos.length + (photos.length < 5 ? 1 : 0),
-                  separatorBuilder: (context, index) => const SizedBox(width: 6),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: 6),
                   itemBuilder: (ctx, i) {
                     if (i == photos.length) {
                       // Add Photo Tile
@@ -804,7 +1033,11 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                             ),
                           ),
                           child: const Center(
-                            child: Icon(Icons.add, color: AppColors.primary, size: 20),
+                            child: Icon(
+                              Icons.add,
+                              color: AppColors.primary,
+                              size: 20,
+                            ),
                           ),
                         ),
                       );
@@ -814,18 +1047,34 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                     return Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: CachedNetworkImage(
-                            imageUrl: photoUrl,
-                            width: 52,
-                            height: 52,
-                            fit: BoxFit.cover,
-                            placeholder: (context, urlStr) => const Center(
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                            errorWidget: (context, urlStr, error) => const Center(
-                              child: Icon(Icons.broken_image, size: 20, color: Colors.grey),
+                        GestureDetector(
+                          onTap: () => openFullScreenPhotoViewer(
+                            context,
+                            imageUrls: photos,
+                            initialIndex: i,
+                            title:
+                                '$title - Photo ${i + 1} of ${photos.length}',
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: CachedNetworkImage(
+                              imageUrl: photoUrl,
+                              width: 52,
+                              height: 52,
+                              fit: BoxFit.cover,
+                              placeholder: (context, urlStr) => const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              errorWidget: (context, urlStr, error) =>
+                                  const Center(
+                                    child: Icon(
+                                      Icons.broken_image,
+                                      size: 20,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
                             ),
                           ),
                         ),
@@ -884,7 +1133,8 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
           maxLines: 3,
           style: GoogleFonts.plusJakartaSans(fontSize: 13),
           decoration: InputDecoration(
-            hintText: 'Describe replacement parts, pressure tests, and clean-up details...',
+            hintText:
+                'Describe replacement parts, pressure tests, and clean-up details...',
             filled: true,
             fillColor: Theme.of(context).cardColor,
             border: OutlineInputBorder(
@@ -897,7 +1147,10 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+              borderSide: const BorderSide(
+                color: AppColors.primary,
+                width: 1.5,
+              ),
             ),
           ),
         ),
@@ -912,10 +1165,14 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isPassed ? Colors.green.withValues(alpha: 0.08) : Colors.orange.withValues(alpha: 0.08),
+        color: isPassed
+            ? Colors.green.withValues(alpha: 0.08)
+            : Colors.orange.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isPassed ? Colors.green.withValues(alpha: 0.4) : Colors.orange.withValues(alpha: 0.4),
+          color: isPassed
+              ? Colors.green.withValues(alpha: 0.4)
+              : Colors.orange.withValues(alpha: 0.4),
           width: 1.5,
         ),
       ),
@@ -928,23 +1185,32 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
               Row(
                 children: [
                   Icon(
-                    isPassed ? Icons.verified_rounded : Icons.warning_amber_rounded,
+                    isPassed
+                        ? Icons.verified_rounded
+                        : Icons.warning_amber_rounded,
                     color: isPassed ? Colors.green : Colors.orange,
                     size: 24,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    isPassed ? 'Agent 4: Quality Passed' : 'Agent 4: Revision Advised',
+                    isPassed
+                        ? 'Agent 4: Quality Passed'
+                        : 'Agent 4: Revision Advised',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: isPassed ? Colors.green.shade800 : Colors.orange.shade900,
+                      color: isPassed
+                          ? Colors.green.shade800
+                          : Colors.orange.shade900,
                     ),
                   ),
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: isPassed ? Colors.green : Colors.orange,
                   borderRadius: BorderRadius.circular(20),
@@ -990,7 +1256,10 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                     Expanded(
                       child: Text(
                         task,
-                        style: GoogleFonts.plusJakartaSans(fontSize: 12, color: palette.text),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          color: palette.text,
+                        ),
                       ),
                     ),
                   ],
@@ -1019,7 +1288,10 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                     Expanded(
                       child: Text(
                         item,
-                        style: GoogleFonts.plusJakartaSans(fontSize: 12, color: palette.text),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          color: palette.text,
+                        ),
                       ),
                     ),
                   ],
@@ -1053,7 +1325,229 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
     );
   }
 
+  Widget _buildRevisionNoticeBanner(AppPalette palette) {
+    List<String> customerRequests = [];
+    final missing =
+        _aiResult?.missingDetails ??
+        _existingCompletion?.aiMissingDetails ??
+        [];
+    for (final item in missing) {
+      if (item.toLowerCase().contains('customer request:')) {
+        customerRequests.add(
+          item
+              .replaceAll(
+                RegExp(r'customer request:\s*', caseSensitive: false),
+                '',
+              )
+              .trim(),
+        );
+      }
+    }
+    if (customerRequests.isEmpty && missing.isNotEmpty) {
+      customerRequests.addAll(missing);
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.amber.shade400, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.amber.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade100,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.assignment_late_rounded,
+                  color: Colors.amber.shade900,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Customer Requested Revision',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: Colors.amber.shade900,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade200,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'ACTION REQUIRED',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.amber.shade900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.amber.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.format_quote_rounded,
+                      size: 15,
+                      color: Colors.amber.shade800,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Requested changes from ${widget.booking.customerName}:',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                if (customerRequests.isNotEmpty)
+                  ...customerRequests.map(
+                    (req) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '• ',
+                            style: TextStyle(
+                              color: Colors.amber.shade900,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              req,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 13,
+                                color: Colors.grey.shade900,
+                                height: 1.35,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  Text(
+                    'Please update your after-work proof photos and notes to address customer expectations.',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '💡 Update photos or notes below, then tap "Re-evaluate with Agent 4" to re-verify.',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              color: Colors.amber.shade900,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildActionButtons(AppPalette palette) {
+    final isRevision = _isRevisionRequested;
+
+    // If revision was requested and provider hasn't re-evaluated with Agent 4 yet:
+    if (isRevision && !_hasReEvaluated) {
+      return Column(
+        children: [
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.amber.shade900,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: _isEvaluating ? null : _runAgent4Evaluation,
+              icon: _isEvaluating
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.auto_awesome, size: 20),
+              label: Text(
+                _isEvaluating
+                    ? 'Agent 4 is Re-evaluating...'
+                    : 'Re-evaluate with Agent 4',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '⚠️ Re-evaluation with Agent 4 is required after updating proof for customer revision.',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 11.5,
+              color: Colors.amber.shade900,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      );
+    }
+
     if (_aiResult == null) {
       return SizedBox(
         width: double.infinity,
@@ -1063,21 +1557,119 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             elevation: 0,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
           ),
           onPressed: _isEvaluating ? null : _runAgent4Evaluation,
           icon: _isEvaluating
               ? const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
                 )
               : const Icon(Icons.auto_awesome, size: 20),
           label: Text(
-            _isEvaluating ? 'Agent 4 is Analyzing Proof...' : 'Run Agent 4 AI Verification',
-            style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.bold),
+            _isEvaluating
+                ? 'Agent 4 is Analyzing Proof...'
+                : 'Run Agent 4 AI Verification',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
+      );
+    }
+
+    final confidence = _aiResult?.confidenceScore ?? 0;
+    final isConfidencePassed = confidence >= 80;
+
+    if (!isConfidencePassed) {
+      return Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.orange.shade300, width: 1.2),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.orange.shade800,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'AI Confidence: $confidence% (80%+ Required)',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: Colors.orange.shade900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'The AI review confidence is below the 80% threshold required to send this job to the customer. Please upload clearer Before & After photos or add more detailed work notes, then re-evaluate.',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12.5,
+                    color: Colors.orange.shade900.withValues(alpha: 0.85),
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: _isEvaluating ? null : _runAgent4Evaluation,
+              icon: _isEvaluating
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.refresh_rounded, size: 20),
+              label: Text(
+                _isEvaluating
+                    ? 'Agent 4 is Re-evaluating...'
+                    : 'Re-evaluate with Agent 4',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
       );
     }
 
@@ -1091,19 +1683,27 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
               backgroundColor: Colors.green.shade700,
               foregroundColor: Colors.white,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
             onPressed: _isSubmittingToCustomer ? null : _submitToCustomer,
             icon: _isSubmittingToCustomer
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
                   )
                 : const Icon(Icons.send_rounded, size: 20),
             label: Text(
               'Submit to Customer for Sign-Off',
-              style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.bold),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ),

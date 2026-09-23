@@ -51,12 +51,21 @@ public class CoordinationEvaluateRequest
 
     [JsonPropertyName("candidateProviders")]
     public List<ProviderQuotationDto> CandidateProviders { get; set; } = new();
+
+    [JsonPropertyName("customerId")]
+    public string? CustomerId { get; set; }
+
+    [JsonPropertyName("customerName")]
+    public string? CustomerName { get; set; }
 }
 
 public class BookingDetailsDto
 {
     [JsonPropertyName("bookingReference")]
     public string BookingReference { get; set; } = string.Empty;
+
+    [JsonPropertyName("customerId")]
+    public string? CustomerId { get; set; }
 
     [JsonPropertyName("serviceTitle")]
     public string ServiceTitle { get; set; } = string.Empty;

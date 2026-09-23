@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace backend.Api.AI;
@@ -15,6 +17,22 @@ public sealed class JobCompletionEntity
     public string Category { get; set; } = string.Empty;
     public string ProviderNotes { get; set; } = string.Empty;
     public string? BeforePhotoUrl { get; set; }
+
+    [NotMapped]
+    public List<string> BeforePhotoUrls
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(BeforePhotoUrl)) return new();
+            if (BeforePhotoUrl.TrimStart().StartsWith("["))
+            {
+                try { return JsonSerializer.Deserialize<List<string>>(BeforePhotoUrl) ?? new(); }
+                catch { }
+            }
+            return new List<string> { BeforePhotoUrl };
+        }
+    }
+
     public string AfterPhotoUrls { get; set; } = "[]"; // JSON array of string URLs
     public DateTimeOffset StartedAt { get; set; }
     public DateTimeOffset EndedAt { get; set; }
@@ -78,6 +96,12 @@ public class SubmitCompletionRequest
 
     [JsonPropertyName("hourlyRate")]
     public decimal? HourlyRate { get; set; }
+}
+
+public class SubmitToCustomerRequest
+{
+    [JsonPropertyName("bookingReference")]
+    public string BookingReference { get; set; } = string.Empty;
 }
 
 public class CustomerApprovalRequest

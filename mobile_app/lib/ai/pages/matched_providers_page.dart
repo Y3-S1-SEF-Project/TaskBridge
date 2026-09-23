@@ -322,6 +322,8 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
       final proposal = await CoordinationApi.evaluateQuotations(
         jobPlan: widget.jobPlan,
         candidateProviders: validCandidates,
+        customerId: widget.user?.id,
+        customerName: widget.user?.fullName,
       );
 
       if (!mounted) return;
@@ -333,6 +335,7 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
           builder: (_) => QuotationProposalPage(
             jobPlan: widget.jobPlan,
             proposalResponse: proposal,
+            user: widget.user,
           ),
         ),
       );

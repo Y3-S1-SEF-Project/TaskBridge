@@ -393,6 +393,18 @@ class AuthApi {
     return _uploadFile('provider/certification', filePath, userId: userId);
   }
 
+  // Synchronously or asynchronously reads cached user profile from shared_preferences.
+  static Future<AuthUser?> getCachedUser() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = prefs.getString(_userKey);
+      if (userJson != null) {
+        return AuthUser.fromJson(jsonDecode(userJson));
+      }
+    } catch (_) {}
+    return null;
+  }
+
   // Restores user session from shared_preferences on splash screen.
   Future<AuthUser?> restore() async {
     final prefs = await SharedPreferences.getInstance();

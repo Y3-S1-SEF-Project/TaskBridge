@@ -164,7 +164,7 @@ class _HomePageState extends State<HomePage> {
     if (name != null && name.isNotEmpty) {
       return name.split(' ').first;
     }
-    return 'Kavindu';
+    return 'User';
   }
 
   String get _greeting {

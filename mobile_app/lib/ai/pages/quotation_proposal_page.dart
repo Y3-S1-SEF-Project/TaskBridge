@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../auth/data/auth_api.dart';
+import '../../auth/data/auth_models.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_spacing.dart';
@@ -13,11 +15,13 @@ import '../services/coordination_api.dart';
 class QuotationProposalPage extends StatefulWidget {
   final JobPlan jobPlan;
   final BookingProposalResponse proposalResponse;
+  final AuthUser? user;
 
   const QuotationProposalPage({
     super.key,
     required this.jobPlan,
     required this.proposalResponse,
+    this.user,
   });
 
   @override
@@ -26,6 +30,7 @@ class QuotationProposalPage extends StatefulWidget {
 
 class _QuotationProposalPageState extends State<QuotationProposalPage> {
   late BookingProposalResponse _proposal;
+  AuthUser? _user;
   int _selectedProviderIndex = 0;
   bool _isSending = false;
 
@@ -33,6 +38,14 @@ class _QuotationProposalPageState extends State<QuotationProposalPage> {
   void initState() {
     super.initState();
     _proposal = widget.proposalResponse;
+    _user = widget.user;
+    if (_user == null) {
+      AuthApi.getCachedUser().then((u) {
+        if (mounted && u != null) {
+          setState(() => _user = u);
+        }
+      });
+    }
 
     final quotes = _proposal.allQuotations;
     final recIndex = quotes.indexWhere((q) => q.isRecommended);
@@ -61,13 +74,21 @@ class _QuotationProposalPageState extends State<QuotationProposalPage> {
           ? '${widget.jobPlan.scheduledDate} (${widget.jobPlan.scheduledTime}) · ${widget.jobPlan.location}'
           : '${widget.jobPlan.scheduledDate} · ${widget.jobPlan.location}';
 
+      final custName = (_user?.fullName.isNotEmpty == true)
+          ? _user!.fullName
+          : (_proposal.bookingProposal.customerName.isNotEmpty &&
+                  _proposal.bookingProposal.customerName.toLowerCase() != 'customer'
+              ? _proposal.bookingProposal.customerName
+              : 'Customer');
+
+      final custId = _user?.id ?? _proposal.bookingProposal.customerId;
+
       final booking = BookingDetails(
         bookingReference: _proposal.bookingProposal.bookingReference,
         serviceTitle: widget.jobPlan.serviceTitle,
         providerName: selected.fullName,
-        customerName: _proposal.bookingProposal.customerName.isNotEmpty
-            ? _proposal.bookingProposal.customerName
-            : 'Customer',
+        customerId: custId,
+        customerName: custName,
         location: widget.jobPlan.location ?? 'Colombo',
         schedule: scheduleText,
         price: selected.quotedPrice,
@@ -79,6 +100,8 @@ class _QuotationProposalPageState extends State<QuotationProposalPage> {
         booking: booking,
         category: widget.jobPlan.category,
         providerId: selected.providerId,
+        customerId: custId,
+        customerName: custName,
       );
 
       if (!mounted) return;

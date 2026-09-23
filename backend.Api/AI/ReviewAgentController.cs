@@ -33,6 +33,16 @@ public class ReviewAgentController : ControllerBase
         return Ok(res);
     }
 
+    [HttpPost("submit")]
+    public async Task<IActionResult> SubmitToCustomer([FromBody] SubmitToCustomerRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.BookingReference))
+            return BadRequest(new { error = "Booking reference is required." });
+
+        var success = await _reviewService.SubmitToCustomerAsync(request, ct);
+        return Ok(new { success, bookingReference = request.BookingReference, status = "PendingCustomerSignOff" });
+    }
+
     [HttpGet("{bookingRef}")]
     public async Task<IActionResult> GetCompletionDetails(string bookingRef, CancellationToken ct)
     {

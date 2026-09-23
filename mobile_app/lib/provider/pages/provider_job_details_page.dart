@@ -7,6 +7,8 @@ import '../../ai/models/coordination_models.dart';
 import '../../ai/models/review_models.dart';
 import '../../ai/services/coordination_api.dart';
 import '../../ai/services/review_api.dart';
+import '../../ai/services/bookings_sync_service.dart';
+import '../../home/widgets/fullscreen_photo_viewer.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
@@ -34,26 +36,63 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
   JobCompletionModel? _completion;
   bool _isLoadingProof = false;
 
+  bool get _isRevisionRequested =>
+      _currentBooking.status == 'RevisionRequested' ||
+      _currentBooking.isRevisionRequested ||
+      _completion?.status == 'RevisionRequested';
+
+  bool get _isPendingSignOff =>
+      _currentBooking.status == 'PendingCustomerSignOff' ||
+      _currentBooking.isPendingSignOff ||
+      _completion?.status == 'PendingCustomerSignOff';
+
   @override
   void initState() {
     super.initState();
     _currentBooking = widget.booking;
-    if (_currentBooking.isCompleted ||
-        _currentBooking.status == 'PendingCustomerSignOff') {
-      _loadCompletionProof();
+    BookingsSyncService.instance.addListener(_onSyncUpdate);
+    _reloadBookingAndProof();
+  }
+
+  @override
+  void dispose() {
+    BookingsSyncService.instance.removeListener(_onSyncUpdate);
+    super.dispose();
+  }
+
+  void _onSyncUpdate() {
+    if (mounted) {
+      _reloadBookingAndProof(silent: true);
     }
   }
 
-  Future<void> _loadCompletionProof() async {
-    setState(() => _isLoadingProof = true);
-    final proof = await ReviewApi.getCompletionDetails(
-      _currentBooking.bookingReference,
-    );
-    if (mounted) {
-      setState(() {
-        _completion = proof;
-        _isLoadingProof = false;
-      });
+  Future<void> _reloadBookingAndProof({bool silent = false}) async {
+    if (!silent && mounted) {
+      setState(() => _isLoadingProof = true);
+    }
+    try {
+      final bookings = await CoordinationApi.getBookings(
+        providerId: _currentBooking.providerId,
+        providerName: _currentBooking.providerName,
+      );
+      final fresh = bookings.firstWhere(
+        (b) => b.bookingReference == _currentBooking.bookingReference,
+        orElse: () => _currentBooking,
+      );
+      final proof = await ReviewApi.getCompletionDetails(
+        _currentBooking.bookingReference,
+      );
+      if (mounted) {
+        setState(() {
+          _currentBooking = fresh;
+          _completion = proof;
+          _isLoadingProof = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingProof = false);
+      }
     }
   }
 
@@ -167,8 +206,9 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                               );
                               setDialogState(() {
                                 isUploadingPhoto = false;
-                                if (uploaded != null)
+                                if (uploaded != null) {
                                   tempBeforePhoto = uploaded;
+                                }
                               });
                             }
                           },
@@ -231,63 +271,66 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
 
   Future<void> _handleEndJobFlow() async {
     final palette = AppPalette.of(context);
+    final isRevision = _isRevisionRequested;
+    final isPending = _isPendingSignOff;
 
-    final proceed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: palette.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            const Icon(Icons.auto_awesome, color: Colors.purple, size: 24),
-            const SizedBox(width: 8),
-            const Text('Finish & Submit Proof?'),
+    bool proceed = true;
+    if (!isRevision && !isPending) {
+      final proceedConfirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: palette.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.auto_awesome, color: Colors.purple, size: 24),
+              const SizedBox(width: 8),
+              const Text('Finish & Submit Proof?'),
+            ],
+          ),
+          content: const Text(
+            'Are you ready to submit your work for Agent 4 Quality Verification? You will be prompted to attach after-service proof photos and work notes.',
+            style: TextStyle(fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Continue Working'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Proceed to AI Review'),
+            ),
           ],
         ),
-        content: const Text(
-          'Are you ready to submit your work for Agent 4 Quality Verification? You will be prompted to attach after-service proof photos and work notes.',
-          style: TextStyle(fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Continue Working'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Proceed to AI Review'),
-          ),
-        ],
-      ),
-    );
+      );
+      proceed = proceedConfirm == true;
+    }
 
     if (proceed == true && mounted) {
-      final jobEndedAt = DateTime.now();
+      final jobEndedAt = _completion?.endedAt ?? DateTime.now();
       final updated = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
           builder: (_) => JobCompletionProofPage(
             booking: _currentBooking,
-            startedAt: _jobStartedAt,
+            startedAt: _completion?.startedAt ?? _jobStartedAt,
             endedAt: jobEndedAt,
-            beforePhotoUrl: _beforePhotoUrl,
+            beforePhotoUrl: _completion?.beforePhotoUrl ?? _beforePhotoUrl,
+            initialCompletion: _completion,
           ),
         ),
       );
 
       if (updated == true && mounted) {
-        setState(() {
-          _currentBooking = _currentBooking.copyWith(
-            status: 'PendingCustomerSignOff',
-          );
-        });
+        _reloadBookingAndProof();
       }
     }
   }
@@ -365,6 +408,11 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
         ),
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: Icon(Icons.refresh_rounded, color: palette.primary),
+            onPressed: () => _reloadBookingAndProof(),
+            tooltip: 'Refresh details',
+          ),
           Container(
             margin: const EdgeInsets.only(right: 16),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -383,37 +431,48 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.s20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Status Banner ──
-            _buildStatusHeader(palette),
-            const SizedBox(height: 18),
-
-            // ── Submitted Proof of Work & Agent 4 Sign-Off (For Completed Jobs) ──
-            if (_currentBooking.isCompleted || _completion != null) ...[
-              _buildProofOfWorkSection(palette),
+      body: RefreshIndicator(
+        onRefresh: () => _reloadBookingAndProof(),
+        color: palette.primary,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(AppSpacing.s20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Status Banner ──
+              _buildStatusHeader(palette),
               const SizedBox(height: 18),
+
+              // ── Revision Feedback Card (If customer requested changes) ──
+              if (_isRevisionRequested) ...[
+                _buildRevisionRequestCard(palette),
+                const SizedBox(height: 18),
+              ],
+
+              // ── Submitted Proof of Work & Agent 4 Sign-Off (For Completed / In-Review Jobs) ──
+              if (_currentBooking.isCompleted || _completion != null) ...[
+                _buildProofOfWorkSection(palette),
+                const SizedBox(height: 18),
+              ],
+
+              // ── Service & Price Card with Hourly vs Fixed details ──
+              _buildServiceCard(palette),
+              const SizedBox(height: 16),
+
+              // ── Customer Profile Card ──
+              _buildCustomerCard(palette),
+              const SizedBox(height: 16),
+
+              // ── Location & High-Fidelity Map Card ──
+              _buildLocationCard(palette),
+              const SizedBox(height: 16),
+
+              // ── Schedule & Time Card ──
+              _buildScheduleCard(palette),
+              const SizedBox(height: 24),
             ],
-
-            // ── Service & Price Card with Hourly vs Fixed details ──
-            _buildServiceCard(palette),
-            const SizedBox(height: 16),
-
-            // ── Customer Profile Card ──
-            _buildCustomerCard(palette),
-            const SizedBox(height: 16),
-
-            // ── Location & High-Fidelity Map Card ──
-            _buildLocationCard(palette),
-            const SizedBox(height: 16),
-
-            // ── Schedule & Time Card ──
-            _buildScheduleCard(palette),
-            const SizedBox(height: 24),
-          ],
+          ),
         ),
       ),
       // Clean, flush bottom action bar docked to the screen bottom (replaces problematic bottomSheet)
@@ -422,6 +481,194 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
         isUpcoming,
         isActive,
         isCompleted,
+        _isRevisionRequested,
+        _isPendingSignOff,
+      ),
+    );
+  }
+
+  Widget _buildRevisionRequestCard(AppPalette palette) {
+    List<String> revisionItems = [];
+    if (_completion != null) {
+      for (final item in _completion!.aiMissingDetails) {
+        if (item.toLowerCase().contains('customer request:')) {
+          revisionItems.add(
+            item.replaceAll(RegExp(r'customer request:\s*', caseSensitive: false), '').trim(),
+          );
+        }
+      }
+      if (revisionItems.isEmpty && _completion!.aiMissingDetails.isNotEmpty) {
+        revisionItems.addAll(_completion!.aiMissingDetails);
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(AppRadius.r16),
+        border: Border.all(color: Colors.amber.shade400, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.amber.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade100,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.assignment_late_rounded,
+                  color: Colors.amber.shade900,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Customer Requested Revisions',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.amber.shade900,
+                      ),
+                    ),
+                    Text(
+                      'Action needed to finalize job sign-off',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.amber.shade800,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade200,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'REVISION',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.amber.shade900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.amber.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.format_quote_rounded,
+                      size: 16,
+                      color: Colors.amber.shade800,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Feedback from ${_currentBooking.customerName}:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                if (revisionItems.isNotEmpty)
+                  ...revisionItems.map(
+                    (rev) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '• ',
+                            style: TextStyle(
+                              color: Colors.amber.shade900,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              rev,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey.shade900,
+                                height: 1.35,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  Text(
+                    'The customer asked to review the completed service and provide clearer proof photos or updated notes.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.amber.shade900,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: _handleEndJobFlow,
+              icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+              label: const Text(
+                'Update Proof & Re-evaluate (Agent 4)',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -433,7 +680,21 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
     String statusSubtitle;
     IconData icon;
 
-    if (_currentBooking.isUpcoming) {
+    if (_isRevisionRequested) {
+      bg = Colors.amber.shade50;
+      fg = Colors.amber.shade900;
+      statusTitle = 'Revision Requested by Customer';
+      statusSubtitle =
+          'The customer requested changes before final sign-off. Please check the requested items below, update your proof or notes, and re-evaluate with Agent 4.';
+      icon = Icons.assignment_return_rounded;
+    } else if (_isPendingSignOff) {
+      bg = Colors.purple.shade50;
+      fg = Colors.purple.shade800;
+      statusTitle = 'Awaiting Customer Sign-Off';
+      statusSubtitle =
+          'Proof of work submitted with Agent 4 quality verification. Waiting for customer approval.';
+      icon = Icons.hourglass_top_rounded;
+    } else if (_currentBooking.isUpcoming) {
       bg = Colors.green.shade50;
       fg = Colors.green.shade800;
       statusTitle = 'Upcoming Confirmed Job';
@@ -613,15 +874,27 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.15),
+                  color: _isRevisionRequested
+                      ? Colors.amber.withValues(alpha: 0.2)
+                      : (_isPendingSignOff
+                            ? Colors.purple.withValues(alpha: 0.15)
+                            : Colors.green.withValues(alpha: 0.15)),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  'Agent 4 Verified',
+                  _isRevisionRequested
+                      ? 'Revision Requested'
+                      : (_isPendingSignOff
+                            ? 'Awaiting Sign-Off'
+                            : 'Agent 4 Verified'),
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: Colors.green.shade800,
+                    color: _isRevisionRequested
+                        ? Colors.amber.shade900
+                        : (_isPendingSignOff
+                              ? Colors.purple.shade800
+                              : Colors.green.shade800),
                   ),
                 ),
               ),
@@ -631,21 +904,24 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
 
           // Visual Photos Row
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _buildProofPhotoCard(
+                child: _buildProofPhotoGalleryCard(
                   title: 'Before Service',
                   subtitle: 'Initial State',
-                  url: beforeUrl,
+                  photos: _completion?.beforePhotoUrls ?? [],
+                  fallbackUrl: beforeUrl,
                   badgeColor: Colors.grey.shade700,
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _buildProofPhotoCard(
+                child: _buildProofPhotoGalleryCard(
                   title: 'After Service',
                   subtitle: 'Completed Result',
-                  url: afterUrl,
+                  photos: _completion?.afterPhotoUrls ?? [],
+                  fallbackUrl: afterUrl,
                   badgeColor: Colors.green.shade700,
                 ),
               ),
@@ -888,23 +1164,27 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
     );
   }
 
-  Widget _buildProofPhotoCard({
+  Widget _buildProofPhotoGalleryCard({
     required String title,
     required String subtitle,
-    required String url,
+    required List<String> photos,
+    required String fallbackUrl,
     required Color badgeColor,
   }) {
-    Widget photoWidget;
-    if (url.startsWith('/') || url.startsWith('file://')) {
-      final cleanPath = url.replaceFirst('file://', '');
-      photoWidget = Image.file(
-        File(cleanPath),
-        fit: BoxFit.cover,
-        errorBuilder: (c, e, s) =>
-            const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
-      );
-    } else {
-      photoWidget = CachedNetworkImage(
+    final effectivePhotos = photos.isNotEmpty ? photos : [fallbackUrl];
+    final primaryPhoto = effectivePhotos.first;
+
+    Widget buildSinglePhoto(String url) {
+      if (url.startsWith('/') || url.startsWith('file://')) {
+        final cleanPath = url.replaceFirst('file://', '');
+        return Image.file(
+          File(cleanPath),
+          fit: BoxFit.cover,
+          errorBuilder: (c, e, s) =>
+              const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+        );
+      }
+      return CachedNetworkImage(
         imageUrl: url,
         fit: BoxFit.cover,
         placeholder: (context, urlStr) =>
@@ -932,24 +1212,26 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 5,
-                    vertical: 2,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                   decoration: BoxDecoration(
                     color: badgeColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    subtitle,
+                    effectivePhotos.length > 1
+                        ? '${effectivePhotos.length} photos'
+                        : subtitle,
                     style: TextStyle(
                       fontSize: 8,
                       fontWeight: FontWeight.bold,
@@ -960,22 +1242,105 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
               ],
             ),
           ),
-          Container(
-            height: 110,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.grey.withValues(alpha: 0.1),
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(12),
-              ),
+          InkWell(
+            onTap: () => openFullScreenPhotoViewer(
+              context,
+              imageUrls: effectivePhotos,
+              initialIndex: 0,
+              title: '$title · Photo 1 of ${effectivePhotos.length}',
             ),
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(12),
+            borderRadius: BorderRadius.vertical(
+              bottom: Radius.circular(effectivePhotos.length > 1 ? 0 : 12),
+            ),
+            child: Container(
+              height: 110,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.vertical(
+                  bottom: Radius.circular(effectivePhotos.length > 1 ? 0 : 12),
+                ),
               ),
-              child: photoWidget,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(effectivePhotos.length > 1 ? 0 : 12),
+                    ),
+                    child: buildSinglePhoto(primaryPhoto),
+                  ),
+                  Positioned(
+                    bottom: 4,
+                    right: 4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.65),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.fullscreen_rounded, size: 11, color: Colors.white),
+                          SizedBox(width: 2),
+                          Text(
+                            'View',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
+          if (effectivePhotos.length > 1)
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.05),
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+              ),
+              child: SizedBox(
+                height: 38,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: effectivePhotos.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 4),
+                  itemBuilder: (ctx, idx) {
+                    return InkWell(
+                      onTap: () => openFullScreenPhotoViewer(
+                        context,
+                        imageUrls: effectivePhotos,
+                        initialIndex: idx,
+                        title: '$title · Photo ${idx + 1} of ${effectivePhotos.length}',
+                      ),
+                      borderRadius: BorderRadius.circular(6),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: idx == 0 ? badgeColor : Colors.grey.withValues(alpha: 0.3),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: buildSinglePhoto(effectivePhotos[idx]),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -1677,6 +2042,8 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
     bool isUpcoming,
     bool isActive,
     bool isCompleted,
+    bool isRevisionRequested,
+    bool isPendingSignOff,
   ) {
     if (isCompleted) {
       return Container(
@@ -1705,6 +2072,194 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
       );
     }
 
+    if (_currentBooking.isCancelled) {
+      return const SizedBox.shrink();
+    }
+
+    Widget content;
+
+    if (isUpcoming) {
+      content = Row(
+        children: [
+          // Unified side-by-side Cancel Job button
+          Expanded(
+            flex: 1,
+            child: SizedBox(
+              height: 48,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  side: BorderSide(
+                    color: AppColors.error.withValues(alpha: 0.45),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: EdgeInsets.zero,
+                ),
+                onPressed: _isUpdating
+                    ? null
+                    : () => _updateJobStatus('Cancelled'),
+                child: const Text(
+                  'Cancel Job',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Prominent Start Job button
+          Expanded(
+            flex: 2,
+            child: SizedBox(
+              height: 48,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: palette.primary,
+                  foregroundColor: palette.onPrimary,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: _isUpdating ? null : _handleStartJobFlow,
+                icon: _isUpdating
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.play_arrow_rounded, size: 20),
+                label: const Text(
+                  'Start Job',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    } else if (isRevisionRequested) {
+      content = SizedBox(
+        width: double.infinity,
+        height: 48,
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.amber.shade900,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          onPressed: _isUpdating ? null : _handleEndJobFlow,
+          icon: const Icon(Icons.assignment_return_rounded, size: 20),
+          label: const Text(
+            'Update Proof & Re-evaluate (Agent 4)',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      );
+    } else if (isPendingSignOff) {
+      content = Row(
+        children: [
+          Expanded(
+            child: Container(
+              height: 48,
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: Colors.purple.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.purple.withValues(alpha: 0.4),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(
+                    Icons.hourglass_top_rounded,
+                    color: Colors.purple,
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Awaiting Customer Sign-Off',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.purple,
+                        fontSize: 13,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            height: 48,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.purple.shade700,
+                side: BorderSide(color: Colors.purple.shade300),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: _handleEndJobFlow,
+              icon: const Icon(Icons.edit_note_rounded, size: 18),
+              label: const Text(
+                'Edit Proof',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+          ),
+        ],
+      );
+    } else if (isActive) {
+      content = SizedBox(
+        width: double.infinity,
+        height: 48,
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.purple.shade700,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          onPressed: _isUpdating ? null : _handleEndJobFlow,
+          icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+          label: const Text(
+            'End Job & Submit Proof (Agent 4)',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      );
+    } else {
+      return const SizedBox.shrink();
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: palette.surface,
@@ -1720,133 +2275,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: SafeArea(
         top: false,
-        child: isUpcoming
-            ? Row(
-                children: [
-                  // Unified side-by-side Cancel Job button
-                  Expanded(
-                    flex: 1,
-                    child: SizedBox(
-                      height: 48,
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.error,
-                          side: BorderSide(
-                            color: AppColors.error.withValues(alpha: 0.45),
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: EdgeInsets.zero,
-                        ),
-                        onPressed: _isUpdating
-                            ? null
-                            : () => _updateJobStatus('Cancelled'),
-                        child: const Text(
-                          'Cancel Job',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Prominent Start Job button
-                  Expanded(
-                    flex: 2,
-                    child: SizedBox(
-                      height: 48,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: palette.primary,
-                          foregroundColor: palette.onPrimary,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: _isUpdating ? null : _handleStartJobFlow,
-                        icon: _isUpdating
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.play_arrow_rounded, size: 20),
-                        label: const Text(
-                          'Start Job',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            : (isActive
-                  ? SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.purple.shade700,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: _isUpdating ? null : _handleEndJobFlow,
-                        icon: const Icon(Icons.auto_awesome_rounded, size: 18),
-                        label: const Text(
-                          'End Job & Submit Proof (Agent 4)',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    )
-                  : (_currentBooking.status == 'PendingCustomerSignOff'
-                        ? Container(
-                            width: double.infinity,
-                            height: 48,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: Colors.green.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.green.withValues(alpha: 0.4),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
-                                Icon(
-                                  Icons.hourglass_top_rounded,
-                                  color: Colors.green,
-                                  size: 18,
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Awaiting Customer Sign-Off (Agent 4 Verified)',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.green,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : const SizedBox.shrink())),
+        child: content,
       ),
     );
   }

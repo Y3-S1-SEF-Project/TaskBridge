@@ -157,12 +157,17 @@ public class CoordinationAgentService
         var locPart = string.IsNullOrWhiteSpace(plan.Location) ? "Colombo 05" : plan.Location;
         var scheduleDisplay = $"{datePart} · {timePart} · {locPart}";
 
+        var customerDisplayName = !string.IsNullOrWhiteSpace(request.CustomerName)
+            ? request.CustomerName.Trim()
+            : "Customer";
+
         var bookingProposal = new BookingDetailsDto
         {
             BookingReference = propRef,
             ServiceTitle = plan.ServiceTitle,
             ProviderName = bestQuote.FullName,
-            CustomerName = "Kavindu Alwis",
+            CustomerId = request.CustomerId,
+            CustomerName = customerDisplayName,
             Location = locPart,
             Schedule = scheduleDisplay,
             Price = bestQuote.QuotedPrice,
@@ -196,7 +201,7 @@ public class CoordinationAgentService
         {
             return parsedGuid;
         }
-        if (!string.IsNullOrWhiteSpace(customerName))
+        if (!string.IsNullOrWhiteSpace(customerName) && customerName.Trim().ToLowerInvariant() != "customer")
         {
             var cName = customerName.Trim().ToLowerInvariant();
             var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.FullName.ToLower() == cName, ct);
@@ -319,9 +324,13 @@ public class CoordinationAgentService
             existing.Location = req.Location;
             existing.ServiceTitle = req.ServiceTitle;
             existing.Category = req.Category;
-            if (custId.HasValue && !existing.CustomerId.HasValue)
+            if (custId.HasValue)
             {
                 existing.CustomerId = custId;
+            }
+            if (!string.IsNullOrWhiteSpace(req.CustomerName))
+            {
+                existing.CustomerName = req.CustomerName;
             }
             existing.Status = string.IsNullOrWhiteSpace(req.Status) ? "Pending" : req.Status;
             existing.UpdatedAt = DateTimeOffset.UtcNow;

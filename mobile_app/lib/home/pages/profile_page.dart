@@ -50,7 +50,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   String get _initials {
-    final name = _currentUser?.fullName.trim() ?? 'Kavindu Alwis';
+    final name = _currentUser?.fullName.trim() ?? 'User';
     final parts = name
         .split(RegExp(r'\s+'))
         .where((s) => s.isNotEmpty)
@@ -61,7 +61,7 @@ class _ProfilePageState extends State<ProfilePage> {
       final first = parts[0];
       return first.substring(0, first.length >= 2 ? 2 : 1).toUpperCase();
     }
-    return 'KA';
+    return 'U';
   }
 
   String get _formattedPhone {
@@ -697,7 +697,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      _currentUser?.fullName ?? 'Kavindu Alwis',
+                      _currentUser?.fullName ?? 'User',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 20,

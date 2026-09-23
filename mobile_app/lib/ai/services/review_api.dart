@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
 import '../models/review_models.dart';
+import 'bookings_sync_service.dart';
+import 'coordination_api.dart';
 
 class ReviewApi {
   static String? _workingBaseUrl;
@@ -145,6 +147,39 @@ class ReviewApi {
       }
     }
     return null;
+  }
+
+  /// Provider submits verified job completion to customer for review and sign-off
+  static Future<bool> submitToCustomer({required String bookingReference}) async {
+    final candidates = _candidateUrls;
+    final payload = jsonEncode({'bookingReference': bookingReference});
+
+    for (final candidate in candidates) {
+      try {
+        final uri = Uri.parse('$candidate/api/agent/review/submit');
+        final response = await http.post(
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: payload,
+        ).timeout(const Duration(seconds: 10));
+
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          _workingBaseUrl = candidate;
+          BookingsSyncService.instance.triggerImmediateUpdate();
+          return true;
+        }
+      } catch (e) {
+        developer.log('Submit to customer error on $candidate: $e', name: 'ReviewAgent');
+      }
+    }
+
+    // Fallback: update status via CoordinationApi
+    await CoordinationApi.updateBookingStatus(
+      bookingReference: bookingReference,
+      newStatus: 'PendingCustomerSignOff',
+    );
+    BookingsSyncService.instance.triggerImmediateUpdate();
+    return true;
   }
 
   /// Customer signs off on the job

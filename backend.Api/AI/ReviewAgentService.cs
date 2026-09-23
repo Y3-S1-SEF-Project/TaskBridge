@@ -155,6 +155,8 @@ public class ReviewAgentService
         var status = aiResult.VerificationPassed ? "AiApproved" : "RevisionRequested";
 
         // Persist to job_completions table
+        var beforePhotoStorage = beforePhotos.Count > 1 ? JsonSerializer.Serialize(beforePhotos) : (beforePhoto ?? "");
+
         var existingCompletion = await _dbContext.JobCompletions
             .FirstOrDefaultAsync(c => c.BookingReference == request.BookingReference, ct);
 
@@ -172,7 +174,7 @@ public class ReviewAgentService
                 ServiceTitle = booking?.ServiceTitle ?? "Service",
                 Category = booking?.Category ?? "General",
                 ProviderNotes = request.ProviderNotes,
-                BeforePhotoUrl = beforePhoto,
+                BeforePhotoUrl = beforePhotoStorage,
                 AfterPhotoUrls = JsonSerializer.Serialize(afterPhotos),
                 StartedAt = startedAt,
                 EndedAt = endedAt,
@@ -192,7 +194,7 @@ public class ReviewAgentService
         else
         {
             existingCompletion.ProviderNotes = request.ProviderNotes;
-            existingCompletion.BeforePhotoUrl = beforePhoto;
+            existingCompletion.BeforePhotoUrl = beforePhotoStorage;
             existingCompletion.AfterPhotoUrls = JsonSerializer.Serialize(afterPhotos);
             existingCompletion.StartedAt = startedAt;
             existingCompletion.EndedAt = endedAt;
@@ -208,7 +210,9 @@ public class ReviewAgentService
             existingCompletion.UpdatedAt = DateTimeOffset.UtcNow;
         }
 
-        // Update booking entity
+        // Update booking entity timing and calculation ONLY.
+        // DO NOT change booking.Status to PendingCustomerSignOff here!
+        // The booking status remains Active until the provider explicitly reviews the AI assessment and taps "Submit to Customer for Sign-Off".
         if (booking != null)
         {
             booking.StartedAt = startedAt;
@@ -216,7 +220,6 @@ public class ReviewAgentService
             booking.DurationMinutes = totalMinutes;
             booking.FinalCalculatedPrice = calculatedPrice;
             if (!string.IsNullOrWhiteSpace(beforePhoto)) booking.BeforePhotoUrl = beforePhoto;
-            booking.Status = aiResult.VerificationPassed ? "PendingCustomerSignOff" : "RevisionRequested";
             booking.UpdatedAt = DateTimeOffset.UtcNow;
         }
 
@@ -486,6 +489,32 @@ public class ReviewAgentService
         }
 
         return null;
+    }
+
+    public async Task<bool> SubmitToCustomerAsync(SubmitToCustomerRequest request, CancellationToken ct = default)
+    {
+        var booking = await _dbContext.Bookings
+            .FirstOrDefaultAsync(b => b.BookingReference == request.BookingReference, ct);
+        if (booking == null) return false;
+
+        booking.Status = "PendingCustomerSignOff";
+        booking.UpdatedAt = DateTimeOffset.UtcNow;
+
+        var completion = await _dbContext.JobCompletions
+            .FirstOrDefaultAsync(c => c.BookingReference == request.BookingReference, ct);
+        if (completion != null)
+        {
+            completion.Status = "PendingCustomerSignOff";
+            completion.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
+        await _dbContext.SaveChangesAsync(ct);
+
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine($"\n[🤖 AGENT 4] Provider SUBMITTED proof to Customer for Booking #{request.BookingReference}");
+        Console.ResetColor();
+
+        return true;
     }
 
     public async Task<object> CustomerApproveAsync(CustomerApprovalRequest request, CancellationToken ct = default)

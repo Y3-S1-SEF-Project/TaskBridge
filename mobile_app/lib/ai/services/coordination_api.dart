@@ -25,6 +25,8 @@ class CoordinationApi {
   static Future<BookingProposalResponse> evaluateQuotations({
     required JobPlan jobPlan,
     List<MatchedProvider>? candidateProviders,
+    String? customerId,
+    String? customerName,
   }) async {
     developer.log(
       '🤝 [TASKBRIDGE AI: AGENT 3] Evaluating quotations for "${jobPlan.serviceTitle}"',
@@ -57,10 +59,13 @@ class CoordinationApi {
       }
     }
 
-    final payload = jsonEncode({
+    final payloadMap = <String, dynamic>{
       'jobPlan': jobPlan.toJson(),
       'candidateProviders': quotesJson,
-    });
+    };
+    if (customerId != null) payloadMap['customerId'] = customerId;
+    if (customerName != null) payloadMap['customerName'] = customerName;
+    final payload = jsonEncode(payloadMap);
 
     final candidates = _candidateUrls;
     Object? lastError;
@@ -104,7 +109,12 @@ class CoordinationApi {
     );
 
     // Fallback response for offline / resilience
-    return _generateFallbackProposal(jobPlan, candidateProviders);
+    return _generateFallbackProposal(
+      jobPlan,
+      candidateProviders,
+      customerId: customerId,
+      customerName: customerName,
+    );
   }
 
   static final List<BookingItem> _localBookings = [];
@@ -115,6 +125,8 @@ class CoordinationApi {
     required BookingDetails booking,
     required String category,
     required String providerId,
+    String? customerId,
+    String? customerName,
     String? rateType = 'Hourly',
   }) async {
     developer.log(
@@ -123,6 +135,10 @@ class CoordinationApi {
     );
 
     final resolvedRateType = rateType ?? 'Hourly';
+    final resolvedCustomerName = (customerName != null && customerName.isNotEmpty)
+        ? customerName
+        : (booking.customerName.isNotEmpty ? booking.customerName : 'Customer');
+    final resolvedCustomerId = customerId ?? booking.customerId;
 
     final newProp = ProposalItem(
       id: 'pr-${DateTime.now().millisecondsSinceEpoch}',
@@ -131,9 +147,7 @@ class CoordinationApi {
       category: category,
       providerName: booking.providerName,
       providerId: providerId,
-      customerName: booking.customerName.isNotEmpty
-          ? booking.customerName
-          : 'Customer',
+      customerName: resolvedCustomerName,
       location: booking.location,
       preferredSchedule: booking.schedule,
       estimatedRate: booking.price,
@@ -150,9 +164,7 @@ class CoordinationApi {
     final newItem = BookingItem(
       id: 'b-${DateTime.now().millisecondsSinceEpoch}',
       bookingReference: booking.bookingReference,
-      customerName: booking.customerName.isNotEmpty
-          ? booking.customerName
-          : 'Customer',
+      customerName: resolvedCustomerName,
       providerName: booking.providerName,
       serviceTitle: booking.serviceTitle,
       category: category,
@@ -169,11 +181,11 @@ class CoordinationApi {
     );
     _localBookings.insert(0, newItem);
 
-    final payload = jsonEncode({
+    final payloadMap = <String, dynamic>{
       'bookingReference': booking.bookingReference,
       'providerId': providerId,
       'providerName': booking.providerName,
-      'customerName': booking.customerName,
+      'customerName': resolvedCustomerName,
       'serviceTitle': booking.serviceTitle,
       'category': category,
       'location': booking.location,
@@ -181,7 +193,11 @@ class CoordinationApi {
       'price': booking.price,
       'rateType': resolvedRateType,
       'status': 'Requested',
-    });
+    };
+    if (resolvedCustomerId != null) {
+      payloadMap['customerId'] = resolvedCustomerId;
+    }
+    final payload = jsonEncode(payloadMap);
 
     for (final candidate in _candidateUrls) {
       final uri = Uri.parse('$candidate/api/agent/coordination/request-quote');
@@ -853,8 +869,10 @@ class CoordinationApi {
 
   static BookingProposalResponse _generateFallbackProposal(
     JobPlan plan,
-    List<MatchedProvider>? candidateProviders,
-  ) {
+    List<MatchedProvider>? candidateProviders, {
+    String? customerId,
+    String? customerName,
+  }) {
     final topProvider =
         (candidateProviders != null && candidateProviders.isNotEmpty)
         ? candidateProviders.first
@@ -891,6 +909,10 @@ class CoordinationApi {
     final scheduleDisplay =
         '$datePart · ${isMorning ? "9:30 AM" : "4:00 PM"} · $locPart';
 
+    final resolvedCust = (customerName != null && customerName.isNotEmpty)
+        ? customerName
+        : 'Customer';
+
     return BookingProposalResponse(
       success: true,
       recommendedProviderId: winnerId,
@@ -903,7 +925,8 @@ class CoordinationApi {
         bookingReference: 'TB-1042',
         serviceTitle: plan.serviceTitle,
         providerName: winnerName,
-        customerName: 'Kavindu Alwis',
+        customerId: customerId,
+        customerName: resolvedCust,
         location: locPart,
         schedule: scheduleDisplay,
         price: winnerPrice,

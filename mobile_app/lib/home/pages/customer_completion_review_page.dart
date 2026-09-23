@@ -7,6 +7,7 @@ import '../../ai/models/review_models.dart';
 import '../../ai/services/review_api.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_palette.dart';
+import '../widgets/fullscreen_photo_viewer.dart';
 
 class CustomerCompletionReviewPage extends StatefulWidget {
   final BookingItem booking;
@@ -430,43 +431,65 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
             ? 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=800&auto=format&fit=crop&q=80'
             : 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?w=800&auto=format&fit=crop&q=80');
 
-    final rawBefore = _completion?.beforePhotoUrl;
-    final beforeUrl = (rawBefore != null && rawBefore.isNotEmpty) ? rawBefore : defaultBefore;
+    // Collect all before photos
+    final compBeforeUrls = _completion?.beforePhotoUrls ?? [];
+    final List<String> beforePhotos = [];
+    if (compBeforeUrls.isNotEmpty) {
+      beforePhotos.addAll(compBeforeUrls);
+    } else if (_completion?.beforePhotoUrl != null && _completion!.beforePhotoUrl!.isNotEmpty) {
+      beforePhotos.add(_completion!.beforePhotoUrl!);
+    } else {
+      beforePhotos.add(defaultBefore);
+    }
 
-    final afterUrls = _completion?.afterPhotoUrls ?? [];
-    final rawAfter = afterUrls.isNotEmpty ? afterUrls.first : null;
-    final afterUrl = (rawAfter != null && rawAfter.isNotEmpty) ? rawAfter : defaultAfter;
+    // Collect all after photos
+    final compAfterUrls = _completion?.afterPhotoUrls ?? [];
+    final List<String> afterPhotos = compAfterUrls.isNotEmpty ? compAfterUrls : [defaultAfter];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Visual Before & After Comparison',
-          style: GoogleFonts.plusJakartaSans(
-            fontWeight: FontWeight.bold,
-            fontSize: 15,
-            color: palette.text,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Visual Before & After Comparison',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+                color: palette.text,
+              ),
+            ),
+            Text(
+              'Tap photo to view',
+              style: TextStyle(
+                fontSize: 11,
+                color: palette.muted,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Before Photo
+            // Before Photo Card
             Expanded(
               child: _buildComparisonPhotoCard(
                 title: 'Before Service',
                 subtitle: 'Initial State',
-                url: beforeUrl,
+                photos: beforePhotos,
                 badgeColor: Colors.grey.shade700,
               ),
             ),
             const SizedBox(width: 12),
-            // After Photo
+            // After Photo Card
             Expanded(
               child: _buildComparisonPhotoCard(
                 title: 'After Service',
                 subtitle: 'Completed Result',
-                url: afterUrl,
+                photos: afterPhotos,
                 badgeColor: Colors.green.shade700,
               ),
             ),
@@ -479,27 +502,29 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
   Widget _buildComparisonPhotoCard({
     required String title,
     required String subtitle,
-    String? url,
+    required List<String> photos,
     required Color badgeColor,
   }) {
-    final hasPhoto = url != null && url.isNotEmpty;
+    final hasPhotos = photos.isNotEmpty;
+    final primaryPhoto = hasPhotos ? photos.first : null;
 
-    Widget photoWidget;
-    if (!hasPhoto) {
-      photoWidget = const Center(
-        child: Icon(Icons.image_not_supported_outlined, color: Colors.grey, size: 30),
-      );
-    } else if (url.startsWith('/') || url.startsWith('file://')) {
-      final cleanPath = url.replaceFirst('file://', '');
-      photoWidget = Image.file(
-        File(cleanPath),
-        fit: BoxFit.cover,
-        errorBuilder: (c, e, s) => const Center(
-          child: Icon(Icons.broken_image, color: Colors.grey),
-        ),
-      );
-    } else {
-      photoWidget = CachedNetworkImage(
+    Widget buildSinglePhoto(String? url) {
+      if (url == null || url.isEmpty) {
+        return const Center(
+          child: Icon(Icons.image_not_supported_outlined, color: Colors.grey, size: 28),
+        );
+      }
+      if (url.startsWith('/') || url.startsWith('file://')) {
+        final cleanPath = url.replaceFirst('file://', '');
+        return Image.file(
+          File(cleanPath),
+          fit: BoxFit.cover,
+          errorBuilder: (c, e, s) => const Center(
+            child: Icon(Icons.broken_image, color: Colors.grey),
+          ),
+        );
+      }
+      return CachedNetworkImage(
         imageUrl: url,
         fit: BoxFit.cover,
         placeholder: (context, urlStr) => const Center(
@@ -529,11 +554,14 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  title,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                Expanded(
+                  child: Text(
+                    title,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 Container(
@@ -543,7 +571,7 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    subtitle,
+                    photos.length > 1 ? '${photos.length} photos' : subtitle,
                     style: TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.bold,
@@ -554,18 +582,108 @@ class _CustomerCompletionReviewPageState extends State<CustomerCompletionReviewP
               ],
             ),
           ),
-          Container(
-            height: 130,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.grey.withValues(alpha: 0.1),
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
+          // Main Preview Box with Tap to Fullscreen
+          InkWell(
+            onTap: hasPhotos
+                ? () => openFullScreenPhotoViewer(
+                    context,
+                    imageUrls: photos,
+                    initialIndex: 0,
+                    title: '$title - Photo 1 of ${photos.length}',
+                  )
+                : null,
+            borderRadius: BorderRadius.vertical(
+              bottom: Radius.circular(photos.length > 1 ? 0 : 14),
             ),
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
-              child: photoWidget,
+            child: Container(
+              height: 125,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.vertical(
+                  bottom: Radius.circular(photos.length > 1 ? 0 : 14),
+                ),
+              ),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(photos.length > 1 ? 0 : 14),
+                    ),
+                    child: buildSinglePhoto(primaryPhoto),
+                  ),
+                  // Fullscreen hint badge
+                  if (hasPhotos)
+                    Positioned(
+                      bottom: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.65),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.fullscreen_rounded, size: 13, color: Colors.white),
+                            SizedBox(width: 3),
+                            Text(
+                              'View',
+                              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
+          // Horizontal thumbnails if multiple photos exist
+          if (photos.length > 1)
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.05),
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
+              ),
+              child: SizedBox(
+                height: 44,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: photos.length,
+                  separatorBuilder: (context, index) => const SizedBox(width: 5),
+                  itemBuilder: (ctx, i) {
+                    final photoUrl = photos[i];
+                    return GestureDetector(
+                      onTap: () => openFullScreenPhotoViewer(
+                        context,
+                        imageUrls: photos,
+                        initialIndex: i,
+                        title: '$title - Photo ${i + 1} of ${photos.length}',
+                      ),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(7),
+                          border: Border.all(
+                            color: i == 0 ? badgeColor : Colors.grey.withValues(alpha: 0.3),
+                            width: i == 0 ? 1.5 : 1.0,
+                          ),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: buildSinglePhoto(photoUrl),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
         ],
       ),
     );

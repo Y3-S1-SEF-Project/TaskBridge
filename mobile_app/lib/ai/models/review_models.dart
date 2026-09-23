@@ -12,6 +12,7 @@ class JobCompletionModel {
   final String category;
   final String providerNotes;
   final String? beforePhotoUrl;
+  final List<String> beforePhotoUrls;
   final List<String> afterPhotoUrls;
   final DateTime startedAt;
   final DateTime endedAt;
@@ -38,6 +39,7 @@ class JobCompletionModel {
     required this.category,
     required this.providerNotes,
     this.beforePhotoUrl,
+    required this.beforePhotoUrls,
     required this.afterPhotoUrls,
     required this.startedAt,
     required this.endedAt,
@@ -66,6 +68,19 @@ class JobCompletionModel {
       return [];
     }
 
+    final parsedBefore = parseStringList(json['beforePhotoUrls']);
+    final rawBefore = json['beforePhotoUrl']?.toString();
+    List<String> allBefore = [];
+    if (parsedBefore.isNotEmpty) {
+      allBefore = parsedBefore;
+    } else if (rawBefore != null && rawBefore.isNotEmpty) {
+      if (rawBefore.trim().startsWith('[')) {
+        allBefore = parseStringList(rawBefore);
+      } else {
+        allBefore = [rawBefore];
+      }
+    }
+
     return JobCompletionModel(
       id: json['id']?.toString() ?? '',
       bookingReference: json['bookingReference']?.toString() ?? '',
@@ -77,7 +92,8 @@ class JobCompletionModel {
       serviceTitle: json['serviceTitle']?.toString() ?? '',
       category: json['category']?.toString() ?? '',
       providerNotes: json['providerNotes']?.toString() ?? '',
-      beforePhotoUrl: json['beforePhotoUrl']?.toString(),
+      beforePhotoUrl: allBefore.isNotEmpty ? allBefore.first : rawBefore,
+      beforePhotoUrls: allBefore,
       afterPhotoUrls: parseStringList(json['afterPhotoUrls']),
       startedAt: DateTime.tryParse(json['startedAt']?.toString() ?? '') ?? DateTime.now(),
       endedAt: DateTime.tryParse(json['endedAt']?.toString() ?? '') ?? DateTime.now(),
