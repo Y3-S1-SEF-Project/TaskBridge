@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../ai/models/review_models.dart';
+import '../../ai/services/bookings_sync_service.dart';
 import '../../ai/services/review_api.dart';
+import '../../auth/data/auth_api.dart';
+import '../../auth/data/auth_models.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_spacing.dart';
 import '../models/provider_item.dart';
+import 'book_specialist_page.dart';
 
 class ProviderDetailPage extends StatefulWidget {
   final ProviderItem provider;
+  final AuthUser? user;
 
-  const ProviderDetailPage({super.key, required this.provider});
+  const ProviderDetailPage({super.key, required this.provider, this.user});
 
   @override
   State<ProviderDetailPage> createState() => _ProviderDetailPageState();
@@ -21,10 +26,19 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
   ProviderItem get provider => widget.provider;
   List<FeedbackModel> _feedbacks = [];
   bool _isLoadingFeedbacks = false;
+  AuthUser? _currentUser;
 
   @override
   void initState() {
     super.initState();
+    _currentUser = widget.user;
+    if (_currentUser == null) {
+      AuthApi.getCachedUser().then((u) {
+        if (mounted && u != null) {
+          setState(() => _currentUser = u);
+        }
+      });
+    }
     _loadFeedbacks();
   }
 
@@ -657,16 +671,45 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Booking request submitted to ${provider.fullName}!',
+                onPressed: () async {
+                  final result = await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => BookSpecialistPage(
+                        provider: provider,
+                        user: _currentUser,
                       ),
-                      backgroundColor: AppColors.primary,
-                      duration: const Duration(seconds: 3),
                     ),
                   );
+                  if (result == true && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            const Icon(
+                              Icons.check_circle_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Proposal sent to ${provider.fullName}! Saved to your bookings.',
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                        backgroundColor: AppColors.primary,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        duration: const Duration(seconds: 4),
+                      ),
+                    );
+                    BookingsSyncService.instance.triggerImmediateUpdate();
+                  }
                 },
                 child: const Text(
                   'Book Specialist',

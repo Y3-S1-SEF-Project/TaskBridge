@@ -74,6 +74,7 @@ class BookingDetails {
   final String schedule;
   final double price;
   final String priceFormatted;
+  final String? notes;
   final String status;
 
   const BookingDetails({
@@ -86,6 +87,7 @@ class BookingDetails {
     required this.schedule,
     required this.price,
     required this.priceFormatted,
+    this.notes,
     this.status = 'Upcoming',
   });
 
@@ -100,6 +102,7 @@ class BookingDetails {
       schedule: json['schedule'] as String? ?? '17 Sep · 4:00 PM · Colombo 05',
       price: (json['price'] as num?)?.toDouble() ?? 4500.0,
       priceFormatted: json['priceFormatted'] as String? ?? 'Rs. 4,500',
+      notes: json['notes'] as String?,
       status: json['status'] as String? ?? 'Upcoming',
     );
   }
@@ -114,6 +117,7 @@ class BookingDetails {
     'schedule': schedule,
     'price': price,
     'priceFormatted': priceFormatted,
+    if (notes != null) 'notes': notes,
     'status': status,
   };
 }
@@ -177,6 +181,7 @@ class BookingItem {
   final String schedule;
   final double price;
   final String rateType;
+  final String? notes;
   final String status;
   final DateTime createdAt;
 
@@ -192,6 +197,7 @@ class BookingItem {
     required this.schedule,
     required this.price,
     this.rateType = 'Hourly',
+    this.notes,
     required this.status,
     required this.createdAt,
   });
@@ -209,6 +215,7 @@ class BookingItem {
       schedule: json['schedule'] as String? ?? '17 Sep · 4:00 PM · Colombo 05',
       price: (json['price'] as num?)?.toDouble() ?? 4500.0,
       rateType: json['rateType'] as String? ?? 'Hourly',
+      notes: json['notes'] as String?,
       status: json['status'] as String? ?? 'Upcoming',
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
@@ -258,6 +265,7 @@ class BookingItem {
     String? rateType,
     double? price,
     String? schedule,
+    String? notes,
   }) {
     return BookingItem(
       id: id,
@@ -271,6 +279,7 @@ class BookingItem {
       schedule: schedule ?? this.schedule,
       price: price ?? this.price,
       rateType: rateType ?? this.rateType,
+      notes: notes ?? this.notes,
       status: status ?? this.status,
       createdAt: createdAt,
     );
@@ -289,6 +298,7 @@ class ProposalItem {
   final String preferredSchedule;
   final double estimatedRate;
   final String rateType;
+  final String? notes;
   final String status;
   final DateTime createdAt;
 
@@ -304,6 +314,7 @@ class ProposalItem {
     required this.preferredSchedule,
     required this.estimatedRate,
     this.rateType = 'Hourly',
+    this.notes,
     required this.status,
     required this.createdAt,
   });
@@ -321,6 +332,7 @@ class ProposalItem {
       preferredSchedule: json['preferredSchedule'] as String? ?? '',
       estimatedRate: (json['estimatedRate'] as num?)?.toDouble() ?? 3500.0,
       rateType: json['rateType'] as String? ?? 'Hourly',
+      notes: json['notes'] as String?,
       status: json['status'] as String? ?? 'Pending',
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
@@ -352,6 +364,7 @@ class ProposalItem {
     String? rateType,
     double? estimatedRate,
     String? preferredSchedule,
+    String? notes,
   }) {
     return ProposalItem(
       id: id,
@@ -365,6 +378,7 @@ class ProposalItem {
       preferredSchedule: preferredSchedule ?? this.preferredSchedule,
       estimatedRate: estimatedRate ?? this.estimatedRate,
       rateType: rateType ?? this.rateType,
+      notes: notes ?? this.notes,
       status: status ?? this.status,
       createdAt: createdAt,
     );
@@ -383,6 +397,7 @@ class ProposalItem {
       schedule: preferredSchedule,
       price: estimatedRate,
       rateType: rateType,
+      notes: notes,
       status: status,
       createdAt: createdAt,
     );

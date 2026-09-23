@@ -202,6 +202,8 @@ CREATE TABLE IF NOT EXISTS bookings (
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""ProposalId"" uuid NULL;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""RateType"" text NOT NULL DEFAULT 'Hourly';
 ALTER TABLE proposals ADD COLUMN IF NOT EXISTS ""RateType"" text NOT NULL DEFAULT 'Hourly';
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""Notes"" text NULL;
+ALTER TABLE proposals ADD COLUMN IF NOT EXISTS ""Notes"" text NULL;
 
 CREATE INDEX IF NOT EXISTS ix_bookings_reference ON bookings (""BookingReference"");
 CREATE INDEX IF NOT EXISTS ix_bookings_status ON bookings (""Status"");

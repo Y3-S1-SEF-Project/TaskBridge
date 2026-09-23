@@ -314,6 +314,7 @@ public class CoordinationAgentService
             : await GenerateProposalReferenceAsync(ct);
 
         Guid? custId = await ResolveCustomerIdAsync(req.CustomerId, req.CustomerName, ct);
+        Guid? provId = Guid.TryParse(req.ProviderId, out var parsedGuid) ? parsedGuid : null;
 
         var existing = await _dbContext.Proposals.FirstOrDefaultAsync(p => p.ProposalReference == proposalRef, ct);
         if (existing != null)
@@ -324,6 +325,7 @@ public class CoordinationAgentService
             existing.Location = req.Location;
             existing.ServiceTitle = req.ServiceTitle;
             existing.Category = req.Category;
+            if (!string.IsNullOrWhiteSpace(req.Notes)) existing.Notes = req.Notes;
             if (custId.HasValue)
             {
                 existing.CustomerId = custId;
@@ -334,11 +336,49 @@ public class CoordinationAgentService
             }
             existing.Status = string.IsNullOrWhiteSpace(req.Status) ? "Pending" : req.Status;
             existing.UpdatedAt = DateTimeOffset.UtcNow;
+
+            // Also update linked booking in 'bookings' table
+            var existingBooking = await _dbContext.Bookings.FirstOrDefaultAsync(b => b.ProposalId == existing.Id || b.BookingReference == proposalRef, ct);
+            if (existingBooking != null)
+            {
+                existingBooking.Price = req.Price;
+                if (!string.IsNullOrWhiteSpace(req.RateType)) existingBooking.RateType = req.RateType;
+                existingBooking.Schedule = req.Schedule;
+                existingBooking.Location = req.Location;
+                existingBooking.ServiceTitle = req.ServiceTitle;
+                existingBooking.Category = req.Category;
+                if (!string.IsNullOrWhiteSpace(req.Notes)) existingBooking.Notes = req.Notes;
+                if (custId.HasValue) existingBooking.CustomerId = custId;
+                if (!string.IsNullOrWhiteSpace(req.CustomerName)) existingBooking.CustomerName = req.CustomerName;
+                existingBooking.Status = string.IsNullOrWhiteSpace(req.Status) ? "Requested" : req.Status;
+                existingBooking.UpdatedAt = DateTimeOffset.UtcNow;
+            }
+            else
+            {
+                _dbContext.Bookings.Add(new BookingEntity
+                {
+                    Id = Guid.NewGuid(),
+                    BookingReference = proposalRef,
+                    ProposalId = existing.Id,
+                    CustomerId = custId,
+                    CustomerName = req.CustomerName ?? "Customer",
+                    ProviderId = provId,
+                    ProviderName = req.ProviderName,
+                    ServiceTitle = req.ServiceTitle,
+                    Category = req.Category,
+                    Location = req.Location,
+                    Schedule = req.Schedule,
+                    Price = req.Price,
+                    RateType = !string.IsNullOrWhiteSpace(req.RateType) ? req.RateType : "Hourly",
+                    Notes = req.Notes,
+                    Status = string.IsNullOrWhiteSpace(req.Status) ? "Requested" : req.Status,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            }
+
             await _dbContext.SaveChangesAsync(ct);
             return existing;
         }
-
-        Guid? provId = Guid.TryParse(req.ProviderId, out var parsedGuid) ? parsedGuid : null;
 
         var entity = new ProposalEntity
         {
@@ -354,15 +394,39 @@ public class CoordinationAgentService
             PreferredSchedule = req.Schedule,
             EstimatedRate = req.Price,
             RateType = !string.IsNullOrWhiteSpace(req.RateType) ? req.RateType : "Hourly",
+            Notes = req.Notes,
             Status = "Pending",
             CreatedAt = DateTimeOffset.UtcNow
         };
 
         _dbContext.Proposals.Add(entity);
+
+        // Also persist linked entry in 'bookings' table
+        var newBooking = new BookingEntity
+        {
+            Id = Guid.NewGuid(),
+            BookingReference = proposalRef,
+            ProposalId = entity.Id,
+            CustomerId = custId,
+            CustomerName = req.CustomerName ?? "Customer",
+            ProviderId = provId,
+            ProviderName = req.ProviderName,
+            ServiceTitle = req.ServiceTitle,
+            Category = req.Category,
+            Location = req.Location,
+            Schedule = req.Schedule,
+            Price = req.Price,
+            RateType = !string.IsNullOrWhiteSpace(req.RateType) ? req.RateType : "Hourly",
+            Notes = req.Notes,
+            Status = string.IsNullOrWhiteSpace(req.Status) ? "Requested" : req.Status,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        _dbContext.Bookings.Add(newBooking);
+
         await _dbContext.SaveChangesAsync(ct);
 
         Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"[📝 PROPOSAL PERSISTED IN 'proposals' TABLE] Ref: {entity.ProposalReference} | Provider: {entity.ProviderName} | CustomerId: {entity.CustomerId} | Status: {entity.Status}");
+        Console.WriteLine($"[📝 PROPOSAL & BOOKING PERSISTED] Ref: {entity.ProposalReference} | Provider: {entity.ProviderName} | CustomerId: {entity.CustomerId} | Status: {entity.Status}");
         Console.ResetColor();
 
         return entity;
@@ -371,7 +435,7 @@ public class CoordinationAgentService
     /// <summary>
     /// Provider accepts a customer proposal:
     /// 1. Updates proposal in 'proposals' table to Status = 'Accepted'.
-    /// 2. Creates and locks a new confirmed appointment in 'bookings' table (Status = 'Upcoming').
+    /// 2. Updates or creates confirmed appointment in 'bookings' table (Status = 'Upcoming').
     /// </summary>
     public async Task<BookingEntity?> AcceptProposalAsync(AcceptProposalRequest req, CancellationToken ct = default)
     {
@@ -393,6 +457,30 @@ public class CoordinationAgentService
             proposal.CustomerId = bookingCustId;
         }
 
+        // Check if an existing booking is already linked to this proposal
+        var linkedBooking = await _dbContext.Bookings.FirstOrDefaultAsync(b =>
+            b.ProposalId == proposal.Id ||
+            b.BookingReference == proposal.ProposalReference ||
+            b.BookingReference == proposal.ProposalReference.Replace("PR-", "TB-"), ct);
+
+        if (linkedBooking != null)
+        {
+            linkedBooking.Status = "Upcoming";
+            linkedBooking.Schedule = !string.IsNullOrWhiteSpace(req.ConfirmedSchedule) ? req.ConfirmedSchedule : proposal.PreferredSchedule;
+            linkedBooking.Price = req.ConfirmedPrice > 0 ? req.ConfirmedPrice : proposal.EstimatedRate;
+            if (!string.IsNullOrWhiteSpace(req.RateType)) linkedBooking.RateType = req.RateType;
+            if (bookingCustId.HasValue) linkedBooking.CustomerId = bookingCustId;
+            linkedBooking.UpdatedAt = DateTimeOffset.UtcNow;
+
+            await _dbContext.SaveChangesAsync(ct);
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"[🎉 LINKED BOOKING CONFIRMED] Proposal: {proposal.ProposalReference} -> Booking: {linkedBooking.BookingReference} | CustomerId: {linkedBooking.CustomerId} | Price: Rs. {linkedBooking.Price:N0} ({linkedBooking.RateType}) | Schedule: {linkedBooking.Schedule}");
+            Console.ResetColor();
+
+            return linkedBooking;
+        }
+
         var bookingRef = await GenerateBookingReferenceAsync(ct);
         var confirmedBooking = new BookingEntity
         {
@@ -409,6 +497,7 @@ public class CoordinationAgentService
             Schedule = !string.IsNullOrWhiteSpace(req.ConfirmedSchedule) ? req.ConfirmedSchedule : proposal.PreferredSchedule,
             Price = req.ConfirmedPrice > 0 ? req.ConfirmedPrice : proposal.EstimatedRate,
             RateType = !string.IsNullOrWhiteSpace(req.RateType) ? req.RateType : proposal.RateType,
+            Notes = proposal.Notes,
             Status = "Upcoming",
             CreatedAt = DateTimeOffset.UtcNow
         };

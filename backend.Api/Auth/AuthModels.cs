@@ -155,6 +155,7 @@ public sealed class ProposalEntity
     public string PreferredSchedule { get; set; } = string.Empty; // e.g. Tomorrow Afternoon (12 PM - 5 PM)
     public decimal EstimatedRate { get; set; } // Provider hourly rate at time of proposal
     public string RateType { get; set; } = "Hourly"; // Hourly or Fixed
+    public string? Notes { get; set; }
     public string Status { get; set; } = "Pending"; // Pending, Accepted, Declined, Cancelled
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAt { get; set; }
@@ -175,6 +176,7 @@ public sealed class BookingEntity
     public string Schedule { get; set; } = string.Empty; // e.g. 17 Sep · 4:00 PM · Colombo 05
     public decimal Price { get; set; }
     public string RateType { get; set; } = "Hourly"; // Hourly or Fixed
+    public string? Notes { get; set; }
     public string Status { get; set; } = "Upcoming"; // Upcoming, Active, Completed, Cancelled
     public DateTimeOffset? StartedAt { get; set; }
     public DateTimeOffset? EndedAt { get; set; }

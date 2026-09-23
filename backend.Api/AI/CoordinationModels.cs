@@ -88,6 +88,9 @@ public class BookingDetailsDto
     [JsonPropertyName("priceFormatted")]
     public string PriceFormatted { get; set; } = string.Empty;
 
+    [JsonPropertyName("notes")]
+    public string? Notes { get; set; }
+
     [JsonPropertyName("status")]
     public string Status { get; set; } = "Upcoming"; // Upcoming, Active, Completed, Cancelled
 }
@@ -214,6 +217,9 @@ public class CreateQuotationRequest
     [JsonPropertyName("rateType")]
     public string? RateType { get; set; } = "Hourly";
 
+    [JsonPropertyName("notes")]
+    public string? Notes { get; set; }
+
     [JsonPropertyName("status")]
     public string Status { get; set; } = "Requested";
 }
@@ -285,6 +291,9 @@ public class ProposalDto
 
     [JsonPropertyName("rateType")]
     public string RateType { get; set; } = "Hourly";
+
+    [JsonPropertyName("notes")]
+    public string? Notes { get; set; }
 
     [JsonPropertyName("status")]
     public string Status { get; set; } = "Pending";

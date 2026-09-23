@@ -28,6 +28,11 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
   bool _isDragging = false;
   Timer? _debounceTimer;
 
+  List<UserLocation> _suggestions = [];
+  bool _isLoadingSuggestions = false;
+  Timer? _searchDebounceTimer;
+  bool _showDropdown = false;
+
   @override
   void initState() {
     super.initState();
@@ -41,12 +46,74 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _searchDebounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
+  void _onSearchChanged(String text) {
+    _searchDebounceTimer?.cancel();
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) {
+      setState(() {
+        _suggestions = [];
+        _showDropdown = false;
+        _isLoadingSuggestions = false;
+      });
+      return;
+    }
+
+    // 1. Instant local index filtering (0ms feedback on first letter keystroke)
+    final lower = trimmed.toLowerCase();
+    final instantMatches = LocationService.popularSriLankanPlaces
+        .where(
+          (loc) =>
+              loc.shortName.toLowerCase().contains(lower) ||
+              loc.address.toLowerCase().contains(lower),
+        )
+        .take(5)
+        .toList();
+
+    setState(() {
+      _suggestions = instantMatches;
+      _showDropdown = true;
+      _isLoadingSuggestions = true;
+    });
+
+    // 2. Debounced online Nominatim / Geocoding query to supplement live results
+    _searchDebounceTimer = Timer(const Duration(milliseconds: 250), () async {
+      final results = await LocationService.searchSuggestions(
+        trimmed,
+        limit: 6,
+      );
+      if (mounted && _searchController.text.trim() == trimmed) {
+        setState(() {
+          _suggestions = results.isNotEmpty ? results : instantMatches;
+          _isLoadingSuggestions = false;
+          _showDropdown = _suggestions.isNotEmpty;
+        });
+      }
+    });
+  }
+
+  void _selectSuggestion(UserLocation suggestion) {
+    _searchDebounceTimer?.cancel();
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _searchController.text = suggestion.shortName;
+      _selectedLocation = suggestion;
+      _currentCenter = LatLng(suggestion.latitude, suggestion.longitude);
+      _showDropdown = false;
+      _suggestions = [];
+    });
+    _animateCameraTo(_currentCenter);
+  }
+
   void _onCameraMove(CameraPosition position) {
     _currentCenter = position.target;
+    if (_showDropdown) {
+      setState(() => _showDropdown = false);
+    }
     if (!_isDragging) {
       setState(() => _isDragging = true);
     }
@@ -200,7 +267,12 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                 _mapController.complete(controller);
               }
             },
-            onTap: (LatLng tappedPoint) => _animateCameraTo(tappedPoint),
+            onTap: (LatLng tappedPoint) {
+              if (_showDropdown) {
+                setState(() => _showDropdown = false);
+              }
+              _animateCameraTo(tappedPoint);
+            },
             onCameraMove: _onCameraMove,
             onCameraIdle: _onCameraIdle,
             myLocationEnabled: true,
@@ -292,8 +364,12 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                           ),
                           child: TextField(
                             controller: _searchController,
+                            onChanged: _onSearchChanged,
                             textInputAction: TextInputAction.search,
-                            onSubmitted: (_) => _performSearch(),
+                            onSubmitted: (_) {
+                              _performSearch();
+                              setState(() => _showDropdown = false);
+                            },
                             decoration: InputDecoration(
                               hintText: 'Search city, street, landmark…',
                               hintStyle: const TextStyle(
@@ -304,12 +380,47 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                                 Icons.search,
                                 color: AppColors.primary,
                               ),
-                              suffixIcon: IconButton(
-                                icon: const Icon(
-                                  Icons.arrow_forward_rounded,
-                                  color: AppColors.primary,
-                                ),
-                                onPressed: _performSearch,
+                              suffixIcon: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (_isLoadingSuggestions)
+                                    const Padding(
+                                      padding: EdgeInsets.all(12),
+                                      child: SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                AppColors.primary,
+                                              ),
+                                        ),
+                                      ),
+                                    )
+                                  else if (_searchController.text.isNotEmpty)
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.close_rounded,
+                                        color: AppColors.textSecondary,
+                                        size: 18,
+                                      ),
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        _onSearchChanged('');
+                                      },
+                                    ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.arrow_forward_rounded,
+                                      color: AppColors.primary,
+                                    ),
+                                    onPressed: () {
+                                      _performSearch();
+                                      setState(() => _showDropdown = false);
+                                    },
+                                  ),
+                                ],
                               ),
                               border: InputBorder.none,
                               contentPadding: const EdgeInsets.symmetric(
@@ -322,6 +433,101 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                       ),
                     ],
                   ),
+                  // ── Real Google Maps Style Floating Dropdown ──
+                  if (_showDropdown && _suggestions.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 280),
+                      margin: const EdgeInsets.only(left: 54),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.14),
+                            blurRadius: 20,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        itemCount: _suggestions.length,
+                        separatorBuilder: (_, _) => Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: Colors.grey.withValues(alpha: 0.12),
+                          indent: 52,
+                        ),
+                        itemBuilder: (context, index) {
+                          final item = _suggestions[index];
+                          return InkWell(
+                            onTap: () => _selectSuggestion(item),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 10,
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(7),
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.primaryLight,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.location_on_rounded,
+                                      color: AppColors.primary,
+                                      size: 18,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item.shortName,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          item.address,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Icon(
+                                    Icons.north_west_rounded,
+                                    size: 14,
+                                    color: Colors.grey,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

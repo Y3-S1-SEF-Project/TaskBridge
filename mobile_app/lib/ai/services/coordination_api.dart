@@ -128,6 +128,7 @@ class CoordinationApi {
     String? customerId,
     String? customerName,
     String? rateType = 'Hourly',
+    String? notes,
   }) async {
     developer.log(
       '📝 [TASKBRIDGE AI: AGENT 3] Creating quotation proposal "${booking.bookingReference}" for ${booking.providerName}',
@@ -139,6 +140,7 @@ class CoordinationApi {
         ? customerName
         : (booking.customerName.isNotEmpty ? booking.customerName : 'Customer');
     final resolvedCustomerId = customerId ?? booking.customerId;
+    final resolvedNotes = notes ?? booking.notes;
 
     final newProp = ProposalItem(
       id: 'pr-${DateTime.now().millisecondsSinceEpoch}',
@@ -152,6 +154,7 @@ class CoordinationApi {
       preferredSchedule: booking.schedule,
       estimatedRate: booking.price,
       rateType: resolvedRateType,
+      notes: resolvedNotes,
       status: 'Pending',
       createdAt: DateTime.now(),
     );
@@ -172,6 +175,7 @@ class CoordinationApi {
       schedule: booking.schedule,
       price: booking.price,
       rateType: resolvedRateType,
+      notes: resolvedNotes,
       status: 'Requested',
       createdAt: DateTime.now(),
     );
@@ -196,6 +200,9 @@ class CoordinationApi {
     };
     if (resolvedCustomerId != null) {
       payloadMap['customerId'] = resolvedCustomerId;
+    }
+    if (resolvedNotes != null && resolvedNotes.isNotEmpty) {
+      payloadMap['notes'] = resolvedNotes;
     }
     final payload = jsonEncode(payloadMap);
 
