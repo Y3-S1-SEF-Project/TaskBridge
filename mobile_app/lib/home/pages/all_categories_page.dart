@@ -1,0 +1,213 @@
+import 'package:flutter/material.dart';
+import '../../core/theme/app_icons.dart';
+import '../../core/theme/app_palette.dart';
+import '../../core/theme/app_spacing.dart';
+import '../models/service_category.dart';
+import '../widgets/category_card.dart';
+import '../widgets/taskbridge_bottom_nav.dart';
+import '../widgets/taskbridge_search_bar.dart';
+import 'provider_search_page.dart';
+import '../../ai/widgets/ai_prompt_sheet.dart';
+
+class AllCategoriesPage extends StatefulWidget {
+  final int initialNavIndex;
+
+  const AllCategoriesPage({super.key, this.initialNavIndex = 0});
+
+  @override
+  State<AllCategoriesPage> createState() => _AllCategoriesPageState();
+}
+
+class _AllCategoriesPageState extends State<AllCategoriesPage> {
+  final TextEditingController _searchController = TextEditingController();
+  List<ServiceCategory> _filteredCategories = ServiceCategory.allCategories;
+  late int _currentNavIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentNavIndex = widget.initialNavIndex;
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  void _onSearchChanged() {
+    final query = _searchController.text.trim().toLowerCase();
+    setState(() {
+      if (query.isEmpty) {
+        _filteredCategories = ServiceCategory.allCategories;
+      } else {
+        _filteredCategories = ServiceCategory.allCategories
+            .where((c) => c.name.toLowerCase().contains(query))
+            .toList();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Scaffold(
+      backgroundColor: p.background,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.s20,
+            vertical: AppSpacing.s16,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ── Header Tag ──
+              Text(
+                'FIND THE RIGHT SPECIALIST',
+                style: TextStyle(
+                  color: p.primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.s4),
+
+              // ── Title Row with Notification Bell ──
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  if (Navigator.canPop(context)) ...[
+                    IconButton(
+                      icon: Icon(AppIcons.arrowLeft, color: p.textPrimary),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: AppSpacing.s12),
+                  ],
+                  Expanded(
+                    child: Text(
+                      'All categories',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: p.textPrimary,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      AppIcons.notification,
+                      color: p.textPrimary,
+                      size: 26,
+                    ),
+                    onPressed: () {},
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.s20),
+
+              // ── Search Bar ──
+              TaskBridgeSearchBar(
+                hintText: 'Search a service',
+                controller: _searchController,
+              ),
+              const SizedBox(height: AppSpacing.s24),
+
+              // ── Categories Grid (3 Columns) ──
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _filteredCategories.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 1.05,
+                ),
+                itemBuilder: (context, index) {
+                  final cat = _filteredCategories[index];
+                  return CategoryCard(
+                    category: cat,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ProviderSearchPage(
+                            initialCategory: cat.name,
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+              const SizedBox(height: AppSpacing.s24),
+
+              // ── Bottom Help Banner ──
+              InkWell(
+                onTap: () {
+                  AiPromptSheet.show(context);
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: p.pillBackground,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: p.border),
+                  ),
+                  padding: const EdgeInsets.all(AppSpacing.s20),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Need a hand choosing?',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: p.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Tell us what\u2019s wrong and TaskBridge AI will identify the right specialist.',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: p.textSecondary,
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.auto_awesome, color: p.primary, size: 28),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: AppSpacing.s16),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: TaskBridgeBottomNav(
+        currentIndex: _currentNavIndex,
+        onTap: (index) {
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context, index);
+          } else {
+            setState(() => _currentNavIndex = index);
+          }
+        },
+      ),
+    );
+  }
+}

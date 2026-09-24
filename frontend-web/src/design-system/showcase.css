@@ -1,0 +1,22 @@
+body { margin: 0; }
+.tb-showcase-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tb-space-16); padding: var(--tb-space-20) var(--tb-space-32); border-bottom: 1px solid var(--tb-border); background: var(--tb-surface); }
+.tb-showcase-main { max-width: calc(var(--tb-content) + var(--tb-space-64)); margin: 0 auto; padding: var(--tb-space-40) var(--tb-space-32); }
+.tb-showcase-intro { display: flex; flex-direction: column; gap: var(--tb-space-16); margin-bottom: var(--tb-space-24); }
+.tb-showcase-intro h1 { font-size: var(--tb-type-display-size); line-height: var(--tb-type-display-line); }
+.tb-showcase-intro nav { gap: var(--tb-space-20); font-size: var(--tb-type-label-size); }
+.tb-notice { padding: var(--tb-space-16); background: var(--tb-soft); color: var(--tb-on-soft); border-radius: var(--tb-radius-12); font-size: var(--tb-type-caption-size); }
+.tb-showcase-section { display: flex; flex-direction: column; gap: var(--tb-space-20); padding-block: var(--tb-space-32); border-bottom: 1px solid var(--tb-border); scroll-margin-top: var(--tb-space-24); }
+.tb-color-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--tb-space-12); }
+.tb-swatch { height: var(--tb-space-48); border: 1px solid var(--tb-border); border-radius: var(--tb-radius-8); margin-bottom: var(--tb-space-12); }
+.tb-demo-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: var(--tb-space-24); align-items: start; }
+.tb-icon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: var(--tb-space-12); }
+.tb-icon-sample { display: flex; flex-direction: column; align-items: center; gap: var(--tb-space-12); color: var(--tb-primary); text-align: center; overflow-wrap: anywhere; }
+.tb-measure-label { width: var(--tb-space-48); }
+.tb-spacing-bar { display: inline-block; height: var(--tb-space-16); background: var(--tb-primary); }
+.tb-radius-sample { width: 80px; height: 64px; display: grid; place-items: center; background: var(--tb-soft); border: 1px solid var(--tb-border); }
+.tb-showcase footer { padding-top: var(--tb-space-24); }
+@media (max-width: 767px) {
+  .tb-showcase-header { padding: var(--tb-space-16) var(--tb-space-20); }
+  .tb-showcase-main { padding: var(--tb-space-24) var(--tb-space-20); }
+  .tb-demo-grid { grid-template-columns: minmax(0,1fr); }
+}
