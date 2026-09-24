@@ -67,7 +67,13 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
       setState(() => _isLoading = true);
     }
     try {
-      final custName = widget.user?.fullName;
+      var currentUser = widget.user;
+      if (currentUser == null || currentUser.fullName.isEmpty) {
+        currentUser = await AuthApi.getCachedUser();
+      }
+      final custName = (currentUser?.fullName.isNotEmpty == true)
+          ? currentUser!.fullName
+          : null;
       final bookingsFuture = CoordinationApi.getBookings(
         customerName: custName,
       );
@@ -83,7 +89,7 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
         final custLower = custName?.trim().toLowerCase();
 
         final filteredBookings = list.where((b) {
-          if (custLower == null) return true;
+          if (custLower == null || custLower.isEmpty) return true;
           final bCust = b.customerName.trim().toLowerCase();
           return bCust.contains(custLower) ||
               custLower.contains(bCust) ||
@@ -92,7 +98,7 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
 
         final filteredProposals = propList
             .where((p) {
-              if (custLower == null) return true;
+              if (custLower == null || custLower.isEmpty) return true;
               final pCust = p.customerName.trim().toLowerCase();
               return pCust.contains(custLower) ||
                   custLower.contains(pCust) ||
@@ -103,17 +109,18 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
 
         final combinedMap = <String, BookingItem>{};
 
-        for (final b in filteredBookings) {
-          // If a booking is just a proposal pseudo-entry (PR-), skip it here
-          // because filteredProposals is the authoritative source for all PR- items.
-          if (b.bookingReference.startsWith('PR-')) continue;
-          combinedMap[b.bookingReference] = b;
+        // 1. Add all proposals first (accepted proposals are mapped to Upcoming)
+        for (final p in filteredProposals) {
+          combinedMap[p.bookingReference] = p;
         }
 
-        for (final p in filteredProposals) {
-          // If proposal was accepted, it has already been converted into a confirmed BookingItem
-          if (p.status.toLowerCase() == 'accepted') continue;
-          combinedMap[p.bookingReference] = p;
+        // 2. Add / overwrite with authoritative bookings from the bookings table
+        for (final b in filteredBookings) {
+          final altRef = b.bookingReference.startsWith('TB-')
+              ? b.bookingReference.replaceFirst('TB-', 'PR-')
+              : b.bookingReference.replaceFirst('PR-', 'TB-');
+          combinedMap.remove(altRef);
+          combinedMap[b.bookingReference] = b;
         }
 
         final combined = combinedMap.values.toList()
@@ -225,9 +232,277 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
           builder: (_) => CustomerCompletionReviewPage(booking: booking),
         ),
       ).then((_) => _loadBookings(silent: true));
+    } else if (booking.isUpcoming) {
+      _showUpcomingJobDetailsModal(booking);
     } else {
       _showCustomerProposalReviewModal(booking);
     }
+  }
+
+  void _showUpcomingJobDetailsModal(BookingItem booking) {
+    final palette = AppPalette.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: palette.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(
+              left: AppSpacing.s20,
+              right: AppSpacing.s20,
+              top: AppSpacing.s8,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.s24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top Tag & Reference
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.teal.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '● UPCOMING APPOINTMENT',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.teal.shade800,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '#${booking.bookingReference}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: palette.muted,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                Text(
+                  booking.serviceTitle,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: palette.text,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Provider: ${booking.providerName} · Location: ${booking.location}',
+                  style: TextStyle(fontSize: 13, color: palette.muted),
+                ),
+                const SizedBox(height: 14),
+
+                // Upcoming Confirmed Schedule Banner
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.teal.shade50,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.teal.shade200, width: 1),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.event_available_rounded,
+                        size: 24,
+                        color: Colors.teal.shade800,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Appointment Confirmed',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.teal.shade900,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Your service is scheduled for ${booking.schedule}. ${booking.providerName} will arrive on-site at the agreed time.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.teal.shade900.withValues(
+                                  alpha: 0.8,
+                                ),
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Pricing Summary Card
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: palette.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: palette.border),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Agreed Rate',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: palette.muted,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            booking.priceFormatted,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: palette.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: palette.soft,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          booking.category,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: palette.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Contact Actions
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: palette.primary,
+                          side: BorderSide(color: palette.primary, width: 1.2),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Calling ${booking.providerName}...',
+                              ),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.phone_rounded, size: 18),
+                        label: const Text(
+                          'Call Provider',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: palette.primary,
+                          foregroundColor: palette.onPrimary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          widget.onSwitchTab?.call(2);
+                        },
+                        icon: const Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          size: 18,
+                        ),
+                        label: const Text(
+                          'Message',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Cancel Booking Button
+                Center(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _cancelBooking(booking);
+                    },
+                    child: Text(
+                      'Cancel Booking',
+                      style: TextStyle(
+                        color: AppColors.error,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _showActiveJobDetailsModal(BookingItem booking) {
@@ -1734,7 +2009,7 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                             emptySub:
                                 'Accepted quotations and confirmed bookings appear here.',
                             onRefresh: _loadBookings,
-                            onAction: null,
+                            onAction: _handleBookingTap,
                             onCancel: _cancelBooking,
                             isOngoingTab: false,
                           ),

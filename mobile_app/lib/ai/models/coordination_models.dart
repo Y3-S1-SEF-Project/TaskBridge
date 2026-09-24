@@ -238,27 +238,31 @@ class BookingItem {
           status.toLowerCase() == 'counterbidreceived');
   bool get isCustomerCountered =>
       !isCancelled && status.toLowerCase() == 'customercountered';
+  bool get isUpcoming =>
+      !isCancelled &&
+      (status.toLowerCase() == 'upcoming' ||
+          status.toLowerCase() == 'accepted' ||
+          status.toLowerCase() == 'confirmed');
+  bool get isActive =>
+      !isCancelled &&
+      (status.toLowerCase() == 'active' ||
+          status.toLowerCase() == 'in progress');
+  bool get isPendingSignOff => status.toLowerCase() == 'pendingcustomersignoff';
+  bool get isRevisionRequested => status.toLowerCase() == 'revisionrequested';
   bool get isRequested =>
       !isCancelled &&
       !isCompleted &&
+      !isUpcoming &&
       (status.toLowerCase() == 'requested' ||
           status.toLowerCase() == 'pending' ||
           status.toLowerCase() == 'quotationpending' ||
           isProviderCountered ||
           isCustomerCountered);
-  bool get isUpcoming => !isCancelled && status.toLowerCase() == 'upcoming';
-  bool get isActive =>
-      !isCancelled &&
-      (status.toLowerCase() == 'active' ||
-          status.toLowerCase() == 'in progress');
-  bool get isPendingSignOff =>
-      status.toLowerCase() == 'pendingcustomersignoff';
-  bool get isRevisionRequested =>
-      status.toLowerCase() == 'revisionrequested';
   bool get isOngoing =>
       (isRequested || isActive || isPendingSignOff || isRevisionRequested) &&
       !isCancelled &&
-      !isCompleted;
+      !isCompleted &&
+      !isUpcoming;
 
   BookingItem copyWith({
     String? status,
@@ -350,8 +354,14 @@ class ProposalItem {
       status.toLowerCase() == 'declined' ||
       status.toLowerCase() == 'rejected';
   bool get isDeclined => status.toLowerCase() == 'declined';
+  bool get isAccepted =>
+      status.toLowerCase() == 'accepted' ||
+      status.toLowerCase() == 'confirmed' ||
+      status.toLowerCase() == 'upcoming';
+  bool get isUpcoming => !isCancelled && isAccepted;
   bool get isRequested =>
       !isCancelled &&
+      !isAccepted &&
       (status.toLowerCase() == 'pending' ||
           status.toLowerCase() == 'requested' ||
           status.toLowerCase() == 'quotationpending' ||
@@ -385,6 +395,7 @@ class ProposalItem {
   }
 
   BookingItem toBookingItem() {
+    final normStatus = isAccepted ? 'Upcoming' : status;
     return BookingItem(
       id: id,
       bookingReference: proposalReference,
@@ -398,7 +409,7 @@ class ProposalItem {
       price: estimatedRate,
       rateType: rateType,
       notes: notes,
-      status: status,
+      status: normStatus,
       createdAt: createdAt,
     );
   }
