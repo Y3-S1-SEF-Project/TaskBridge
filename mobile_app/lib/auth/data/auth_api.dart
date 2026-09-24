@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/config/api_config.dart';
 import 'auth_models.dart';
 
 class AuthApi {
@@ -11,41 +12,23 @@ class AuthApi {
   final http.Client _client;
   static const _tokenKey = 'taskbridge.token';
   static const _userKey = 'taskbridge.user';
-  static const _configuredUrl = String.fromEnvironment('TASKBRIDGE_API_URL');
   static String? _workingBaseUrl;
   String? _token;
 
   List<String> get _candidateUrls {
-    if (_configuredUrl.isNotEmpty) return [_configuredUrl];
-    if (!kDebugMode) return const [''];
     if (_workingBaseUrl != null) return [_workingBaseUrl!];
-
-    // Priority 1: localhost (works instantly for USB-connected real phone with adb reverse & desktop)
-    // Priority 2: 10.0.2.2 (works on Android emulator)
-    // Priority 3: Mac LAN Wi-Fi IP (works for real mobile on same Wi-Fi)
-    return const [
-      'http://localhost:5298',
-      'http://10.0.2.2:5298',
-      'http://192.168.1.4:5298',
-      'http://192.168.1.2:5298',
-    ];
+    return ApiConfig.candidateUrls;
   }
 
   Uri get base {
-    final url =
-        _workingBaseUrl ??
-        (_configuredUrl.isNotEmpty
-            ? _configuredUrl
-            : kDebugMode
-            ? 'http://localhost:5298'
-            : '');
+    final url = _workingBaseUrl ?? ApiConfig.baseUrl;
     final uri = Uri.tryParse(url);
     if (uri == null ||
         !uri.hasAuthority ||
         !['http', 'https'].contains(uri.scheme) ||
         (!kDebugMode && uri.scheme != 'https')) {
       throw const AuthException(
-        'Set a valid HTTPS TASKBRIDGE_API_URL for this app.',
+        'Set a valid API URL for this app.',
       );
     }
     return uri;
@@ -53,13 +36,7 @@ class AuthApi {
 
   Future<String?> _probeWorkingUrl() async {
     if (_workingBaseUrl != null) return _workingBaseUrl;
-    final candidates = [
-      if (_configuredUrl.isNotEmpty) _configuredUrl,
-      'http://localhost:5298',
-      'http://10.0.2.2:5298',
-      'http://192.168.1.4:5298',
-      'http://192.168.1.2:5298',
-    ];
+    final candidates = ApiConfig.candidateUrls;
     for (final candidate in candidates) {
       try {
         final uri = Uri.parse('$candidate/api/auth/me');
@@ -70,7 +47,7 @@ class AuthApi {
         }
       } catch (_) {}
     }
-    return candidates.first;
+    return candidates.isNotEmpty ? candidates.first : ApiConfig.baseUrl;
   }
 
   Future<Map<String, dynamic>> _request(
