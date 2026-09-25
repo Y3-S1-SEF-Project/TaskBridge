@@ -15,7 +15,6 @@ import '../../home/widgets/fullscreen_photo_viewer.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
-import '../../core/theme/app_spacing.dart';
 import 'job_completion_proof_page.dart';
 
 /// Full Job Details page for providers displaying complete customer info,
@@ -598,11 +597,6 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
         ),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: Icon(Icons.refresh_rounded, color: palette.primary),
-            onPressed: () => _reloadBookingAndProof(),
-            tooltip: 'Refresh details',
-          ),
           Container(
             margin: const EdgeInsets.only(right: 16),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -626,41 +620,41 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
         color: palette.primary,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(AppSpacing.s20),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── Status Banner ──
               _buildStatusHeader(palette),
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
 
               // ── Revision Feedback Card (If customer requested changes) ──
               if (_isRevisionRequested) ...[
                 _buildRevisionRequestCard(palette),
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
               ],
 
               // ── Submitted Proof of Work & Agent 4 Sign-Off (For Completed / In-Review Jobs) ──
               if (_currentBooking.isCompleted || _completion != null) ...[
                 _buildProofOfWorkSection(palette),
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
               ],
 
               // ── Service & Price Card with Hourly vs Fixed details ──
               _buildServiceCard(palette),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // ── Customer Profile Card ──
-              _buildCustomerCard(palette),
-              const SizedBox(height: 16),
-
-              // ── Location & High-Fidelity Map Card ──
-              _buildLocationCard(palette),
-              const SizedBox(height: 16),
-
-              // ── Schedule & Time Card ──
+              // ── Schedule & Time Card (Moved UP!) ──
               _buildScheduleCard(palette),
-              const SizedBox(height: 24),
+              const SizedBox(height: 14),
+
+              // ── Customer Profile Card (Minimalist & Compact) ──
+              _buildCustomerCard(palette),
+              const SizedBox(height: 14),
+
+              // ── Location & High-Fidelity Map Card (Moved to BOTTOM!) ──
+              _buildLocationCard(palette),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -918,24 +912,24 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(AppRadius.r16),
-        border: Border.all(color: fg.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: fg.withValues(alpha: 0.2)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: fg.withValues(alpha: 0.15),
+              color: fg.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: fg, size: 22),
+            child: Icon(icon, color: fg, size: 18),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -943,18 +937,18 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                 Text(
                   statusTitle,
                   style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
                     color: fg,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(
                   statusSubtitle,
                   style: TextStyle(
                     fontSize: 12,
-                    color: fg.withValues(alpha: 0.9),
-                    height: 1.35,
+                    color: fg.withValues(alpha: 0.85),
+                    height: 1.3,
                   ),
                 ),
               ],
@@ -1563,10 +1557,10 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: palette.surface,
-        borderRadius: BorderRadius.circular(AppRadius.r16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: palette.border),
       ),
       child: Column(
@@ -1577,17 +1571,17 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
+                  horizontal: 9,
+                  vertical: 3.5,
                 ),
                 decoration: BoxDecoration(
                   color: palette.soft,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   _currentBooking.category.toUpperCase(),
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w800,
                     color: palette.primary,
                     letterSpacing: 0.5,
@@ -1646,12 +1640,12 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                     Text(
                       _currentBooking.serviceTitle,
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: palette.text,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
                     Text(
                       isHourly
                           ? 'Billed by actual work hours'
@@ -1673,7 +1667,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                       Text(
                         'Rs. ${_currentBooking.price.toInt()}',
                         style: TextStyle(
-                          fontSize: 22,
+                          fontSize: 20,
                           fontWeight: FontWeight.w900,
                           color: palette.primary,
                         ),
@@ -1682,7 +1676,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                         Text(
                           ' / hr',
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: FontWeight.w700,
                             color: palette.muted,
                           ),
@@ -1698,24 +1692,24 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          Divider(height: 1, color: palette.border),
           const SizedBox(height: 12),
+          Divider(height: 1, color: palette.border.withValues(alpha: 0.7)),
+          const SizedBox(height: 10),
           Row(
             children: [
               Icon(
                 isHourly ? Icons.info_outline_rounded : Icons.verified_outlined,
-                size: 16,
+                size: 15,
                 color: palette.primary,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 7),
               Expanded(
                 child: Text(
                   isHourly
                       ? 'Hourly rate applies upon arrival. Total calculated based on hours logged.'
                       : 'Fixed amount agreed. No hourly or hidden adjustments upon completion.',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     color: palette.muted,
                     height: 1.3,
                   ),
@@ -1731,29 +1725,53 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
   Widget _buildCustomerCard(AppPalette palette) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: palette.surface,
-        borderRadius: BorderRadius.circular(AppRadius.r16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: palette.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'CUSTOMER DETAILS',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              color: palette.muted,
-              letterSpacing: 1.0,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'CUSTOMER DETAILS',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: palette.muted,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.verified_user_rounded,
+                    size: 13,
+                    color: Colors.green.shade700,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Verified Client',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green.shade800,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           Row(
             children: [
               CircleAvatar(
-                radius: 24,
+                radius: 19,
                 backgroundColor: palette.primary.withValues(alpha: 0.12),
                 child: Text(
                   _currentBooking.customerName.isNotEmpty
@@ -1762,114 +1780,103 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                             .toUpperCase()
                       : 'C',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 15,
                     fontWeight: FontWeight.w800,
                     color: palette.primary,
                   ),
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       _currentBooking.customerName,
                       style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
                         color: palette.text,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.verified_user_rounded,
-                          size: 14,
-                          color: Colors.green.shade700,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'TaskBridge Client',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.green.shade800,
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 2),
+                    Text(
+                      'Direct TaskBridge Customer',
+                      style: TextStyle(fontSize: 12, color: palette.muted),
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: palette.primary,
-                    side: BorderSide(
-                      color: palette.primary.withValues(alpha: 0.4),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Calling customer ${_currentBooking.customerName}...',
-                        ),
-                        behavior: SnackBarBehavior.floating,
+              const SizedBox(width: 8),
+              // Compact Minimalist Action Buttons
+              _buildCustomerActionButton(
+                icon: Icons.phone_rounded,
+                tooltip: 'Call ${_currentBooking.customerName}',
+                palette: palette,
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Calling customer ${_currentBooking.customerName}...',
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.phone_rounded, size: 16),
-                  label: const Text(
-                    'Call',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: palette.primary,
-                    side: BorderSide(
-                      color: palette.primary.withValues(alpha: 0.4),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Opening chat with ${_currentBooking.customerName}...',
-                        ),
-                        behavior: SnackBarBehavior.floating,
+              const SizedBox(width: 8),
+              _buildCustomerActionButton(
+                icon: Icons.chat_bubble_outline_rounded,
+                tooltip: 'Message ${_currentBooking.customerName}',
+                palette: palette,
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Opening chat with ${_currentBooking.customerName}...',
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
-                  label: const Text(
-                    'Message',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
               ),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCustomerActionButton({
+    required IconData icon,
+    required String tooltip,
+    required AppPalette palette,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: palette.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: palette.primary.withValues(alpha: 0.22),
+                width: 1,
+              ),
+            ),
+            child: Icon(icon, size: 16, color: palette.primary),
+          ),
+        ),
       ),
     );
   }
@@ -1879,10 +1886,10 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: palette.surface,
-        borderRadius: BorderRadius.circular(AppRadius.r16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: palette.border),
       ),
       child: Column(
@@ -1894,10 +1901,10 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
               Text(
                 'SERVICE LOCATION',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: FontWeight.w800,
                   color: palette.muted,
-                  letterSpacing: 1.0,
+                  letterSpacing: 0.8,
                 ),
               ),
               InkWell(
@@ -1914,12 +1921,12 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                 },
                 child: Row(
                   children: [
-                    Icon(Icons.copy_rounded, size: 13, color: palette.primary),
+                    Icon(Icons.copy_rounded, size: 12, color: palette.primary),
                     const SizedBox(width: 4),
                     Text(
                       'Copy',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                         color: palette.primary,
                       ),
@@ -1929,13 +1936,13 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
           // High-Fidelity Realistic Map Card with Proper Pin & Navigation
           ClipRRect(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             child: Container(
-              height: 165,
+              height: 145,
               width: double.infinity,
               decoration: BoxDecoration(
                 color: const Color(0xFFE5E9E4), // Map ground tone
@@ -2132,7 +2139,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2141,16 +2148,16 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                 padding: const EdgeInsets.only(top: 2),
                 child: Icon(
                   Icons.location_on_rounded,
-                  size: 18,
+                  size: 16,
                   color: palette.primary,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 7),
               Expanded(
                 child: Text(
                   _currentBooking.location,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w600,
                     color: palette.text,
                     height: 1.35,
@@ -2159,23 +2166,25 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
-            height: 44,
+            height: 40,
             child: OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 foregroundColor: palette.primary,
-                side: BorderSide(color: palette.primary),
+                side: BorderSide(
+                  color: palette.primary.withValues(alpha: 0.45),
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
               onPressed: _openInGoogleMaps,
-              icon: const Icon(Icons.directions_rounded, size: 18),
+              icon: const Icon(Icons.directions_rounded, size: 17),
               label: const Text(
                 'Open in Google Maps / Directions',
-                style: TextStyle(fontWeight: FontWeight.w700),
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
               ),
             ),
           ),
@@ -2198,30 +2207,50 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: palette.surface,
-        borderRadius: BorderRadius.circular(AppRadius.r16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: palette.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'CONFIRMED SCHEDULE',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              color: palette.muted,
-              letterSpacing: 1.0,
-            ),
-          ),
-          const SizedBox(height: 12),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'CONFIRMED SCHEDULE',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: palette.muted,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: palette.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Booked Slot',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: palette.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: palette.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
@@ -2229,10 +2258,10 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                 child: Icon(
                   Icons.access_time_filled_rounded,
                   color: palette.primary,
-                  size: 22,
+                  size: 20,
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2248,10 +2277,10 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                     ),
                     if (scheduleLocationNote != null &&
                         scheduleLocationNote.isNotEmpty) ...[
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 2),
                       Text(
                         scheduleLocationNote,
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 12,
@@ -2260,15 +2289,6 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 5),
-                    Text(
-                      'Please ensure tools and materials are ready 15 mins prior to arrival.',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: palette.muted.withValues(alpha: 0.85),
-                        height: 1.3,
-                      ),
-                    ),
                   ],
                 ),
               ),
