@@ -150,15 +150,28 @@ public class ReviewAgentService
             }
         }
 
-        sw.Stop();
+        var existingCompletion = await _dbContext.JobCompletions
+            .FirstOrDefaultAsync(c => c.BookingReference == request.BookingReference, ct);
 
-        var status = aiResult.VerificationPassed ? "AiApproved" : "RevisionRequested";
+        // While the provider is preparing/evaluating proof, status remains "Draft"
+        // It must NOT be marked "RevisionRequested" (which is reserved for when a customer requests changes)
+        // or "PendingCustomerSignOff" until the provider explicitly taps Submit to Customer.
+        string status;
+        if (existingCompletion != null && existingCompletion.Status == "RevisionRequested" && booking?.Status == "RevisionRequested")
+        {
+            status = "RevisionRequested";
+        }
+        else if (existingCompletion != null && existingCompletion.Status == "PendingCustomerSignOff")
+        {
+            status = "PendingCustomerSignOff";
+        }
+        else
+        {
+            status = "Draft";
+        }
 
         // Persist to job_completions table
         var beforePhotoStorage = beforePhotos.Count > 1 ? JsonSerializer.Serialize(beforePhotos) : (beforePhoto ?? "");
-
-        var existingCompletion = await _dbContext.JobCompletions
-            .FirstOrDefaultAsync(c => c.BookingReference == request.BookingReference, ct);
 
         if (existingCompletion == null)
         {
@@ -414,10 +427,17 @@ public class ReviewAgentService
     public async Task<JobCompletionEntity?> GetCompletionDetailsAsync(string bookingRef, CancellationToken ct = default)
     {
         var comp = await _dbContext.JobCompletions
-            .AsNoTracking()
             .FirstOrDefaultAsync(c => c.BookingReference == bookingRef, ct);
         if (comp != null)
+        {
+            var b = await _dbContext.Bookings.AsNoTracking().FirstOrDefaultAsync(x => x.BookingReference == bookingRef, ct);
+            if (b != null && comp.Status == "RevisionRequested" && b.Status != "RevisionRequested")
+            {
+                comp.Status = "Draft";
+                await _dbContext.SaveChangesAsync(ct);
+            }
             return comp;
+        }
 
         // Check if booking exists
         var booking = await _dbContext.Bookings

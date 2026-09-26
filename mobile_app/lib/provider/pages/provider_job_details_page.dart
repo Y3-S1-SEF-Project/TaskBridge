@@ -40,8 +40,14 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
 
   bool get _isRevisionRequested =>
       _currentBooking.status == 'RevisionRequested' ||
-      _currentBooking.isRevisionRequested ||
-      _completion?.status == 'RevisionRequested';
+      _currentBooking.isRevisionRequested;
+
+  bool get _isDraftProof =>
+      _completion != null &&
+      _completion!.status.toLowerCase() == 'draft' &&
+      !_isPendingSignOff &&
+      !_isRevisionRequested &&
+      !_currentBooking.isCompleted;
 
   bool get _isPendingSignOff =>
       _currentBooking.status == 'PendingCustomerSignOff' ||
@@ -408,9 +414,10 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
     final palette = AppPalette.of(context);
     final isRevision = _isRevisionRequested;
     final isPending = _isPendingSignOff;
+    final isDraft = _isDraftProof;
 
     bool proceed = true;
-    if (!isRevision && !isPending) {
+    if (!isRevision && !isPending && !isDraft) {
       final proceedConfirm = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -947,6 +954,13 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
       statusSubtitle =
           'The customer requested changes before final sign-off. Please check the requested items below, update your proof or notes, and re-evaluate with AI.';
       icon = Icons.assignment_return_rounded;
+    } else if (_isDraftProof) {
+      bg = Colors.teal.shade50;
+      fg = Colors.teal.shade900;
+      statusTitle = 'Work Finished • Proof Draft Saved';
+      statusSubtitle =
+          'You recorded the end of this job. Review or update photos/notes at your own pace before submitting to the customer.';
+      icon = Icons.edit_note_rounded;
     } else if (_isPendingSignOff) {
       bg = Colors.purple.shade50;
       fg = Colors.purple.shade800;
@@ -1147,7 +1161,9 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                       ? Colors.amber.withValues(alpha: 0.2)
                       : (_isPendingSignOff
                             ? Colors.purple.withValues(alpha: 0.15)
-                            : Colors.green.withValues(alpha: 0.15)),
+                            : (_isDraftProof
+                                  ? Colors.teal.withValues(alpha: 0.15)
+                                  : Colors.green.withValues(alpha: 0.15))),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -1155,7 +1171,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                       ? 'Revision Requested'
                       : (_isPendingSignOff
                             ? 'Awaiting Sign-Off'
-                            : 'AI Verified'),
+                            : (_isDraftProof ? 'Proof Draft' : 'AI Verified')),
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
@@ -1163,7 +1179,9 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                         ? Colors.amber.shade900
                         : (_isPendingSignOff
                               ? Colors.purple.shade800
-                              : Colors.green.shade800),
+                              : (_isDraftProof
+                                    ? Colors.teal.shade800
+                                    : Colors.green.shade800)),
                   ),
                 ),
               ),
@@ -1199,57 +1217,72 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
           const SizedBox(height: 14),
 
           // AI Quality Assessment
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Builder(
+            builder: (context) {
+              final isAiPassed = _completion?.aiVerificationPassed ?? true;
+              final aiScore = _completion?.aiConfidenceScore ?? 90;
+
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isAiPassed
+                      ? Colors.green.withValues(alpha: 0.08)
+                      : Colors.orange.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isAiPassed
+                        ? Colors.green.withValues(alpha: 0.3)
+                        : Colors.orange.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Icon(
-                          Icons.auto_awesome,
-                          color: Colors.green,
-                          size: 16,
+                        Row(
+                          children: [
+                            Icon(
+                              isAiPassed
+                                  ? Icons.auto_awesome
+                                  : Icons.warning_amber_rounded,
+                              color: isAiPassed ? Colors.green : Colors.orange.shade800,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'AI Quality Assessment',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: palette.text,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'AI Quality Assessment',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: palette.text,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2.5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isAiPassed ? Colors.green : Colors.orange.shade800,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            isAiPassed
+                                ? '$aiScore% Match'
+                                : 'Mismatch Flagged ($aiScore%)',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.green,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        '95% Match',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
                 const SizedBox(height: 6),
                 Text(
                   analysis,
@@ -1288,7 +1321,9 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                 ],
               ],
             ),
-          ),
+          );
+        },
+      ),
           const SizedBox(height: 14),
 
           // Duration & Final Earnings Breakdown
@@ -2580,6 +2615,27 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
           icon: const Icon(Icons.assignment_return_rounded, size: 20),
           label: const Text(
             'Update Proof & Re-evaluate (AI)',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+          ),
+        ),
+      );
+    } else if (_isDraftProof) {
+      content = SizedBox(
+        width: double.infinity,
+        height: 48,
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: palette.primary,
+            foregroundColor: palette.onPrimary,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          onPressed: _isUpdating ? null : _handleEndJobFlow,
+          icon: const Icon(Icons.edit_note_rounded, size: 20),
+          label: const Text(
+            'Resume Proof Draft & Submit (AI)',
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
           ),
         ),

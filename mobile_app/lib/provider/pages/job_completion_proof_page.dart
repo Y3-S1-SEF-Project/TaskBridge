@@ -378,6 +378,48 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
   }
 
   Future<void> _submitToCustomer() async {
+    if (_aiResult != null && !_aiResult!.verificationPassed) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 24),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'AI Revision Advised',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'The AI Quality Review flagged that the photos do not align with "${widget.booking.serviceTitle}".\n\nAre you sure you want to send this to ${widget.booking.customerName} for sign-off anyway?',
+            style: const TextStyle(fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Update Photos First'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange.shade800,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Submit Anyway'),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true) return;
+    }
+
     setState(() => _isSubmittingToCustomer = true);
 
     final success = await ReviewApi.submitToCustomer(
@@ -1197,9 +1239,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    isPassed
-                        ? 'AI: Quality Passed'
-                        : 'AI: Revision Advised',
+                    isPassed ? 'AI: Quality Passed' : 'AI: Revision Advised',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -1216,11 +1256,13 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: isPassed ? Colors.green : Colors.orange,
+                  color: isPassed ? Colors.green : Colors.orange.shade800,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '${res.confidenceScore}% Confidence',
+                  isPassed
+                      ? '${res.confidenceScore}% Confidence'
+                      : 'Mismatch (${res.confidenceScore}% Certainty)',
                   style: GoogleFonts.plusJakartaSans(
                     color: Colors.white,
                     fontSize: 11,
@@ -1239,6 +1281,39 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
               color: palette.text,
             ),
           ),
+          if (!isPassed) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade300),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: Colors.orange.shade900,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'AI Quality Assurance flagged that the photos do not align with "${widget.booking.serviceTitle}". Please upload photos of the actual completed service before submitting to the customer.',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.orange.shade900,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (res.verifiedTasks.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(
@@ -1577,9 +1652,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                 )
               : const Icon(Icons.auto_awesome, size: 20),
           label: Text(
-            _isEvaluating
-                ? 'AI is Analyzing Proof...'
-                : 'Run AI Verification',
+            _isEvaluating ? 'AI is Analyzing Proof...' : 'Run AI Verification',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 15,
               fontWeight: FontWeight.bold,
