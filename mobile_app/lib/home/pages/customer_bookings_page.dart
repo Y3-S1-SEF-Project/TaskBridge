@@ -11,6 +11,7 @@ import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import 'customer_completion_review_page.dart';
+import 'customer_job_details_page.dart';
 
 class CustomerBookingsPage extends StatefulWidget {
   final ValueChanged<int>? onSwitchTab;
@@ -221,9 +222,7 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
   }
 
   void _handleBookingTap(BookingItem booking) {
-    if (booking.isActive || booking.status.toLowerCase() == 'in progress') {
-      _showActiveJobDetailsModal(booking);
-    } else if (booking.status == 'PendingCustomerSignOff' ||
+    if (booking.status == 'PendingCustomerSignOff' ||
         booking.status == 'RevisionRequested' ||
         booking.isCompleted) {
       Navigator.push(
@@ -232,624 +231,38 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
           builder: (_) => CustomerCompletionReviewPage(booking: booking),
         ),
       ).then((_) => _loadBookings(silent: true));
-    } else if (booking.isUpcoming) {
-      _showUpcomingJobDetailsModal(booking);
+    } else if (booking.isActive ||
+        booking.status.toLowerCase() == 'in progress' ||
+        booking.isUpcoming) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CustomerJobDetailsPage(
+            booking: booking,
+            onSwitchTab: widget.onSwitchTab,
+            onCancelBooking: _cancelBooking,
+          ),
+        ),
+      ).then((_) => _loadBookings(silent: true));
     } else {
       _showCustomerProposalReviewModal(booking);
     }
   }
 
-  void _showUpcomingJobDetailsModal(BookingItem booking) {
-    final palette = AppPalette.of(context);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      backgroundColor: palette.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.only(
-              left: AppSpacing.s20,
-              right: AppSpacing.s20,
-              top: AppSpacing.s8,
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.s24,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Top Tag & Reference
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.teal.shade50,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        '● UPCOMING APPOINTMENT',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.teal.shade800,
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      '#${booking.bookingReference}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: palette.muted,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                Text(
-                  booking.serviceTitle,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: palette.text,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Provider: ${booking.providerName} · Location: ${booking.location}',
-                  style: TextStyle(fontSize: 13, color: palette.muted),
-                ),
-                const SizedBox(height: 14),
-
-                // Upcoming Confirmed Schedule Banner
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.teal.shade50,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.teal.shade200, width: 1),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.event_available_rounded,
-                        size: 24,
-                        color: Colors.teal.shade800,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Appointment Confirmed',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.teal.shade900,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Your service is scheduled for ${booking.schedule}. ${booking.providerName} will arrive on-site at the agreed time.',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.teal.shade900.withValues(
-                                  alpha: 0.8,
-                                ),
-                                height: 1.35,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Pricing Summary Card
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: palette.surface,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: palette.border),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Agreed Rate',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: palette.muted,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            booking.priceFormatted,
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                              color: palette.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: palette.soft,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          booking.category,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: palette.primary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Contact Actions
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: palette.primary,
-                          side: BorderSide(color: palette.primary, width: 1.2),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Calling ${booking.providerName}...',
-                              ),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.phone_rounded, size: 18),
-                        label: const Text(
-                          'Call Provider',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: palette.primary,
-                          foregroundColor: palette.onPrimary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          widget.onSwitchTab?.call(2);
-                        },
-                        icon: const Icon(
-                          Icons.chat_bubble_outline_rounded,
-                          size: 18,
-                        ),
-                        label: const Text(
-                          'Message',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-
-                // Cancel Booking Button
-                Center(
-                  child: TextButton(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      _cancelBooking(booking);
-                    },
-                    child: Text(
-                      'Cancel Booking',
-                      style: TextStyle(
-                        color: AppColors.error,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showActiveJobDetailsModal(BookingItem booking) {
-    final palette = AppPalette.of(context);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      backgroundColor: palette.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.only(
-              left: AppSpacing.s20,
-              right: AppSpacing.s20,
-              top: AppSpacing.s8,
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.s24,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Top Tag & Reference
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade100,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        '● JOB IN PROGRESS',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.green.shade900,
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      '#${booking.bookingReference}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: palette.muted,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                Text(
-                  booking.serviceTitle,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: palette.text,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Provider: ${booking.providerName} · Location: ${booking.location}',
-                  style: TextStyle(fontSize: 13, color: palette.muted),
-                ),
-                const SizedBox(height: 14),
-
-                // Active Banner
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: palette.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: palette.primary.withValues(alpha: 0.25),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.engineering_rounded,
-                        size: 24,
-                        color: palette.primary,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Service is Currently In Progress',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: palette.text,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${booking.providerName} is actively working on-site. Booking terms and schedule are locked while work is underway.',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: palette.muted,
-                                height: 1.35,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Current Offer Breakdown Card
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: palette.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: palette.border, width: 1),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Agreed Rate',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: palette.muted,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                booking.priceFormatted,
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w800,
-                                  color: palette.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: palette.soft,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              booking.category,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: palette.primary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Divider(height: 1, color: palette.border),
-                      const SizedBox(height: 12),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Icon(
-                              Icons.schedule_rounded,
-                              size: 16,
-                              color: palette.muted,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              booking.schedule,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: palette.text,
-                                fontWeight: FontWeight.w500,
-                                height: 1.3,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Icon(
-                              Icons.location_on_outlined,
-                              size: 16,
-                              color: palette.muted,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              booking.location,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: palette.muted,
-                                height: 1.3,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 14),
-
-                // Lock Info Banner (Highlights that customer cannot modify or cancel)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.amber.shade300, width: 1),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.lock_rounded,
-                        size: 20,
-                        color: Colors.amber.shade900,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Modification and cancellation are disabled while service is ongoing. When the provider finishes, you will review the work proof here.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.amber.shade900,
-                            height: 1.3,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Contact Actions (No Modify, No Cancel)
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: palette.primary,
-                          side: BorderSide(color: palette.primary, width: 1.2),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Calling ${booking.providerName}...',
-                              ),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.phone_rounded, size: 18),
-                        label: const Text(
-                          'Call Provider',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: palette.primary,
-                          foregroundColor: palette.onPrimary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          widget.onSwitchTab?.call(2);
-                        },
-                        icon: const Icon(
-                          Icons.chat_bubble_outline_rounded,
-                          size: 18,
-                        ),
-                        label: const Text(
-                          'Message',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   void _showCustomerProposalReviewModal(BookingItem booking) {
-    if (booking.isActive || booking.status.toLowerCase() == 'in progress') {
-      _showActiveJobDetailsModal(booking);
+    if (booking.isActive ||
+        booking.status.toLowerCase() == 'in progress' ||
+        booking.isUpcoming) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CustomerJobDetailsPage(
+            booking: booking,
+            onSwitchTab: widget.onSwitchTab,
+            onCancelBooking: _cancelBooking,
+          ),
+        ),
+      ).then((_) => _loadBookings(silent: true));
       return;
     }
 
@@ -1231,7 +644,9 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                           category: booking.category,
                           providerName: booking.providerName,
                           providerId: booking.providerId,
+                          providerPhone: booking.providerPhone,
                           customerName: booking.customerName,
+                          customerPhone: booking.customerPhone,
                           location: booking.location,
                           schedule: booking.schedule,
                           price: booking.price,
@@ -2020,7 +1435,7 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                             emptySub:
                                 'Past finished jobs and reviews will be stored here.',
                             onRefresh: _loadBookings,
-                            onAction: null,
+                            onAction: _handleBookingTap,
                             onCancel: null,
                             isOngoingTab: false,
                           ),

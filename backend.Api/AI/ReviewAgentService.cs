@@ -73,9 +73,9 @@ public class ReviewAgentService
         var booking = await _dbContext.Bookings
             .FirstOrDefaultAsync(b => b.BookingReference == request.BookingReference, ct);
 
-        var startedAt = request.StartedAt ?? booking?.StartedAt ?? DateTimeOffset.UtcNow.AddMinutes(-45);
+        var startedAt = booking?.StartedAt ?? request.StartedAt ?? booking?.CreatedAt ?? DateTimeOffset.UtcNow;
         var endedAt = request.EndedAt ?? DateTimeOffset.UtcNow;
-        if (endedAt < startedAt) endedAt = startedAt.AddMinutes(5);
+        if (endedAt < startedAt) endedAt = startedAt.AddMinutes(1);
 
         var totalMinutes = (int)Math.Max(1, Math.Round((endedAt - startedAt).TotalMinutes));
         var hours = totalMinutes / 60;
@@ -443,7 +443,11 @@ public class ReviewAgentService
                     ? "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=800&auto=format&fit=crop&q=80"
                     : "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?w=800&auto=format&fit=crop&q=80");
 
-            var duration = booking.DurationMinutes ?? 52;
+            var duration = booking.DurationMinutes ?? (booking.StartedAt.HasValue && booking.EndedAt.HasValue
+                ? (int)Math.Max(1, Math.Round((booking.EndedAt.Value - booking.StartedAt.Value).TotalMinutes))
+                : (booking.StartedAt.HasValue
+                    ? (int)Math.Max(1, Math.Round((DateTimeOffset.UtcNow - booking.StartedAt.Value).TotalMinutes))
+                    : 15));
             var hourlyRate = (double)booking.Price;
             if (hourlyRate <= 0) hourlyRate = 3750;
             var finalPrice = (double)(booking.FinalCalculatedPrice ?? (decimal)(duration <= 60 ? hourlyRate : (hourlyRate + ((duration - 60) / 60.0 * hourlyRate))));

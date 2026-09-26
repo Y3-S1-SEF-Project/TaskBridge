@@ -936,7 +936,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'No pending job requests right now. New customer bookings confirmed through Agent 3 will appear here in real time.',
+                          'No pending job requests right now. New customer bookings confirmed through AI will appear here in real time.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 13,

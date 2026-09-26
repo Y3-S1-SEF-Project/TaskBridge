@@ -176,7 +176,9 @@ class BookingItem {
   final String category;
   final String providerName;
   final String? providerId;
+  final String? providerPhone;
   final String customerName;
+  final String? customerPhone;
   final String location;
   final String schedule;
   final double price;
@@ -184,6 +186,10 @@ class BookingItem {
   final String? notes;
   final String status;
   final DateTime createdAt;
+  final DateTime? startedAt;
+  final DateTime? endedAt;
+  final int? durationMinutes;
+  final String? beforePhotoUrl;
 
   const BookingItem({
     required this.id,
@@ -192,7 +198,9 @@ class BookingItem {
     required this.category,
     required this.providerName,
     this.providerId,
+    this.providerPhone,
     required this.customerName,
+    this.customerPhone,
     required this.location,
     required this.schedule,
     required this.price,
@@ -200,6 +208,10 @@ class BookingItem {
     this.notes,
     required this.status,
     required this.createdAt,
+    this.startedAt,
+    this.endedAt,
+    this.durationMinutes,
+    this.beforePhotoUrl,
   });
 
   factory BookingItem.fromJson(Map<String, dynamic> json) {
@@ -210,7 +222,10 @@ class BookingItem {
       category: json['category'] as String? ?? 'General',
       providerName: json['providerName'] as String? ?? 'Specialist',
       providerId: json['providerId']?.toString(),
+      providerPhone:
+          json['providerPhone'] as String? ?? json['phone'] as String?,
       customerName: json['customerName'] as String? ?? 'Customer',
+      customerPhone: json['customerPhone'] as String?,
       location: json['location'] as String? ?? 'Colombo',
       schedule: json['schedule'] as String? ?? '17 Sep · 4:00 PM · Colombo 05',
       price: (json['price'] as num?)?.toDouble() ?? 4500.0,
@@ -220,6 +235,14 @@ class BookingItem {
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
           : DateTime.now(),
+      startedAt: json['startedAt'] != null
+          ? DateTime.tryParse(json['startedAt'].toString())
+          : null,
+      endedAt: json['endedAt'] != null
+          ? DateTime.tryParse(json['endedAt'].toString())
+          : null,
+      durationMinutes: (json['durationMinutes'] as num?)?.toInt(),
+      beforePhotoUrl: json['beforePhotoUrl'] as String?,
     );
   }
 
@@ -270,6 +293,12 @@ class BookingItem {
     double? price,
     String? schedule,
     String? notes,
+    String? providerPhone,
+    String? customerPhone,
+    DateTime? startedAt,
+    DateTime? endedAt,
+    int? durationMinutes,
+    String? beforePhotoUrl,
   }) {
     return BookingItem(
       id: id,
@@ -278,7 +307,9 @@ class BookingItem {
       category: category,
       providerName: providerName,
       providerId: providerId,
+      providerPhone: providerPhone ?? this.providerPhone,
       customerName: customerName,
+      customerPhone: customerPhone ?? this.customerPhone,
       location: location,
       schedule: schedule ?? this.schedule,
       price: price ?? this.price,
@@ -286,6 +317,10 @@ class BookingItem {
       notes: notes ?? this.notes,
       status: status ?? this.status,
       createdAt: createdAt,
+      startedAt: startedAt ?? this.startedAt,
+      endedAt: endedAt ?? this.endedAt,
+      durationMinutes: durationMinutes ?? this.durationMinutes,
+      beforePhotoUrl: beforePhotoUrl ?? this.beforePhotoUrl,
     );
   }
 }
@@ -297,7 +332,9 @@ class ProposalItem {
   final String category;
   final String providerName;
   final String? providerId;
+  final String? providerPhone;
   final String customerName;
+  final String? customerPhone;
   final String location;
   final String preferredSchedule;
   final double estimatedRate;
@@ -313,7 +350,9 @@ class ProposalItem {
     required this.category,
     required this.providerName,
     this.providerId,
+    this.providerPhone,
     required this.customerName,
+    this.customerPhone,
     required this.location,
     required this.preferredSchedule,
     required this.estimatedRate,
@@ -331,7 +370,10 @@ class ProposalItem {
       category: json['category'] as String? ?? 'General',
       providerName: json['providerName'] as String? ?? 'Specialist',
       providerId: json['providerId']?.toString(),
+      providerPhone:
+          json['providerPhone'] as String? ?? json['phone'] as String?,
       customerName: json['customerName'] as String? ?? 'Customer',
+      customerPhone: json['customerPhone'] as String?,
       location: json['location'] as String? ?? 'Colombo',
       preferredSchedule: json['preferredSchedule'] as String? ?? '',
       estimatedRate: (json['estimatedRate'] as num?)?.toDouble() ?? 3500.0,
@@ -375,6 +417,8 @@ class ProposalItem {
     double? estimatedRate,
     String? preferredSchedule,
     String? notes,
+    String? providerPhone,
+    String? customerPhone,
   }) {
     return ProposalItem(
       id: id,
@@ -383,7 +427,9 @@ class ProposalItem {
       category: category,
       providerName: providerName,
       providerId: providerId,
+      providerPhone: providerPhone ?? this.providerPhone,
       customerName: customerName,
+      customerPhone: customerPhone ?? this.customerPhone,
       location: location,
       preferredSchedule: preferredSchedule ?? this.preferredSchedule,
       estimatedRate: estimatedRate ?? this.estimatedRate,
@@ -403,7 +449,9 @@ class ProposalItem {
       category: category,
       providerName: providerName,
       providerId: providerId,
+      providerPhone: providerPhone,
       customerName: customerName,
+      customerPhone: customerPhone,
       location: location,
       schedule: preferredSchedule,
       price: estimatedRate,

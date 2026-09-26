@@ -176,7 +176,7 @@ class _QuotationProposalPageState extends State<QuotationProposalPage> {
 
                     // ── Header Tag ──
                     Text(
-                      'COORDINATION AGENT',
+                      'AI COORDINATION',
                       style: TextStyle(
                         color: palette.primary,
                         fontSize: 12,
@@ -232,7 +232,7 @@ class _QuotationProposalPageState extends State<QuotationProposalPage> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'Recommended by Agent 3',
+                                'Recommended by AI',
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,
@@ -579,7 +579,7 @@ class _QuotationProposalPageState extends State<QuotationProposalPage> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      'Agent 3 Top Recommendation',
+                      'AI Top Recommendation',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,

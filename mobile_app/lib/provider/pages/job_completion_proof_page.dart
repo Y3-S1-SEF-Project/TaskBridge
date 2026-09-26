@@ -67,9 +67,13 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
     _jobStartedAt =
         widget.startedAt ??
         widget.initialCompletion?.startedAt ??
-        DateTime.now().subtract(const Duration(minutes: 52));
+        widget.booking.startedAt ??
+        DateTime.now();
     _jobEndedAt =
         widget.endedAt ?? widget.initialCompletion?.endedAt ?? DateTime.now();
+    if (_jobEndedAt.isBefore(_jobStartedAt)) {
+      _jobEndedAt = _jobStartedAt.add(const Duration(minutes: 1));
+    }
 
     if (widget.beforePhotoUrl != null && widget.beforePhotoUrl!.isNotEmpty) {
       _beforePhotoUrls.add(widget.beforePhotoUrl!);
@@ -352,8 +356,8 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
           SnackBar(
             content: Text(
               result.verificationPassed
-                  ? '✅ Agent 4: Quality verification passed (${result.confidenceScore}% confidence)!'
-                  : '⚠️ Agent 4: Additional details or proof requested.',
+                  ? '✅ AI: Quality verification passed (${result.confidenceScore}% confidence)!'
+                  : '⚠️ AI: Additional details or proof requested.',
             ),
             backgroundColor: result.verificationPassed
                 ? Colors.green
@@ -364,7 +368,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Failed to run Agent 4 review. Check your backend status.',
+              'Failed to run AI review. Check your backend status.',
             ),
             backgroundColor: Colors.red,
           ),
@@ -422,7 +426,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
             ],
           ),
           content: Text(
-            'Agent 4 has verified your proof of work with $confidence% confidence. The customer (${widget.booking.customerName}) has now been notified to review the photos and confirm sign-off.',
+            'AI has verified your proof of work with $confidence% confidence. The customer (${widget.booking.customerName}) has now been notified to review the photos and confirm sign-off.',
             style: GoogleFonts.plusJakartaSans(fontSize: 14),
           ),
           actions: [
@@ -463,7 +467,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Agent 4: Quality Review',
+          'AI: Quality Review',
           style: GoogleFonts.plusJakartaSans(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -1194,8 +1198,8 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                   const SizedBox(width: 8),
                   Text(
                     isPassed
-                        ? 'Agent 4: Quality Passed'
-                        : 'Agent 4: Revision Advised',
+                        ? 'AI: Quality Passed'
+                        : 'AI: Revision Advised',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -1481,7 +1485,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
           ),
           const SizedBox(height: 10),
           Text(
-            '💡 Update photos or notes below, then tap "Re-evaluate with Agent 4" to re-verify.',
+            '💡 Update photos or notes below, then tap "Re-evaluate with AI" to re-verify.',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 12,
               color: Colors.amber.shade900,
@@ -1525,8 +1529,8 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                   : const Icon(Icons.auto_awesome, size: 20),
               label: Text(
                 _isEvaluating
-                    ? 'Agent 4 is Re-evaluating...'
-                    : 'Re-evaluate with Agent 4',
+                    ? 'AI is Re-evaluating...'
+                    : 'Re-evaluate with AI',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
@@ -1536,7 +1540,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            '⚠️ Re-evaluation with Agent 4 is required after updating proof for customer revision.',
+            '⚠️ Re-evaluation with AI is required after updating proof for customer revision.',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 11.5,
               color: Colors.amber.shade900,
@@ -1574,8 +1578,8 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
               : const Icon(Icons.auto_awesome, size: 20),
           label: Text(
             _isEvaluating
-                ? 'Agent 4 is Analyzing Proof...'
-                : 'Run Agent 4 AI Verification',
+                ? 'AI is Analyzing Proof...'
+                : 'Run AI Verification',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 15,
               fontWeight: FontWeight.bold,
@@ -1660,8 +1664,8 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                   : const Icon(Icons.refresh_rounded, size: 20),
               label: Text(
                 _isEvaluating
-                    ? 'Agent 4 is Re-evaluating...'
-                    : 'Re-evaluate with Agent 4',
+                    ? 'AI is Re-evaluating...'
+                    : 'Re-evaluate with AI',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
@@ -1711,7 +1715,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
         TextButton.icon(
           onPressed: _isEvaluating ? null : _runAgent4Evaluation,
           icon: const Icon(Icons.refresh_rounded, size: 16),
-          label: const Text('Re-evaluate with Agent 4'),
+          label: const Text('Re-evaluate with AI'),
         ),
       ],
     );

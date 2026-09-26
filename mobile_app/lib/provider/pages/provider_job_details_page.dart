@@ -55,6 +55,8 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
   void initState() {
     super.initState();
     _currentBooking = widget.booking;
+    _jobStartedAt = widget.booking.startedAt;
+    _beforePhotoUrl = widget.booking.beforePhotoUrl;
     BookingsSyncService.instance.addListener(_onSyncUpdate);
     _reloadBookingAndProof();
     _resolveLocationCoordinates();
@@ -93,6 +95,19 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
         setState(() {
           _currentBooking = fresh;
           _completion = proof;
+          if (fresh.startedAt != null) {
+            _jobStartedAt = fresh.startedAt;
+          } else if (proof != null) {
+            _jobStartedAt = proof.startedAt;
+          }
+          if (fresh.beforePhotoUrl != null &&
+              fresh.beforePhotoUrl!.isNotEmpty) {
+            _beforePhotoUrl = fresh.beforePhotoUrl;
+          } else if (proof != null &&
+              proof.beforePhotoUrl != null &&
+              proof.beforePhotoUrl!.isNotEmpty) {
+            _beforePhotoUrl = proof.beforePhotoUrl;
+          }
           _isLoadingProof = false;
         });
       }
@@ -270,7 +285,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'AI Review Requirement:\nAgent 4 (Quality Assurance) checks the initial state before work begins. Taking a clear photo now ensures your completion review passes without delay.',
+                          'AI Review Requirement:\nAI Quality Assurance checks the initial state before work begins. Taking a clear photo now ensures your completion review passes without delay.',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -362,10 +377,16 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
               ),
               onPressed: () async {
                 Navigator.pop(dialogCtx);
+                final now = DateTime.now();
                 setState(() {
                   _isUpdating = true;
                   _beforePhotoUrl = tempBeforePhoto;
-                  _jobStartedAt = DateTime.now();
+                  _jobStartedAt = now;
+                  _currentBooking = _currentBooking.copyWith(
+                    startedAt: now,
+                    beforePhotoUrl: tempBeforePhoto,
+                    status: 'In Progress',
+                  );
                 });
 
                 await ReviewApi.startJob(
@@ -399,30 +420,74 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
           ),
           title: Row(
             children: [
-              const Icon(Icons.auto_awesome, color: Colors.purple, size: 24),
+              Icon(Icons.auto_awesome, color: palette.primary, size: 24),
               const SizedBox(width: 8),
               const Text('Finish & Submit Proof?'),
             ],
           ),
           content: const Text(
-            'Are you ready to submit your work for Agent 4 Quality Verification? You will be prompted to attach after-service proof photos and work notes.',
+            'Are you ready to submit your work for AI Quality Verification? You will be prompted to attach after-service proof photos and work notes.',
             style: TextStyle(fontSize: 14),
           ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Continue Working'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: palette.text,
+                      side: BorderSide(color: palette.border),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 9,
+                        horizontal: 8,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'Continue Working',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Proceed to AI Review'),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: palette.primary,
+                      foregroundColor: palette.onPrimary,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 9,
+                        horizontal: 8,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'Proceed to AI Review',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -437,9 +502,15 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
         MaterialPageRoute(
           builder: (_) => JobCompletionProofPage(
             booking: _currentBooking,
-            startedAt: _completion?.startedAt ?? _jobStartedAt,
+            startedAt:
+                _currentBooking.startedAt ??
+                _jobStartedAt ??
+                _completion?.startedAt,
             endedAt: jobEndedAt,
-            beforePhotoUrl: _completion?.beforePhotoUrl ?? _beforePhotoUrl,
+            beforePhotoUrl:
+                _currentBooking.beforePhotoUrl ??
+                _completion?.beforePhotoUrl ??
+                _beforePhotoUrl,
             initialCompletion: _completion,
           ),
         ),
@@ -634,7 +705,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                 const SizedBox(height: 14),
               ],
 
-              // ── Submitted Proof of Work & Agent 4 Sign-Off (For Completed / In-Review Jobs) ──
+              // ── Submitted Proof of Work & AI Sign-Off (For Completed / In-Review Jobs) ──
               if (_currentBooking.isCompleted || _completion != null) ...[
                 _buildProofOfWorkSection(palette),
                 const SizedBox(height: 14),
@@ -852,7 +923,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
               onPressed: _handleEndJobFlow,
               icon: const Icon(Icons.auto_awesome_rounded, size: 18),
               label: const Text(
-                'Update Proof & Re-evaluate (Agent 4)',
+                'Update Proof & Re-evaluate (AI)',
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
               ),
             ),
@@ -874,14 +945,14 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
       fg = Colors.amber.shade900;
       statusTitle = 'Revision Requested by Customer';
       statusSubtitle =
-          'The customer requested changes before final sign-off. Please check the requested items below, update your proof or notes, and re-evaluate with Agent 4.';
+          'The customer requested changes before final sign-off. Please check the requested items below, update your proof or notes, and re-evaluate with AI.';
       icon = Icons.assignment_return_rounded;
     } else if (_isPendingSignOff) {
       bg = Colors.purple.shade50;
       fg = Colors.purple.shade800;
       statusTitle = 'Awaiting Customer Sign-Off';
       statusSubtitle =
-          'Proof of work submitted with Agent 4 quality verification. Waiting for customer approval.';
+          'Proof of work submitted with AI quality verification. Waiting for customer approval.';
       icon = Icons.hourglass_top_rounded;
     } else if (_currentBooking.isUpcoming) {
       bg = Colors.green.shade50;
@@ -1002,7 +1073,16 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
         ? rawAfter
         : defaultAfter;
 
-    final mins = _completion?.durationMinutes ?? 52;
+    final effectiveStart =
+        _completion?.startedAt ?? _currentBooking.startedAt ?? _jobStartedAt;
+    final effectiveEnd =
+        _completion?.endedAt ?? _currentBooking.endedAt ?? DateTime.now();
+    final mins =
+        _completion?.durationMinutes ??
+        _currentBooking.durationMinutes ??
+        (effectiveStart != null
+            ? effectiveEnd.difference(effectiveStart).inMinutes.clamp(1, 9999)
+            : 15);
     final hours = mins ~/ 60;
     final remMins = mins % 60;
     final rate =
@@ -1014,7 +1094,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
 
     final analysis =
         _completion?.aiComparisonAnalysis ??
-        'Agent 4 analyzed the proof images and verified that the service requirements were met with clean execution.';
+        'AI analyzed the proof images and verified that the service requirements were met with clean execution.';
     final verified =
         _completion?.aiVerifiedTasks ??
         [
@@ -1075,7 +1155,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                       ? 'Revision Requested'
                       : (_isPendingSignOff
                             ? 'Awaiting Sign-Off'
-                            : 'Agent 4 Verified'),
+                            : 'AI Verified'),
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
@@ -1141,7 +1221,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          'Agent 4 Quality Assessment',
+                          'AI Quality Assessment',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
@@ -1728,7 +1808,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: palette.surface,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: palette.border),
       ),
       child: Column(
@@ -1746,32 +1826,40 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                   letterSpacing: 0.8,
                 ),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.verified_user_rounded,
-                    size: 13,
-                    color: Colors.green.shade700,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Verified Client',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.green.shade800,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.green.shade200, width: 0.8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.verified_user_rounded,
+                      size: 12,
+                      color: Colors.green.shade700,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 4),
+                    Text(
+                      'Verified Client',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.green.shade800,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Row(
             children: [
               CircleAvatar(
-                radius: 19,
+                radius: 22,
                 backgroundColor: palette.primary.withValues(alpha: 0.12),
                 child: Text(
                   _currentBooking.customerName.isNotEmpty
@@ -1780,13 +1868,13 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                             .toUpperCase()
                       : 'C',
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 17,
                     fontWeight: FontWeight.w800,
                     color: palette.primary,
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1795,88 +1883,159 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                     Text(
                       _currentBooking.customerName,
                       style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
                         color: palette.text,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Direct TaskBridge Customer',
-                      style: TextStyle(fontSize: 12, color: palette.muted),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.star_rounded,
+                          size: 14,
+                          color: Colors.amber.shade700,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          '5.0 (Client Rating)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: palette.text,
+                          ),
+                        ),
+                        Text(
+                          ' · Direct Client',
+                          style: TextStyle(fontSize: 12, color: palette.muted),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              // Compact Minimalist Action Buttons
-              _buildCustomerActionButton(
-                icon: Icons.phone_rounded,
-                tooltip: 'Call ${_currentBooking.customerName}',
-                palette: palette,
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Calling customer ${_currentBooking.customerName}...',
+            ],
+          ),
+          const SizedBox(height: 14),
+          // Cool Compact Action Buttons
+          Row(
+            children: [
+              Expanded(
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () async {
+                      const rawPhone = '0779876543';
+                      final uri = Uri(scheme: 'tel', path: rawPhone);
+                      try {
+                        await launchUrl(
+                          uri,
+                          mode: LaunchMode.externalApplication,
+                        );
+                      } catch (_) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Calling customer ${_currentBooking.customerName}...',
+                              ),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    child: Container(
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: palette.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: palette.primary.withValues(alpha: 0.25),
+                          width: 1,
+                        ),
                       ),
-                      behavior: SnackBarBehavior.floating,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.phone_rounded,
+                            size: 15,
+                            color: palette.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Call Customer',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: palette.primary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  );
-                },
+                  ),
+                ),
               ),
-              const SizedBox(width: 8),
-              _buildCustomerActionButton(
-                icon: Icons.chat_bubble_outline_rounded,
-                tooltip: 'Message ${_currentBooking.customerName}',
-                palette: palette,
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Opening chat with ${_currentBooking.customerName}...',
+              const SizedBox(width: 10),
+              Expanded(
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Opening chat with ${_currentBooking.customerName}...',
+                          ),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                    child: Container(
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: palette.primary,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: palette.primary.withValues(alpha: 0.25),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      behavior: SnackBarBehavior.floating,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.chat_bubble_outline_rounded,
+                            size: 15,
+                            color: palette.onPrimary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Message',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: palette.onPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  );
-                },
+                  ),
+                ),
               ),
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildCustomerActionButton({
-    required IconData icon,
-    required String tooltip,
-    required AppPalette palette,
-    required VoidCallback onTap,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: palette.primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: palette.primary.withValues(alpha: 0.22),
-                width: 1,
-              ),
-            ),
-            child: Icon(icon, size: 16, color: palette.primary),
-          ),
-        ),
       ),
     );
   }
@@ -2420,7 +2579,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
           onPressed: _isUpdating ? null : _handleEndJobFlow,
           icon: const Icon(Icons.assignment_return_rounded, size: 20),
           label: const Text(
-            'Update Proof & Re-evaluate (Agent 4)',
+            'Update Proof & Re-evaluate (AI)',
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
           ),
         ),
@@ -2434,25 +2593,27 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
               alignment: Alignment.center,
               padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
-                color: Colors.purple.withValues(alpha: 0.12),
+                color: palette.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.purple.withValues(alpha: 0.4)),
+                border: Border.all(
+                  color: palette.primary.withValues(alpha: 0.3),
+                ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   Icon(
                     Icons.hourglass_top_rounded,
-                    color: Colors.purple,
+                    color: palette.primary,
                     size: 18,
                   ),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Flexible(
                     child: Text(
                       'Awaiting Customer Sign-Off',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.purple,
+                        color: palette.primary,
                         fontSize: 13,
                       ),
                       overflow: TextOverflow.ellipsis,
@@ -2467,8 +2628,8 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
             height: 48,
             child: OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.purple.shade700,
-                side: BorderSide(color: Colors.purple.shade300),
+                foregroundColor: palette.primary,
+                side: BorderSide(color: palette.primary.withValues(alpha: 0.4)),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -2487,19 +2648,18 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
       content = SizedBox(
         width: double.infinity,
         height: 48,
-        child: ElevatedButton.icon(
+        child: ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.purple.shade700,
-            foregroundColor: Colors.white,
+            backgroundColor: palette.primary,
+            foregroundColor: palette.onPrimary,
             elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
           ),
           onPressed: _isUpdating ? null : _handleEndJobFlow,
-          icon: const Icon(Icons.auto_awesome_rounded, size: 18),
-          label: const Text(
-            'End Job & Submit Proof (Agent 4)',
+          child: const Text(
+            'End Job & Submit Proof (AI)',
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
           ),
         ),

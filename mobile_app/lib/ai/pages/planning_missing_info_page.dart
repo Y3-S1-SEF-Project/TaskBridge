@@ -394,7 +394,7 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
 
                     // ── Header Tag ──
                     Text(
-                      'PLANNING AGENT',
+                      'AI PLANNING',
                       style: TextStyle(
                         color: palette.primary,
                         fontSize: 12,

@@ -71,6 +71,7 @@ class _CustomerCompletionReviewPageState
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (modalCtx, setModalState) => Container(
@@ -230,6 +231,7 @@ class _CustomerCompletionReviewPageState
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (modalCtx, setModalState) => Container(
@@ -1102,7 +1104,13 @@ class _CustomerCompletionReviewPageState
   }
 
   Widget _buildDurationAndPriceCard(AppPalette palette) {
-    final mins = _completion?.durationMinutes ?? 52;
+    final effectiveStart = _completion?.startedAt ?? widget.booking.startedAt;
+    final effectiveEnd = _completion?.endedAt ?? widget.booking.endedAt ?? DateTime.now();
+    final mins = _completion?.durationMinutes ??
+        widget.booking.durationMinutes ??
+        (effectiveStart != null
+            ? effectiveEnd.difference(effectiveStart).inMinutes.clamp(1, 9999)
+            : 15);
     final hours = mins ~/ 60;
     final remMins = mins % 60;
     final rate =
@@ -1501,6 +1509,7 @@ class _CustomerCompletionReviewPageState
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       backgroundColor: Colors.transparent,
       builder: (modalCtx) => StatefulBuilder(
         builder: (ctx, setModalState) => Container(

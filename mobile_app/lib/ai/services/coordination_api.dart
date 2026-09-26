@@ -131,7 +131,8 @@ class CoordinationApi {
     );
 
     final resolvedRateType = rateType ?? 'Hourly';
-    final resolvedCustomerName = (customerName != null && customerName.isNotEmpty)
+    final resolvedCustomerName =
+        (customerName != null && customerName.isNotEmpty)
         ? customerName
         : (booking.customerName.isNotEmpty ? booking.customerName : 'Customer');
     final resolvedCustomerId = customerId ?? booking.customerId;
@@ -749,8 +750,10 @@ class CoordinationApi {
             ? proposalReference.replaceFirst('PR-', 'TB-')
             : proposalReference,
         customerName: old.customerName,
+        customerPhone: old.customerPhone,
         providerName: old.providerName,
         providerId: old.providerId,
+        providerPhone: old.providerPhone,
         serviceTitle: old.serviceTitle,
         category: old.category,
         location: old.location,
