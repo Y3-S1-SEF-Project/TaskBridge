@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../../core/services/location_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/design_system.dart';
 import '../../home/pages/home_page.dart';
+import '../../home/pages/location_picker_page.dart';
 import '../data/auth_api.dart';
 import '../data/auth_models.dart';
 import '../widgets/auth_input.dart';
@@ -25,13 +27,12 @@ class ProfileSetupPage extends StatefulWidget {
 
 class _ProfileSetupPageState extends State<ProfileSetupPage> {
   late final TextEditingController _nameController;
-  final TextEditingController _addressController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController(
-    text: 'Colombo 05',
-  );
   final TextEditingController _preferencesController = TextEditingController(
     text: 'Home maintenance · IT services',
   );
+
+  UserLocation? _selectedLocation;
+  bool _isDetectingLocation = false;
 
   final ImagePicker _picker = ImagePicker();
   String? _profilePhotoUrl;
@@ -44,13 +45,76 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
     super.initState();
     _nameController = TextEditingController(text: widget.user.fullName);
     _profilePhotoUrl = widget.user.profilePhotoUrl;
+    _initLocation();
+  }
+
+  Future<void> _initLocation() async {
+    // 1. Check existing saved location or existing user profile location
+    try {
+      final cached = await LocationService.getSavedLocation();
+      if (cached != null && mounted) {
+        setState(() {
+          _selectedLocation = cached;
+        });
+      } else if ((widget.user.location != null &&
+              widget.user.location!.isNotEmpty) ||
+          (widget.user.address != null && widget.user.address!.isNotEmpty)) {
+        setState(() {
+          _selectedLocation = UserLocation(
+            shortName: widget.user.location ?? 'My Location',
+            address: widget.user.address ?? widget.user.location!,
+            latitude: UserLocation.defaultLocation.latitude,
+            longitude: UserLocation.defaultLocation.longitude,
+          );
+        });
+      }
+    } catch (_) {}
+
+    // 2. Automatically get the phone's live GPS location
+    if (mounted) setState(() => _isDetectingLocation = true);
+    try {
+      final live = await LocationService.determineCurrentPosition();
+      if (live != null && mounted) {
+        setState(() {
+          _selectedLocation = live;
+        });
+        await LocationService.saveLocation(live);
+      }
+    } catch (_) {
+      if (_selectedLocation == null && mounted) {
+        setState(() {
+          _selectedLocation = UserLocation.defaultLocation;
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _isDetectingLocation = false);
+    }
+  }
+
+  Future<void> _openLocationPicker() async {
+    final picked = await Navigator.push<UserLocation>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LocationPickerPage(
+          initialLocation: _selectedLocation ?? UserLocation.defaultLocation,
+          autoGps:
+              _selectedLocation == null ||
+              _selectedLocation == UserLocation.defaultLocation,
+        ),
+      ),
+    );
+
+    if (picked != null && mounted) {
+      setState(() {
+        _selectedLocation = picked;
+      });
+      await LocationService.saveLocation(picked);
+    }
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _addressController.dispose();
-    _locationController.dispose();
     _preferencesController.dispose();
     super.dispose();
   }
@@ -236,6 +300,8 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
   void _skip() {
     final userWithPhoto = widget.user.copyWith(
       profilePhotoUrl: _profilePhotoUrl,
+      location: _selectedLocation?.shortName,
+      address: _selectedLocation?.address,
     );
     if (Navigator.canPop(context)) {
       Navigator.pop(context, userWithPhoto);
@@ -262,19 +328,23 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
         fullName: _nameController.text.trim().isNotEmpty
             ? _nameController.text.trim()
             : widget.user.fullName,
-        address: _addressController.text.trim().isNotEmpty
-            ? _addressController.text.trim()
-            : null,
-        location: _locationController.text.trim().isNotEmpty
-            ? _locationController.text.trim()
-            : null,
+        address: _selectedLocation?.address ?? _selectedLocation?.shortName,
+        location: _selectedLocation?.shortName ?? _selectedLocation?.address,
         preferences: _preferencesController.text.trim().isNotEmpty
             ? _preferencesController.text.trim()
             : null,
         profilePhotoUrl: _profilePhotoUrl,
       );
 
+      if (_selectedLocation != null) {
+        await LocationService.saveLocation(_selectedLocation!);
+      }
+
       if (!mounted) return;
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context, updatedUser);
+        return;
+      }
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
@@ -505,20 +575,154 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
                           enabled: !_busy,
                         ),
 
-                        // ── Address Field ──
-                        AuthInput(
-                          label: 'Address',
-                          hint: '24 Park Road',
-                          controller: _addressController,
-                          enabled: !_busy,
-                        ),
-
-                        // ── Location Field ──
-                        AuthInput(
-                          label: 'Location',
-                          hint: 'Colombo 05',
-                          controller: _locationController,
-                          enabled: !_busy,
+                        // ── Location Selector (Pin on Map & Auto GPS) ──
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(left: 4, bottom: 8),
+                              child: Text(
+                                'Location',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                            ),
+                            InkWell(
+                              onTap: _busy ? null : _openLocationPicker,
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: _selectedLocation != null
+                                        ? AppColors.primary.withValues(
+                                            alpha: 0.35,
+                                          )
+                                        : AppColors.border,
+                                    width: 1.2,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        AppIcons.location,
+                                        color: AppColors.primary,
+                                        size: 20,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          if (_isDetectingLocation &&
+                                              _selectedLocation == null)
+                                            Row(
+                                              children: const [
+                                                SizedBox.square(
+                                                  dimension: 14,
+                                                  child: CircularProgressIndicator(
+                                                    strokeWidth: 2,
+                                                    valueColor:
+                                                        AlwaysStoppedAnimation<
+                                                          Color
+                                                        >(AppColors.primary),
+                                                  ),
+                                                ),
+                                                SizedBox(width: 8),
+                                                Text(
+                                                  'Detecting your location…',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    color:
+                                                        AppColors.textSecondary,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                            )
+                                          else ...[
+                                            Text(
+                                              _selectedLocation?.shortName ??
+                                                  'Set location',
+                                              style: const TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              _selectedLocation?.address ??
+                                                  'Tap to pinpoint on map',
+                                              style: const TextStyle(
+                                                fontSize: 12.5,
+                                                color: AppColors.textSecondary,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.mint,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: const [
+                                          Icon(
+                                            Icons.map_rounded,
+                                            size: 14,
+                                            color: AppColors.primary,
+                                          ),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Pin on map',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.primary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.s16),
+                          ],
                         ),
 
                         // ── Preferences Field ──
