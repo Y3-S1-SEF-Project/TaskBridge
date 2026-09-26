@@ -9,6 +9,8 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_palette.dart';
 import '../widgets/fullscreen_photo_viewer.dart';
+import '../../chat/pages/active_chat_page.dart';
+import '../../chat/services/chat_service.dart';
 
 class CustomerCompletionReviewPage extends StatefulWidget {
   final BookingItem booking;
@@ -1640,7 +1642,7 @@ class _CustomerCompletionReviewPageState
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  onPressed: () {
+                  onPressed: () async {
                     final msg = inquiryController.text.trim();
                     if (msg.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -1651,15 +1653,53 @@ class _CustomerCompletionReviewPageState
                       return;
                     }
                     Navigator.pop(modalCtx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Inquiry submitted! Our support team and ${widget.booking.providerName} have been notified.',
-                        ),
-                        backgroundColor: AppColors.primary,
-                        duration: const Duration(seconds: 4),
-                      ),
+
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (_) => const Center(child: CircularProgressIndicator()),
                     );
+
+                    final pId = widget.booking.providerId ?? '';
+                    final conv = await ChatService().findOrCreateConversation(
+                      providerId: pId,
+                      bookingReference: widget.booking.bookingReference,
+                    );
+
+                    if (conv != null) {
+                      await ChatService().sendMessage(
+                        conversationId: conv.id,
+                        recipientId: conv.providerId,
+                        content: '[$selectedCategory] $msg',
+                        messageType: 'Text',
+                      );
+                    }
+
+                    if (mounted) Navigator.pop(context);
+
+                    if (conv != null && mounted) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ActiveChatPage(
+                            conversationId: conv.id,
+                            recipientId: conv.providerId,
+                            recipientName: widget.booking.providerName,
+                            subtitle: 'Booking #${widget.booking.bookingReference}',
+                            bookingReference: widget.booking.bookingReference,
+                          ),
+                        ),
+                      );
+                    } else if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Inquiry submitted! Our support team and ${widget.booking.providerName} have been notified.',
+                          ),
+                          backgroundColor: AppColors.primary,
+                          duration: const Duration(seconds: 4),
+                        ),
+                      );
+                    }
                   },
                   icon: const Icon(AppIcons.send, size: 18),
                   label: Text(

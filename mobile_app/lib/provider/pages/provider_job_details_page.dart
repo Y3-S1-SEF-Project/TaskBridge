@@ -16,6 +16,9 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
 import 'job_completion_proof_page.dart';
+import '../../chat/pages/active_chat_page.dart';
+import '../../chat/services/chat_service.dart';
+import '../../auth/data/auth_api.dart';
 
 /// Full Job Details page for providers displaying complete customer info,
 /// confirmed schedule, realistic interactive location map, rate type (hourly vs fixed),
@@ -773,14 +776,14 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.amber.shade50.withValues(alpha: 0.85),
+        color: palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.r16),
-        border: Border.all(color: Colors.amber.shade400, width: 1.5),
+        border: Border.all(color: palette.border, width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.amber.withValues(alpha: 0.08),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
-            offset: const Offset(0, 4),
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -792,12 +795,12 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.amber.shade100,
+                  color: palette.background,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.assignment_late_rounded,
-                  color: Colors.amber.shade900,
+                  color: palette.text,
                   size: 20,
                 ),
               ),
@@ -811,14 +814,14 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
-                        color: Colors.amber.shade900,
+                        color: palette.text,
                       ),
                     ),
                     Text(
                       'Action needed to finalize job sign-off',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.amber.shade800,
+                        color: palette.muted,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -828,15 +831,16 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.amber.shade200,
+                  color: palette.background,
                   borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: palette.border),
                 ),
                 child: Text(
                   'REVISION',
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
-                    color: Colors.amber.shade900,
+                    color: palette.text,
                   ),
                 ),
               ),
@@ -847,9 +851,9 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: palette.background,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.amber.shade200),
+              border: Border.all(color: palette.border),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -859,7 +863,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                     Icon(
                       Icons.format_quote_rounded,
                       size: 16,
-                      color: Colors.amber.shade800,
+                      color: palette.muted,
                     ),
                     const SizedBox(width: 4),
                     Text(
@@ -867,7 +871,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: Colors.grey.shade800,
+                        color: palette.text,
                       ),
                     ),
                   ],
@@ -883,7 +887,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                           Text(
                             '• ',
                             style: TextStyle(
-                              color: Colors.amber.shade900,
+                              color: palette.text,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -892,7 +896,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                               rev,
                               style: TextStyle(
                                 fontSize: 13,
-                                color: Colors.grey.shade900,
+                                color: palette.text,
                                 height: 1.35,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -908,7 +912,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                     style: TextStyle(
                       fontSize: 13,
                       fontStyle: FontStyle.italic,
-                      color: Colors.grey.shade700,
+                      color: palette.muted,
                     ),
                   ),
               ],
@@ -917,21 +921,29 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
-            height: 44,
+            height: 46,
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.amber.shade900,
+                backgroundColor: palette.text,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
               onPressed: _handleEndJobFlow,
-              icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+              icon: const Icon(
+                Icons.auto_awesome_rounded,
+                size: 18,
+                color: Colors.white,
+              ),
               label: const Text(
                 'Update Proof & Re-evaluate (AI)',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
@@ -948,8 +960,8 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
     IconData icon;
 
     if (_isRevisionRequested) {
-      bg = Colors.amber.shade50;
-      fg = Colors.amber.shade900;
+      bg = palette.surface;
+      fg = palette.text;
       statusTitle = 'Revision Requested by Customer';
       statusSubtitle =
           'The customer requested changes before final sign-off. Please check the requested items below, update your proof or notes, and re-evaluate with AI.';
@@ -1001,7 +1013,11 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: fg.withValues(alpha: 0.2)),
+        border: Border.all(
+          color: _isRevisionRequested
+              ? palette.border
+              : fg.withValues(alpha: 0.2),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1009,7 +1025,9 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: fg.withValues(alpha: 0.12),
+              color: _isRevisionRequested
+                  ? palette.background
+                  : fg.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: fg, size: 18),
@@ -1032,7 +1050,9 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                   statusSubtitle,
                   style: TextStyle(
                     fontSize: 12,
-                    color: fg.withValues(alpha: 0.85),
+                    color: _isRevisionRequested
+                        ? palette.muted
+                        : fg.withValues(alpha: 0.85),
                     height: 1.3,
                   ),
                 ),
@@ -1123,7 +1143,9 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
         color: palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.r16),
         border: Border.all(
-          color: Colors.green.withValues(alpha: 0.35),
+          color: _isRevisionRequested
+              ? palette.border
+              : (_isDraftProof ? palette.border : palette.border),
           width: 1.2,
         ),
       ),
@@ -1137,9 +1159,11 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
             children: [
               Row(
                 children: [
-                  const Icon(
-                    Icons.verified_rounded,
-                    color: Colors.green,
+                  Icon(
+                    _isRevisionRequested
+                        ? Icons.assignment_late_outlined
+                        : Icons.fact_check_outlined,
+                    color: palette.text,
                     size: 20,
                   ),
                   const SizedBox(width: 8),
@@ -1148,7 +1172,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
-                      color: Colors.green.shade800,
+                      color: palette.text,
                       letterSpacing: 0.8,
                     ),
                   ),
@@ -1157,31 +1181,20 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: _isRevisionRequested
-                      ? Colors.amber.withValues(alpha: 0.2)
-                      : (_isPendingSignOff
-                            ? Colors.purple.withValues(alpha: 0.15)
-                            : (_isDraftProof
-                                  ? Colors.teal.withValues(alpha: 0.15)
-                                  : Colors.green.withValues(alpha: 0.15))),
+                  color: palette.background,
                   borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: palette.border),
                 ),
                 child: Text(
                   _isRevisionRequested
                       ? 'Revision Requested'
                       : (_isPendingSignOff
                             ? 'Awaiting Sign-Off'
-                            : (_isDraftProof ? 'Proof Draft' : 'AI Verified')),
+                            : (_isDraftProof ? 'Proof Draft' : 'Verified')),
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: _isRevisionRequested
-                        ? Colors.amber.shade900
-                        : (_isPendingSignOff
-                              ? Colors.purple.shade800
-                              : (_isDraftProof
-                                    ? Colors.teal.shade800
-                                    : Colors.green.shade800)),
+                    color: palette.text,
                   ),
                 ),
               ),
@@ -1199,7 +1212,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                   subtitle: 'Initial State',
                   photos: _completion?.beforePhotoUrls ?? [],
                   fallbackUrl: beforeUrl,
-                  badgeColor: Colors.grey.shade700,
+                  badgeColor: palette.muted,
                 ),
               ),
               const SizedBox(width: 10),
@@ -1209,7 +1222,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                   subtitle: 'Completed Result',
                   photos: _completion?.afterPhotoUrls ?? [],
                   fallbackUrl: afterUrl,
-                  badgeColor: Colors.green.shade700,
+                  badgeColor: palette.text,
                 ),
               ),
             ],
@@ -1222,18 +1235,24 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
               final isAiPassed = _completion?.aiVerificationPassed ?? true;
               final aiScore = _completion?.aiConfidenceScore ?? 90;
 
+              final String badgeText = _isRevisionRequested
+                  ? 'Needs Revision'
+                  : (!isAiPassed
+                        ? 'Mismatch Flagged ($aiScore%)'
+                        : '$aiScore% Match');
+
+              final IconData aiIcon = _isRevisionRequested
+                  ? Icons.rule_rounded
+                  : (!isAiPassed
+                        ? Icons.warning_amber_rounded
+                        : Icons.auto_awesome);
+
               return Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: isAiPassed
-                      ? Colors.green.withValues(alpha: 0.08)
-                      : Colors.orange.withValues(alpha: 0.08),
+                  color: palette.background,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isAiPassed
-                        ? Colors.green.withValues(alpha: 0.3)
-                        : Colors.orange.withValues(alpha: 0.4),
-                  ),
+                  border: Border.all(color: palette.border),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1243,13 +1262,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                       children: [
                         Row(
                           children: [
-                            Icon(
-                              isAiPassed
-                                  ? Icons.auto_awesome
-                                  : Icons.warning_amber_rounded,
-                              color: isAiPassed ? Colors.green : Colors.orange.shade800,
-                              size: 16,
-                            ),
+                            Icon(aiIcon, color: palette.text, size: 16),
                             const SizedBox(width: 6),
                             Text(
                               'AI Quality Assessment',
@@ -1263,17 +1276,15 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 2.5,
+                            horizontal: 8,
+                            vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: isAiPassed ? Colors.green : Colors.orange.shade800,
+                            color: palette.text,
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            isAiPassed
-                                ? '$aiScore% Match'
-                                : 'Mismatch Flagged ($aiScore%)',
+                            badgeText,
                             style: const TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
@@ -1283,47 +1294,49 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                         ),
                       ],
                     ),
-                const SizedBox(height: 6),
-                Text(
-                  analysis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: palette.muted,
-                    height: 1.35,
-                  ),
-                ),
-                if (verified.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  ...verified.map(
-                    (t) => Padding(
-                      padding: const EdgeInsets.only(bottom: 3),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.check_circle_outline,
-                            size: 13,
-                            color: Colors.green,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              t,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: palette.text,
-                              ),
-                            ),
-                          ),
-                        ],
+                    const SizedBox(height: 6),
+                    Text(
+                      analysis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: palette.muted,
+                        height: 1.35,
                       ),
                     ),
-                  ),
-                ],
-              ],
-            ),
-          );
-        },
-      ),
+                    if (verified.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      ...verified.map(
+                        (t) => Padding(
+                          padding: const EdgeInsets.only(bottom: 3),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.check_circle_outline,
+                                size: 13,
+                                color: _isRevisionRequested
+                                    ? palette.muted
+                                    : Colors.green,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  t,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: palette.text,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            },
+          ),
           const SizedBox(height: 14),
 
           // Duration & Final Earnings Breakdown
@@ -2022,15 +2035,52 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                   color: Colors.transparent,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(10),
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Opening chat with ${_currentBooking.customerName}...',
-                          ),
-                          behavior: SnackBarBehavior.floating,
-                        ),
+                    onTap: () async {
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (_) =>
+                            const Center(child: CircularProgressIndicator()),
                       );
+
+                      final providerUser = await AuthApi.getCachedUser();
+                      final myProviderId =
+                          providerUser?.id ?? _currentBooking.providerId ?? '';
+
+                      final conv = await ChatService().findOrCreateConversation(
+                        providerId: myProviderId,
+                        customerId: _currentBooking.customerId,
+                        bookingReference: _currentBooking.bookingReference,
+                      );
+
+                      if (mounted) Navigator.pop(context);
+
+                      if (conv != null && mounted) {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ActiveChatPage(
+                              conversationId: conv.id,
+                              recipientId: conv.customerId,
+                              recipientName: conv.customerName.isNotEmpty
+                                  ? conv.customerName
+                                  : _currentBooking.customerName,
+                              subtitle:
+                                  'Booking #${_currentBooking.bookingReference}',
+                              bookingReference:
+                                  _currentBooking.bookingReference,
+                            ),
+                          ),
+                        );
+                      } else if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Could not open chat with ${_currentBooking.customerName}.',
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
                     },
                     child: Container(
                       height: 38,
@@ -2604,7 +2654,7 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
         height: 48,
         child: ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.amber.shade900,
+            backgroundColor: palette.text,
             foregroundColor: Colors.white,
             elevation: 0,
             shape: RoundedRectangleBorder(
@@ -2612,10 +2662,18 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
             ),
           ),
           onPressed: _isUpdating ? null : _handleEndJobFlow,
-          icon: const Icon(Icons.assignment_return_rounded, size: 20),
+          icon: const Icon(
+            Icons.assignment_return_rounded,
+            size: 20,
+            color: Colors.white,
+          ),
           label: const Text(
             'Update Proof & Re-evaluate (AI)',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
           ),
         ),
       );

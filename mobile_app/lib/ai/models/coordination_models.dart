@@ -177,6 +177,7 @@ class BookingItem {
   final String providerName;
   final String? providerId;
   final String? providerPhone;
+  final String? customerId;
   final String customerName;
   final String? customerPhone;
   final String location;
@@ -199,6 +200,7 @@ class BookingItem {
     required this.providerName,
     this.providerId,
     this.providerPhone,
+    this.customerId,
     required this.customerName,
     this.customerPhone,
     required this.location,
@@ -224,6 +226,7 @@ class BookingItem {
       providerId: json['providerId']?.toString(),
       providerPhone:
           json['providerPhone'] as String? ?? json['phone'] as String?,
+      customerId: json['customerId']?.toString(),
       customerName: json['customerName'] as String? ?? 'Customer',
       customerPhone: json['customerPhone'] as String?,
       location: json['location'] as String? ?? 'Colombo',
@@ -294,6 +297,7 @@ class BookingItem {
     String? schedule,
     String? notes,
     String? providerPhone,
+    String? customerId,
     String? customerPhone,
     DateTime? startedAt,
     DateTime? endedAt,
@@ -308,6 +312,7 @@ class BookingItem {
       providerName: providerName,
       providerId: providerId,
       providerPhone: providerPhone ?? this.providerPhone,
+      customerId: customerId ?? this.customerId,
       customerName: customerName,
       customerPhone: customerPhone ?? this.customerPhone,
       location: location,

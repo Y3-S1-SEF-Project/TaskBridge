@@ -382,6 +382,16 @@ class AuthApi {
     return null;
   }
 
+  /// Retrieves the stored bearer session token from shared_preferences.
+  static Future<String?> getCachedToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_tokenKey);
+    } catch (_) {
+      return null;
+    }
+  }
+
   // Restores user session from shared_preferences on splash screen.
   Future<AuthUser?> restore() async {
     final prefs = await SharedPreferences.getInstance();

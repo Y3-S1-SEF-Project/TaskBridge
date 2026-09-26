@@ -6,6 +6,8 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_palette.dart';
 import '../data/provider_api.dart';
 import '../models/provider_item.dart';
+import '../../chat/pages/active_chat_page.dart';
+import '../../chat/services/chat_service.dart';
 
 class CustomerJobDetailsPage extends StatefulWidget {
   final BookingItem booking;
@@ -160,9 +162,48 @@ class _CustomerJobDetailsPageState extends State<CustomerJobDetailsPage> {
     }
   }
 
-  void _handleMessage() {
-    Navigator.pop(context);
-    widget.onSwitchTab?.call(2);
+  Future<void> _handleMessage() async {
+    final pId = (_booking.providerId != null && _booking.providerId!.isNotEmpty)
+        ? _booking.providerId!
+        : (_providerItem?.userId != null && _providerItem!.userId.isNotEmpty
+            ? _providerItem!.userId
+            : (_providerItem?.id ?? ''));
+
+    if (pId.isEmpty) {
+      Navigator.pop(context);
+      widget.onSwitchTab?.call(2);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final conv = await ChatService().findOrCreateConversation(
+      providerId: pId,
+      bookingReference: _booking.bookingReference,
+    );
+
+    if (mounted) Navigator.pop(context);
+
+    if (conv != null && mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ActiveChatPage(
+            conversationId: conv.id,
+            recipientId: conv.providerId,
+            recipientName: conv.providerName.isNotEmpty ? conv.providerName : _booking.providerName,
+            subtitle: 'Booking #${_booking.bookingReference}',
+            bookingReference: _booking.bookingReference,
+          ),
+        ),
+      );
+    } else if (mounted) {
+      Navigator.pop(context);
+      widget.onSwitchTab?.call(2);
+    }
   }
 
   Future<void> _openInGoogleMaps() async {
