@@ -19,9 +19,11 @@ builder.Services.AddDbContext<AuthDbContext>(options => options.UseNpgsql(
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
 builder.Services.Configure<PasswordHasherOptions>(options => options.IterationCount = 210_000);
 builder.Services.AddScoped<AuthCrypto>();
+builder.Services.AddSingleton<ChatCrypto>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<IEmailOtpSender, EmailOtpSender>();
 builder.Services.AddSingleton<IProfileImageService, R2ImageService>();
+builder.Services.AddSignalR();
 builder.Services.AddHttpClient<IOtpSender, NotifySmsSender>(client => client.Timeout = TimeSpan.FromSeconds(10));
 builder.Services.AddHttpClient<backend.Api.AI.PlanningAgentService>(client => client.Timeout = TimeSpan.FromSeconds(25));
 builder.Services.AddHttpClient<backend.Api.AI.MatchingAgentService>(client => client.Timeout = TimeSpan.FromSeconds(25));
@@ -69,6 +71,7 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<TaskBridge.Api.Chat.ChatHub>("/hubs/chat");
 
 var summaries = new[]
 {
