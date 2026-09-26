@@ -21,11 +21,10 @@ class AiPromptSheet extends StatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       backgroundColor: Colors.transparent,
-      builder: (_) => AiPromptSheet(
-        currentLocation: currentLocation,
-        user: user,
-      ),
+      builder: (_) =>
+          AiPromptSheet(currentLocation: currentLocation, user: user),
     );
   }
 
@@ -80,12 +79,15 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
       Navigator.pop(context);
 
       // Branch based on missing info: Screen C19 vs Screen C18
-      final isScheduleMissing = result.missingFields.contains('date') ||
+      final isScheduleMissing =
+          result.missingFields.contains('date') ||
           result.missingFields.contains('time') ||
           result.jobPlan.scheduledDate.isEmpty ||
           result.jobPlan.scheduledTime.isEmpty;
 
-      if (result.isLocationMissing || result.jobPlan.location == null || isScheduleMissing) {
+      if (result.isLocationMissing ||
+          result.jobPlan.location == null ||
+          isScheduleMissing) {
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -181,7 +183,7 @@ class _AiPromptSheetState extends State<AiPromptSheet> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Describe in your own words. The Planning Agent will analyze your request and match providers.',
+              'Describe in your own words. AI will analyze your request and match providers.',
               style: TextStyle(fontSize: 14, color: palette.muted, height: 1.4),
             ),
             const SizedBox(height: AppSpacing.s16),

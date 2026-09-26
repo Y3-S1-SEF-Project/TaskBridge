@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
+import '../../../core/config/api_config.dart';
 import '../models/coordination_models.dart';
 import '../models/matching_models.dart';
 import '../models/planning_models.dart';
@@ -11,13 +12,7 @@ class CoordinationApi {
 
   static List<String> get _candidateUrls {
     if (_workingBaseUrl != null) return [_workingBaseUrl!];
-
-    return const [
-      'http://localhost:5298',
-      'http://10.0.2.2:5298',
-      'http://192.168.1.4:5298',
-      'http://192.168.1.2:5298',
-    ];
+    return ApiConfig.candidateUrls;
   }
 
   /// Sends JobPlan and candidate providers to Agent 3 (Coordination Agent) to evaluate quotes
@@ -136,7 +131,8 @@ class CoordinationApi {
     );
 
     final resolvedRateType = rateType ?? 'Hourly';
-    final resolvedCustomerName = (customerName != null && customerName.isNotEmpty)
+    final resolvedCustomerName =
+        (customerName != null && customerName.isNotEmpty)
         ? customerName
         : (booking.customerName.isNotEmpty ? booking.customerName : 'Customer');
     final resolvedCustomerId = customerId ?? booking.customerId;
@@ -754,8 +750,10 @@ class CoordinationApi {
             ? proposalReference.replaceFirst('PR-', 'TB-')
             : proposalReference,
         customerName: old.customerName,
+        customerPhone: old.customerPhone,
         providerName: old.providerName,
         providerId: old.providerId,
+        providerPhone: old.providerPhone,
         serviceTitle: old.serviceTitle,
         category: old.category,
         location: old.location,

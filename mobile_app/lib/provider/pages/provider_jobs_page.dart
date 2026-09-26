@@ -875,12 +875,26 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                           border: Border.all(color: palette.border),
                         ),
                         child: TabBar(
-                          indicatorColor: palette.primary,
+                          indicatorSize: TabBarIndicatorSize.tab,
+                          indicator: BoxDecoration(
+                            color: palette.soft,
+                            borderRadius: BorderRadius.circular(AppRadius.r8),
+                          ),
+                          indicatorColor: Colors.transparent,
                           labelColor: palette.primary,
                           unselectedLabelColor: palette.muted,
                           labelPadding: const EdgeInsets.symmetric(
-                            horizontal: 4,
+                            horizontal: 2,
                           ),
+                          labelStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          unselectedLabelStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          dividerColor: Colors.transparent,
                           tabs: [
                             Tab(
                               child: FittedBox(

@@ -73,9 +73,9 @@ public class ReviewAgentService
         var booking = await _dbContext.Bookings
             .FirstOrDefaultAsync(b => b.BookingReference == request.BookingReference, ct);
 
-        var startedAt = request.StartedAt ?? booking?.StartedAt ?? DateTimeOffset.UtcNow.AddMinutes(-45);
+        var startedAt = booking?.StartedAt ?? request.StartedAt ?? booking?.CreatedAt ?? DateTimeOffset.UtcNow;
         var endedAt = request.EndedAt ?? DateTimeOffset.UtcNow;
-        if (endedAt < startedAt) endedAt = startedAt.AddMinutes(5);
+        if (endedAt < startedAt) endedAt = startedAt.AddMinutes(1);
 
         var totalMinutes = (int)Math.Max(1, Math.Round((endedAt - startedAt).TotalMinutes));
         var hours = totalMinutes / 60;
@@ -150,15 +150,28 @@ public class ReviewAgentService
             }
         }
 
-        sw.Stop();
+        var existingCompletion = await _dbContext.JobCompletions
+            .FirstOrDefaultAsync(c => c.BookingReference == request.BookingReference, ct);
 
-        var status = aiResult.VerificationPassed ? "AiApproved" : "RevisionRequested";
+        // While the provider is preparing/evaluating proof, status remains "Draft"
+        // It must NOT be marked "RevisionRequested" (which is reserved for when a customer requests changes)
+        // or "PendingCustomerSignOff" until the provider explicitly taps Submit to Customer.
+        string status;
+        if (existingCompletion != null && existingCompletion.Status == "RevisionRequested" && booking?.Status == "RevisionRequested")
+        {
+            status = "RevisionRequested";
+        }
+        else if (existingCompletion != null && existingCompletion.Status == "PendingCustomerSignOff")
+        {
+            status = "PendingCustomerSignOff";
+        }
+        else
+        {
+            status = "Draft";
+        }
 
         // Persist to job_completions table
         var beforePhotoStorage = beforePhotos.Count > 1 ? JsonSerializer.Serialize(beforePhotos) : (beforePhoto ?? "");
-
-        var existingCompletion = await _dbContext.JobCompletions
-            .FirstOrDefaultAsync(c => c.BookingReference == request.BookingReference, ct);
 
         if (existingCompletion == null)
         {
@@ -414,10 +427,17 @@ public class ReviewAgentService
     public async Task<JobCompletionEntity?> GetCompletionDetailsAsync(string bookingRef, CancellationToken ct = default)
     {
         var comp = await _dbContext.JobCompletions
-            .AsNoTracking()
             .FirstOrDefaultAsync(c => c.BookingReference == bookingRef, ct);
         if (comp != null)
+        {
+            var b = await _dbContext.Bookings.AsNoTracking().FirstOrDefaultAsync(x => x.BookingReference == bookingRef, ct);
+            if (b != null && comp.Status == "RevisionRequested" && b.Status != "RevisionRequested")
+            {
+                comp.Status = "Draft";
+                await _dbContext.SaveChangesAsync(ct);
+            }
             return comp;
+        }
 
         // Check if booking exists
         var booking = await _dbContext.Bookings
@@ -443,7 +463,11 @@ public class ReviewAgentService
                     ? "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=800&auto=format&fit=crop&q=80"
                     : "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?w=800&auto=format&fit=crop&q=80");
 
-            var duration = booking.DurationMinutes ?? 52;
+            var duration = booking.DurationMinutes ?? (booking.StartedAt.HasValue && booking.EndedAt.HasValue
+                ? (int)Math.Max(1, Math.Round((booking.EndedAt.Value - booking.StartedAt.Value).TotalMinutes))
+                : (booking.StartedAt.HasValue
+                    ? (int)Math.Max(1, Math.Round((DateTimeOffset.UtcNow - booking.StartedAt.Value).TotalMinutes))
+                    : 15));
             var hourlyRate = (double)booking.Price;
             if (hourlyRate <= 0) hourlyRate = 3750;
             var finalPrice = (double)(booking.FinalCalculatedPrice ?? (decimal)(duration <= 60 ? hourlyRate : (hourlyRate + ((duration - 60) / 60.0 * hourlyRate))));

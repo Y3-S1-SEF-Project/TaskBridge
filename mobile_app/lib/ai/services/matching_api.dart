@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
+import '../../../core/config/api_config.dart';
 import '../models/matching_models.dart';
 import '../models/planning_models.dart';
 
@@ -9,13 +10,7 @@ class MatchingApi {
 
   static List<String> get _candidateUrls {
     if (_workingBaseUrl != null) return [_workingBaseUrl!];
-
-    return const [
-      'http://localhost:5298',
-      'http://10.0.2.2:5298',
-      'http://192.168.1.4:5298',
-      'http://192.168.1.2:5298',
-    ];
+    return ApiConfig.candidateUrls;
   }
 
   /// Sends the JobPlan from Agent 1 to Agent 2 for provider matching and ranking.

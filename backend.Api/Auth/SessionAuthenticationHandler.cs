@@ -16,13 +16,19 @@ public sealed class SessionAuthenticationHandler(
 {
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
+        string? token = null;
         var header = Request.Headers.Authorization.ToString();
-        if (!header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            return AuthenticateResult.NoResult();
+        if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            token = header[7..].Trim();
+        }
+        else if (Request.Query.TryGetValue("access_token", out var queryToken))
+        {
+            token = queryToken.ToString().Trim();
+        }
 
-        var token = header[7..].Trim();
         if (string.IsNullOrWhiteSpace(token))
-            return AuthenticateResult.Fail("Invalid session token.");
+            return AuthenticateResult.NoResult();
 
         var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(
             x => x.SessionToken == token, Context.RequestAborted);

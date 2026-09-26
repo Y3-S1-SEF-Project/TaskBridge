@@ -12,6 +12,9 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
     public DbSet<ProposalEntity> Proposals => Set<ProposalEntity>();
     public DbSet<JobCompletionEntity> JobCompletions => Set<JobCompletionEntity>();
     public DbSet<FeedbackEntity> Feedbacks => Set<FeedbackEntity>();
+    public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<ChatAuditLog> ChatAuditLogs => Set<ChatAuditLog>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -284,6 +287,51 @@ CREATE TABLE IF NOT EXISTS feedbacks (
 CREATE INDEX IF NOT EXISTS ix_feedbacks_booking_ref ON feedbacks (""BookingReference"");
 CREATE INDEX IF NOT EXISTS ix_feedbacks_provider_id ON feedbacks (""ProviderId"");
 CREATE INDEX IF NOT EXISTS ix_feedbacks_customer_id ON feedbacks (""CustomerId"");
+
+CREATE TABLE IF NOT EXISTS chat_conversations (
+    ""Id"" uuid PRIMARY KEY,
+    ""BookingReference"" text NULL,
+    ""CustomerId"" uuid NOT NULL,
+    ""CustomerName"" varchar(150) NOT NULL,
+    ""ProviderId"" uuid NOT NULL,
+    ""ProviderName"" varchar(150) NOT NULL,
+    ""LastMessageAt"" timestamptz NOT NULL DEFAULT now(),
+    ""LastMessageSnippet"" text NULL,
+    ""UnreadCustomer"" integer NOT NULL DEFAULT 0,
+    ""UnreadProvider"" integer NOT NULL DEFAULT 0,
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_chat_conv_customer ON chat_conversations (""CustomerId"");
+CREATE INDEX IF NOT EXISTS ix_chat_conv_provider ON chat_conversations (""ProviderId"");
+CREATE INDEX IF NOT EXISTS ix_chat_conv_booking ON chat_conversations (""BookingReference"");
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    ""Id"" uuid PRIMARY KEY,
+    ""ConversationId"" uuid NOT NULL REFERENCES chat_conversations (""Id"") ON DELETE CASCADE,
+    ""SenderId"" uuid NOT NULL,
+    ""SenderName"" varchar(150) NOT NULL,
+    ""RecipientId"" uuid NOT NULL,
+    ""MessageType"" varchar(20) NOT NULL DEFAULT 'Text',
+    ""EncryptedContent"" text NOT NULL,
+    ""MediaUrl"" text NULL,
+    ""IsRead"" boolean NOT NULL DEFAULT false,
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_chat_messages_conv ON chat_messages (""ConversationId"");
+CREATE INDEX IF NOT EXISTS ix_chat_messages_created ON chat_messages (""CreatedAt"");
+
+CREATE TABLE IF NOT EXISTS chat_audit_logs (
+    ""Id"" uuid PRIMARY KEY,
+    ""AdminId"" uuid NOT NULL,
+    ""AdminName"" varchar(150) NOT NULL,
+    ""ConversationId"" uuid NOT NULL,
+    ""Reason"" varchar(500) NOT NULL,
+    ""AccessedAt"" timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_chat_audit_conv ON chat_audit_logs (""ConversationId"");
 ";
         await Database.ExecuteSqlRawAsync(sql, ct);
     }

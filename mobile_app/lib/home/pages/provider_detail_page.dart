@@ -11,6 +11,8 @@ import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_spacing.dart';
 import '../models/provider_item.dart';
 import 'book_specialist_page.dart';
+import '../../chat/pages/active_chat_page.dart';
+import '../../chat/services/chat_service.dart';
 
 class ProviderDetailPage extends StatefulWidget {
   final ProviderItem provider;
@@ -104,6 +106,43 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _openChat(BuildContext context) async {
+    final pId = provider.userId.isNotEmpty ? provider.userId : provider.id;
+    if (pId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot initiate chat: Provider ID missing.')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final conv = await ChatService().findOrCreateConversation(providerId: pId);
+
+    if (context.mounted) Navigator.pop(context);
+
+    if (conv != null && context.mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ActiveChatPage(
+            conversationId: conv.id,
+            recipientId: conv.providerId,
+            recipientName: conv.providerName.isNotEmpty ? conv.providerName : provider.fullName,
+            subtitle: provider.category,
+          ),
+        ),
+      );
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open chat with ${provider.fullName}.')),
+      );
     }
   }
 
@@ -658,8 +697,35 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
                 onPressed: () => _callProvider(context),
               ),
 
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
             ],
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 14,
+                ),
+                side: BorderSide(color: palette.primary, width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: Icon(
+                Icons.chat_bubble_outline_rounded,
+                color: palette.primary,
+                size: 19,
+              ),
+              label: Text(
+                'Chat',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: palette.primary,
+                ),
+              ),
+              onPressed: () => _openChat(context),
+            ),
+            const SizedBox(width: 10),
             Expanded(
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(

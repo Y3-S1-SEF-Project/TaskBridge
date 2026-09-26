@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'auth/data/auth_api.dart';
 import 'auth/pages/splash_page.dart';
+import 'core/config/api_config.dart';
 import 'core/services/theme_service.dart';
 import 'core/theme/app_theme.dart';
 
 // Starts TaskBridge with initialized services and authentication entry flow.
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await ApiConfig.init();
   await ThemeService.instance.init();
   runApp(const MyApp());
 }

@@ -43,6 +43,7 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
       context: context,
       backgroundColor: palette.surface,
       isScrollControlled: true,
+      showDragHandle: false,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -435,7 +436,7 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
 
                       // Header Tag
                       Text(
-                        'MATCHING AGENT',
+                        'AI MATCHING',
                         style: TextStyle(
                           color: palette.primary,
                           fontSize: 12,

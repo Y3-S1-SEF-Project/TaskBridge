@@ -135,6 +135,7 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
       context: context,
       backgroundColor: palette.surface,
       isScrollControlled: true,
+      showDragHandle: false,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -164,7 +165,11 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      Icon(Icons.auto_awesome, color: palette.primary, size: 22),
+                      Icon(
+                        Icons.auto_awesome,
+                        color: palette.primary,
+                        size: 22,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'AI Reasoning & Inspection Trace',
@@ -211,8 +216,8 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
                       const SizedBox(width: 12),
                       Expanded(
                         child: _buildMetricCard(
-                          title: 'Agent Role',
-                          value: 'Planning Agent (1)',
+                          title: 'AI Feature',
+                          value: 'Job Planning AI',
                           palette: palette,
                         ),
                       ),
@@ -276,10 +281,7 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(fontSize: 12, color: palette.muted),
-          ),
+          Text(title, style: TextStyle(fontSize: 12, color: palette.muted)),
           const SizedBox(height: 4),
           Text(
             value,
@@ -343,7 +345,9 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
                               fontSize: 13,
                             ),
                           ),
-                          backgroundColor: palette.primary.withValues(alpha: 0.1),
+                          backgroundColor: palette.primary.withValues(
+                            alpha: 0.1,
+                          ),
                           side: BorderSide(
                             color: palette.primary.withValues(alpha: 0.2),
                           ),
@@ -441,7 +445,9 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
                     _buildAnimatedStep(
                       stepIndex: 2,
                       title: 'Checking availability',
-                      subtitle: '${widget.plan.scheduledDate.split('·').first.trim()} ${widget.plan.scheduledTime}'.trim(),
+                      subtitle:
+                          '${widget.plan.scheduledDate.split('·').first.trim()} ${widget.plan.scheduledTime}'
+                              .trim(),
                       iconType: _StepIconType.clock,
                       palette: palette,
                     ),
@@ -453,7 +459,9 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
                       subtitle: _isAllComplete
                           ? 'Available specialists matched'
                           : 'Waiting for availability checks',
-                      iconType: _isAllComplete ? _StepIconType.check : _StepIconType.clock,
+                      iconType: _isAllComplete
+                          ? _StepIconType.check
+                          : _StepIconType.clock,
                       palette: palette,
                     ),
                     const SizedBox(height: AppSpacing.s32),
@@ -509,7 +517,9 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
               ),
               decoration: BoxDecoration(
                 color: palette.background,
-                border: Border(top: BorderSide(color: palette.border, width: 0.8)),
+                border: Border(
+                  top: BorderSide(color: palette.border, width: 0.8),
+                ),
               ),
               child: SizedBox(
                 width: double.infinity,
@@ -594,11 +604,7 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Step Icon with dynamic status animation
-            _buildStepIcon(
-              state: state,
-              iconType: iconType,
-              palette: palette,
-            ),
+            _buildStepIcon(state: state, iconType: iconType, palette: palette),
             const SizedBox(width: 14),
             // Step text details
             Expanded(
@@ -621,9 +627,7 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
                       fontWeight: FontWeight.w400,
                       color: state == 1 ? palette.primary : palette.muted,
                     ),
-                    child: Text(
-                      state == 1 ? 'Checking...' : subtitle,
-                    ),
+                    child: Text(state == 1 ? 'Checking...' : subtitle),
                   ),
                 ],
               ),
@@ -661,11 +665,7 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
           shape: BoxShape.circle,
           border: Border.all(color: palette.primary, width: 2),
         ),
-        child: Icon(
-          Icons.check,
-          color: palette.primary,
-          size: 18,
-        ),
+        child: Icon(Icons.check, color: palette.primary, size: 18),
       );
     } else {
       // Clock / Timer outline icon
@@ -676,17 +676,10 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
           shape: BoxShape.circle,
           border: Border.all(color: palette.primary, width: 2),
         ),
-        child: Icon(
-          Icons.alarm_rounded,
-          color: palette.primary,
-          size: 16,
-        ),
+        child: Icon(Icons.alarm_rounded, color: palette.primary, size: 16),
       );
     }
   }
 }
 
-enum _StepIconType {
-  check,
-  clock,
-}
+enum _StepIconType { check, clock }

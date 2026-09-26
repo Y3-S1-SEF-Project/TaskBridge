@@ -67,9 +67,13 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
     _jobStartedAt =
         widget.startedAt ??
         widget.initialCompletion?.startedAt ??
-        DateTime.now().subtract(const Duration(minutes: 52));
+        widget.booking.startedAt ??
+        DateTime.now();
     _jobEndedAt =
         widget.endedAt ?? widget.initialCompletion?.endedAt ?? DateTime.now();
+    if (_jobEndedAt.isBefore(_jobStartedAt)) {
+      _jobEndedAt = _jobStartedAt.add(const Duration(minutes: 1));
+    }
 
     if (widget.beforePhotoUrl != null && widget.beforePhotoUrl!.isNotEmpty) {
       _beforePhotoUrls.add(widget.beforePhotoUrl!);
@@ -352,8 +356,8 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
           SnackBar(
             content: Text(
               result.verificationPassed
-                  ? '✅ Agent 4: Quality verification passed (${result.confidenceScore}% confidence)!'
-                  : '⚠️ Agent 4: Additional details or proof requested.',
+                  ? '✅ AI: Quality verification passed (${result.confidenceScore}% confidence)!'
+                  : '⚠️ AI: Additional details or proof requested.',
             ),
             backgroundColor: result.verificationPassed
                 ? Colors.green
@@ -364,7 +368,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Failed to run Agent 4 review. Check your backend status.',
+              'Failed to run AI review. Check your backend status.',
             ),
             backgroundColor: Colors.red,
           ),
@@ -374,6 +378,48 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
   }
 
   Future<void> _submitToCustomer() async {
+    if (_aiResult != null && !_aiResult!.verificationPassed) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 24),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'AI Revision Advised',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'The AI Quality Review flagged that the photos do not align with "${widget.booking.serviceTitle}".\n\nAre you sure you want to send this to ${widget.booking.customerName} for sign-off anyway?',
+            style: const TextStyle(fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Update Photos First'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange.shade800,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Submit Anyway'),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true) return;
+    }
+
     setState(() => _isSubmittingToCustomer = true);
 
     final success = await ReviewApi.submitToCustomer(
@@ -422,7 +468,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
             ],
           ),
           content: Text(
-            'Agent 4 has verified your proof of work with $confidence% confidence. The customer (${widget.booking.customerName}) has now been notified to review the photos and confirm sign-off.',
+            'AI has verified your proof of work with $confidence% confidence. The customer (${widget.booking.customerName}) has now been notified to review the photos and confirm sign-off.',
             style: GoogleFonts.plusJakartaSans(fontSize: 14),
           ),
           actions: [
@@ -463,7 +509,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Agent 4: Quality Review',
+          'AI: Quality Review',
           style: GoogleFonts.plusJakartaSans(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -1193,9 +1239,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    isPassed
-                        ? 'Agent 4: Quality Passed'
-                        : 'Agent 4: Revision Advised',
+                    isPassed ? 'AI: Quality Passed' : 'AI: Revision Advised',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -1212,11 +1256,13 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: isPassed ? Colors.green : Colors.orange,
+                  color: isPassed ? Colors.green : Colors.orange.shade800,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '${res.confidenceScore}% Confidence',
+                  isPassed
+                      ? '${res.confidenceScore}% Confidence'
+                      : 'Mismatch (${res.confidenceScore}% Certainty)',
                   style: GoogleFonts.plusJakartaSans(
                     color: Colors.white,
                     fontSize: 11,
@@ -1235,6 +1281,39 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
               color: palette.text,
             ),
           ),
+          if (!isPassed) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade300),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: Colors.orange.shade900,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'AI Quality Assurance flagged that the photos do not align with "${widget.booking.serviceTitle}". Please upload photos of the actual completed service before submitting to the customer.',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.orange.shade900,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (res.verifiedTasks.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(
@@ -1481,7 +1560,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
           ),
           const SizedBox(height: 10),
           Text(
-            '💡 Update photos or notes below, then tap "Re-evaluate with Agent 4" to re-verify.',
+            '💡 Update photos or notes below, then tap "Re-evaluate with AI" to re-verify.',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 12,
               color: Colors.amber.shade900,
@@ -1525,8 +1604,8 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                   : const Icon(Icons.auto_awesome, size: 20),
               label: Text(
                 _isEvaluating
-                    ? 'Agent 4 is Re-evaluating...'
-                    : 'Re-evaluate with Agent 4',
+                    ? 'AI is Re-evaluating...'
+                    : 'Re-evaluate with AI',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
@@ -1536,7 +1615,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            '⚠️ Re-evaluation with Agent 4 is required after updating proof for customer revision.',
+            '⚠️ Re-evaluation with AI is required after updating proof for customer revision.',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 11.5,
               color: Colors.amber.shade900,
@@ -1573,9 +1652,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                 )
               : const Icon(Icons.auto_awesome, size: 20),
           label: Text(
-            _isEvaluating
-                ? 'Agent 4 is Analyzing Proof...'
-                : 'Run Agent 4 AI Verification',
+            _isEvaluating ? 'AI is Analyzing Proof...' : 'Run AI Verification',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 15,
               fontWeight: FontWeight.bold,
@@ -1660,8 +1737,8 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                   : const Icon(Icons.refresh_rounded, size: 20),
               label: Text(
                 _isEvaluating
-                    ? 'Agent 4 is Re-evaluating...'
-                    : 'Re-evaluate with Agent 4',
+                    ? 'AI is Re-evaluating...'
+                    : 'Re-evaluate with AI',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
@@ -1711,7 +1788,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
         TextButton.icon(
           onPressed: _isEvaluating ? null : _runAgent4Evaluation,
           icon: const Icon(Icons.refresh_rounded, size: 16),
-          label: const Text('Re-evaluate with Agent 4'),
+          label: const Text('Re-evaluate with AI'),
         ),
       ],
     );

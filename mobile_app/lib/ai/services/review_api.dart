@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
+import '../../../core/config/api_config.dart';
 import '../models/review_models.dart';
 import 'bookings_sync_service.dart';
 import 'coordination_api.dart';
@@ -10,13 +11,7 @@ class ReviewApi {
 
   static List<String> get _candidateUrls {
     if (_workingBaseUrl != null) return [_workingBaseUrl!];
-
-    return const [
-      'http://localhost:5298',
-      'http://10.0.2.2:5298',
-      'http://192.168.1.4:5298',
-      'http://192.168.1.2:5298',
-    ];
+    return ApiConfig.candidateUrls;
   }
 
   /// Uploads a proof photo (before or after) to Cloudflare R2 via backend
