@@ -70,7 +70,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
             entity.HasIndex(x => x.ProviderId);
             entity.Property(x => x.EstimatedRate).HasColumnType("numeric(12,2)");
         });
-        
+
         model.Entity<JobCompletionEntity>(entity =>
         {
             entity.ToTable("job_completions");
@@ -91,3 +91,72 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
             entity.HasIndex(x => x.CustomerId);
         });
     }
+    public async Task EnsureSchemaAsync(CancellationToken ct = default)
+    {
+        const string sql = @"
+CREATE TABLE IF NOT EXISTS users (
+    ""Id"" uuid PRIMARY KEY,
+    ""FullName"" varchar(100) NOT NULL,
+    ""Email"" varchar(255) NOT NULL,
+    ""Phone"" varchar(24) NOT NULL,
+    ""PasswordHash"" text NOT NULL,
+    ""Address"" text NULL,
+    ""Location"" text NULL,
+    ""Preferences"" text NULL,
+    ""ProfilePhotoUrl"" text NULL,
+    ""EmailOtp"" varchar(10) NULL,
+    ""EmailOtpExpiresAt"" timestamptz NULL,
+    ""IsEmailVerified"" boolean NOT NULL DEFAULT false,
+    ""SessionToken"" text NULL,
+    ""FailedLogins"" integer NOT NULL DEFAULT 0,
+    ""LockedUntil"" timestamptz NULL,
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
+    ""UpdatedAt"" timestamptz NULL,
+    ""IsProvider"" boolean NOT NULL DEFAULT false,
+    ""ProviderCategory"" text NULL,
+    ""ProviderSkills"" text NULL,
+    ""ProviderServices"" text NULL,
+    ""ProviderExperience"" text NULL,
+    ""ProviderCertifications"" text NULL,
+    ""ProviderServiceAreas"" text NULL,
+    ""ProviderAvailability"" text NULL,
+    ""ProviderBio"" text NULL,
+    ""ProviderEarnings"" numeric(12,2) NULL DEFAULT 54000.00,
+    ""ProviderHourlyRate"" numeric(12,2) NULL DEFAULT 2500.00
+);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ""IsProvider"" boolean NOT NULL DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderCategory"" text NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderSkills"" text NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderServices"" text NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderExperience"" text NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderCertifications"" text NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderServiceAreas"" text NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderAvailability"" text NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderBio"" text NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderEarnings"" numeric(12,2) NULL DEFAULT 54000.00;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderHourlyRate"" numeric(12,2) NULL DEFAULT 2500.00;
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (""Email"");
+CREATE INDEX IF NOT EXISTS ix_users_phone ON users (""Phone"");
+CREATE INDEX IF NOT EXISTS ix_users_session_token ON users (""SessionToken"");
+
+CREATE TABLE IF NOT EXISTS providers (
+    ""Id"" uuid PRIMARY KEY,
+    ""UserId"" uuid NOT NULL UNIQUE,
+    ""Category"" text NOT NULL DEFAULT 'General',
+    ""Skills"" text NULL,
+    ""Services"" text NULL,
+    ""Experience"" text NULL,
+    ""Certifications"" text NULL,
+    ""ServiceAreas"" text NULL,
+    ""Availability"" text NULL,
+    ""HourlyRate"" numeric(12,2) NOT NULL DEFAULT 2500.00,
+    ""Rating"" double precision NOT NULL DEFAULT 4.8,
+    ""ReviewCount"" integer NOT NULL DEFAULT 12,
+    ""IsActive"" boolean NOT NULL DEFAULT true,
+    ""Bio"" text NULL,
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
+    ""UpdatedAt"" timestamptz NULL,
+    CONSTRAINT fk_providers_user FOREIGN KEY (""UserId"") REFERENCES users (""Id"") ON DELETE CASCADE
+);
