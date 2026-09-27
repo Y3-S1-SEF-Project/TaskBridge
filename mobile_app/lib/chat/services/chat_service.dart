@@ -26,7 +26,37 @@ class ChatService {
   Stream<Map<String, dynamic>> get typingStream =>
       _typingStreamController.stream;
 
-  String get _baseUrl => ApiConfig.baseUrl;
+  final StreamController<Map<String, dynamic>> _readReceiptStreamController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get readReceiptStream =>
+      _readReceiptStreamController.stream;
+
+  final StreamController<Map<String, dynamic>> _deleteMessageStreamController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get deleteMessageStream =>
+      _deleteMessageStreamController.stream;
+
+  /// Resolves a working base URL from ApiConfig or candidate URLs dynamically.
+  Future<String> _resolveBaseUrl() async {
+    if (ApiConfig.hasWorkingBaseUrl) {
+      return ApiConfig.baseUrl;
+    }
+
+    final candidates = ApiConfig.candidateUrls;
+    for (final candidate in candidates) {
+      try {
+        final uri = Uri.parse('$candidate/api/providers');
+        final res = await http
+            .get(uri)
+            .timeout(const Duration(milliseconds: 1500));
+        if (res.statusCode < 500) {
+          ApiConfig.setWorkingBaseUrl(candidate);
+          return candidate;
+        }
+      } catch (_) {}
+    }
+    return ApiConfig.baseUrl;
+  }
 
   /// Initializes and starts the SignalR WebSocket connection.
   Future<bool> initSignalR() async {
@@ -43,7 +73,8 @@ class ChatService {
     }
 
     try {
-      final hubUrl = '$_baseUrl/hubs/chat';
+      final base = await _resolveBaseUrl();
+      final hubUrl = '$base/hubs/chat';
       _hubConnection = HubConnectionBuilder()
           .withUrl(
             hubUrl,
@@ -69,6 +100,22 @@ class ChatService {
       _hubConnection!.on('UserTyping', (args) {
         if (args != null && args.isNotEmpty && args[0] is Map) {
           _typingStreamController.add(
+            Map<String, dynamic>.from(args[0] as Map),
+          );
+        }
+      });
+
+      _hubConnection!.on('MessagesRead', (args) {
+        if (args != null && args.isNotEmpty && args[0] is Map) {
+          _readReceiptStreamController.add(
+            Map<String, dynamic>.from(args[0] as Map),
+          );
+        }
+      });
+
+      _hubConnection!.on('MessageDeleted', (args) {
+        if (args != null && args.isNotEmpty && args[0] is Map) {
+          _deleteMessageStreamController.add(
             Map<String, dynamic>.from(args[0] as Map),
           );
         }
@@ -161,6 +208,32 @@ class ChatService {
     }
   }
 
+  /// Deletes a message over SignalR for instant synchronization and REST API.
+  Future<bool> deleteMessage({
+    required String conversationId,
+    required String messageId,
+  }) async {
+    try {
+      if (_hubConnection?.state == HubConnectionState.Connected) {
+        await _hubConnection!.invoke(
+          'DeleteMessage',
+          args: [conversationId, messageId],
+        );
+      }
+
+      final headers = await _authHeaders();
+      final base = await _resolveBaseUrl();
+      final uri = Uri.parse('$base/api/chat/messages/$messageId');
+      final res = await http
+          .delete(uri, headers: headers)
+          .timeout(const Duration(seconds: 8));
+      return res.statusCode == 200;
+    } catch (e) {
+      debugPrint('[ChatService] deleteMessage error: $e');
+      return false;
+    }
+  }
+
   // ────────────────────────────────────────────────────────────────
   // REST API Helpers
   // ────────────────────────────────────────────────────────────────
@@ -177,7 +250,8 @@ class ChatService {
   Future<List<ChatConversationModel>> fetchConversations() async {
     try {
       final headers = await _authHeaders();
-      final uri = Uri.parse('$_baseUrl/api/chat/conversations');
+      final base = await _resolveBaseUrl();
+      final uri = Uri.parse('$base/api/chat/conversations');
       final res = await http
           .get(uri, headers: headers)
           .timeout(const Duration(seconds: 12));
@@ -205,7 +279,8 @@ class ChatService {
   }) async {
     try {
       final headers = await _authHeaders();
-      final uri = Uri.parse('$_baseUrl/api/chat/conversations/find-or-create');
+      final base = await _resolveBaseUrl();
+      final uri = Uri.parse('$base/api/chat/conversations/find-or-create');
       final body = jsonEncode({
         'providerId': providerId,
         ...?customerId != null ? {'customerId': customerId} : null,
@@ -219,6 +294,10 @@ class ChatService {
           .timeout(const Duration(seconds: 12));
       if (res.statusCode == 200) {
         return ChatConversationModel.fromJson(jsonDecode(res.body));
+      } else {
+        debugPrint(
+          '[ChatService] findOrCreateConversation HTTP ${res.statusCode}: ${res.body}',
+        );
       }
     } catch (e) {
       debugPrint('[ChatService] findOrCreateConversation error: $e');
@@ -230,8 +309,9 @@ class ChatService {
   Future<List<ChatMessageModel>> fetchMessages(String conversationId) async {
     try {
       final headers = await _authHeaders();
+      final base = await _resolveBaseUrl();
       final uri = Uri.parse(
-        '$_baseUrl/api/chat/conversations/$conversationId/messages?limit=100',
+        '$base/api/chat/conversations/$conversationId/messages?limit=100',
       );
       final res = await http
           .get(uri, headers: headers)
@@ -255,7 +335,8 @@ class ChatService {
   Future<String?> uploadAttachment(XFile file, {String? bookingRef}) async {
     try {
       final token = await AuthApi.getCachedToken();
-      final uri = Uri.parse('$_baseUrl/api/chat/upload-attachment');
+      final base = await _resolveBaseUrl();
+      final uri = Uri.parse('$base/api/chat/upload-attachment');
       final request = http.MultipartRequest('POST', uri);
 
       if (token != null) {

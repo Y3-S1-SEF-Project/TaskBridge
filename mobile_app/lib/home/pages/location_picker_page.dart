@@ -10,8 +10,13 @@ import '../../core/widgets/design_system.dart';
 
 class LocationPickerPage extends StatefulWidget {
   final UserLocation initialLocation;
+  final bool autoGps;
 
-  const LocationPickerPage({super.key, required this.initialLocation});
+  const LocationPickerPage({
+    super.key,
+    required this.initialLocation,
+    this.autoGps = false,
+  });
 
   @override
   State<LocationPickerPage> createState() => _LocationPickerPageState();
@@ -265,6 +270,10 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
             onMapCreated: (controller) {
               if (!_mapController.isCompleted) {
                 _mapController.complete(controller);
+                if (widget.autoGps ||
+                    widget.initialLocation == UserLocation.defaultLocation) {
+                  _snapToUserGps();
+                }
               }
             },
             onTap: (LatLng tappedPoint) {

@@ -7,7 +7,7 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../../auth/data/auth_api.dart';
 import '../../auth/data/auth_models.dart';
 import '../../auth/pages/login_page.dart';
-import '../../auth/pages/profile_setup_page.dart';
+import 'personal_details_page.dart';
 import '../../core/services/theme_service.dart';
 import '../../core/services/user_mode_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -95,7 +95,8 @@ class _ProfilePageState extends State<ProfilePage> {
     final updated = await Navigator.push<AuthUser>(
       context,
       MaterialPageRoute(
-        builder: (_) => ProfileSetupPage(api: widget.api!, user: _currentUser!),
+        builder: (_) =>
+            PersonalDetailsPage(api: widget.api!, user: _currentUser!),
       ),
     );
 

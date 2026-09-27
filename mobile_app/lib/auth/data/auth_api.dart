@@ -43,6 +43,7 @@ class AuthApi {
         final res = await _client.get(uri).timeout(const Duration(milliseconds: 1200));
         if (res.statusCode < 500) {
           _workingBaseUrl = candidate;
+          ApiConfig.setWorkingBaseUrl(candidate);
           return candidate;
         }
       } catch (_) {}

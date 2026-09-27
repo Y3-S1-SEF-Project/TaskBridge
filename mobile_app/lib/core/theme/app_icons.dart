@@ -47,14 +47,15 @@ abstract final class AppIcons {
   static const plumbing = Iconsax.drop;
   static const electrical = Iconsax.flash;
   static const hvac = Iconsax.wind;
-  static const cleaning = Iconsax.brush;
+  static const cleaning = Iconsax.broom;
   static const carRepair = Iconsax.car;
   static const itServices = Iconsax.monitor;
   static const painting = Iconsax.brush;
   static const gardening = Iconsax.tree;
   static const moving = Iconsax.box;
-  static const beauty = Iconsax.brush;
+  static const beauty = Iconsax.scissor;
   static const appliances = Iconsax.cpu;
+  static const carpentry = Icons.carpenter_rounded;
   static const other = Iconsax.category;
 
   static const all = <String, IconData>{
@@ -86,6 +87,7 @@ abstract final class AppIcons {
     'moving': moving,
     'beauty': beauty,
     'appliances': appliances,
+    'carpentry': carpentry,
     'other': other,
   };
 }

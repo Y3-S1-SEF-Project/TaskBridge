@@ -85,4 +85,30 @@ class ChatMessageModel {
 
   bool isSender(String currentUserId) => senderId == currentUserId;
   bool get isImage => messageType.toUpperCase() == 'IMAGE' || (mediaUrl != null && mediaUrl!.isNotEmpty);
+
+  ChatMessageModel copyWith({
+    String? id,
+    String? conversationId,
+    String? senderId,
+    String? senderName,
+    String? recipientId,
+    String? messageType,
+    String? content,
+    String? mediaUrl,
+    bool? isRead,
+    DateTime? createdAt,
+  }) {
+    return ChatMessageModel(
+      id: id ?? this.id,
+      conversationId: conversationId ?? this.conversationId,
+      senderId: senderId ?? this.senderId,
+      senderName: senderName ?? this.senderName,
+      recipientId: recipientId ?? this.recipientId,
+      messageType: messageType ?? this.messageType,
+      content: content ?? this.content,
+      mediaUrl: mediaUrl ?? this.mediaUrl,
+      isRead: isRead ?? this.isRead,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }

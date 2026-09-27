@@ -95,7 +95,7 @@ const List<PredefinedServiceCategory> kPredefinedServiceCategories = [
   ),
   PredefinedServiceCategory(
     categoryName: 'Carpentry & Woodwork',
-    icon: AppIcons.other,
+    icon: AppIcons.carpentry,
     services: [
       'Furniture Assembly & Repair',
       'Door & Window Frame Fixing',
