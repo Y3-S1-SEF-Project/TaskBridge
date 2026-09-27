@@ -181,7 +181,18 @@ public class CoordinationAgentService
         Console.WriteLine($"[⚡ TASKBRIDGE AI: AGENT 3] Latency: {sw.ElapsedMilliseconds} ms");
         Console.ResetColor();
 
-       
+        return new BookingProposalResponse
+        {
+            Success = true,
+            RecommendedProviderId = bestQuote.ProviderId,
+            RecommendedProviderName = bestQuote.FullName,
+            RecommendationReason = recommendationReason,
+            WinningQuotation = bestQuote,
+            AllQuotations = quotes,
+            BookingProposal = bookingProposal,
+            Model = model,
+            LatencyMs = sw.ElapsedMilliseconds
+        };
     }
 }
  
