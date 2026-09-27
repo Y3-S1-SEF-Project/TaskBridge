@@ -126,29 +126,7 @@ public class CoordinationAgentService
             Notes = "Includes complete cleanup and waste disposal."
         };
 
-        // Mark winning quote
-        foreach (var q in quotes)
-        {
-            q.IsRecommended = (q.ProviderId == bestQuote.ProviderId);
-        }
-
-        // 2. Generate Explainable AI (XAI) rationale via OpenAI or fallback
-        string recommendationReason;
-        var apiKey = _configuration["OpenAI:ApiKey"]
-            ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY")
-            ?? string.Empty;
-        var model = _configuration["OpenAI:Model"] ?? "gpt-4o-mini";
-
-        if (!string.IsNullOrWhiteSpace(apiKey) && !apiKey.StartsWith("YOUR_"))
-        {
-            recommendationReason = await GenerateOpenAiRationaleAsync(plan, bestQuote, quotes, apiKey, model, ct);
-        }
-        else
-        {
-            recommendationReason = GenerateRuleBasedRationale(plan, bestQuote);
-        }
-
-        sw.Stop();
+        
 
         // 3. Prepare the formal Booking Proposal (Exact Figma format: "17 Sep · 4:00 PM · Colombo 05")
         var propRef = await GenerateProposalReferenceAsync(ct);
