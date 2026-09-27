@@ -160,3 +160,177 @@ CREATE TABLE IF NOT EXISTS providers (
     ""UpdatedAt"" timestamptz NULL,
     CONSTRAINT fk_providers_user FOREIGN KEY (""UserId"") REFERENCES users (""Id"") ON DELETE CASCADE
 );
+CREATE INDEX IF NOT EXISTS ix_providers_user_id ON providers (""UserId"");
+CREATE INDEX IF NOT EXISTS ix_providers_category ON providers (""Category"");
+CREATE INDEX IF NOT EXISTS ix_providers_is_active ON providers (""IsActive"");
+
+-- Automatically migrate all existing registered providers from users table into providers table
+INSERT INTO providers (""Id"" , ""UserId"", ""Category"", ""Skills"", ""Services"", ""Experience"", ""Certifications"", ""ServiceAreas"", ""Availability"", ""Bio"", ""CreatedAt"")
+SELECT 
+    gen_random_uuid(),
+    u.""Id"",
+    COALESCE(NULLIF(TRIM(u.""ProviderServices""), ''), NULLIF(TRIM(u.""ProviderSkills""), ''), 'General'),
+    u.""ProviderSkills"",
+    u.""ProviderServices"",
+    u.""ProviderExperience"",
+    u.""ProviderCertifications"",
+    COALESCE(NULLIF(TRIM(u.""ProviderServiceAreas""), ''), NULLIF(TRIM(u.""Location""), ''), 'Colombo'),
+    u.""ProviderAvailability"",
+    u.""ProviderBio"",
+    u.""CreatedAt""
+FROM users u
+WHERE u.""IsProvider"" = true
+  AND NOT EXISTS (SELECT 1 FROM providers p WHERE p.""UserId"" = u.""Id"");
+
+CREATE TABLE IF NOT EXISTS bookings (
+    ""Id"" uuid PRIMARY KEY,
+    ""BookingReference"" text NOT NULL,
+    ""ProposalId"" uuid NULL,
+    ""CustomerId"" uuid NULL,
+    ""CustomerName"" text NOT NULL DEFAULT 'Customer',
+    ""ProviderId"" uuid NULL,
+    ""ProviderName"" text NOT NULL DEFAULT '',
+    ""ServiceTitle"" text NOT NULL,
+    ""Category"" text NOT NULL,
+    ""Location"" text NOT NULL,
+    ""Schedule"" text NOT NULL,
+    ""Price"" numeric(12,2) NOT NULL,
+    ""Status"" text NOT NULL DEFAULT 'Upcoming',
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
+    ""UpdatedAt"" timestamptz NULL
+);
+
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""ProposalId"" uuid NULL;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""RateType"" text NOT NULL DEFAULT 'Hourly';
+ALTER TABLE proposals ADD COLUMN IF NOT EXISTS ""RateType"" text NOT NULL DEFAULT 'Hourly';
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""Notes"" text NULL;
+ALTER TABLE proposals ADD COLUMN IF NOT EXISTS ""Notes"" text NULL;
+
+CREATE INDEX IF NOT EXISTS ix_bookings_reference ON bookings (""BookingReference"");
+CREATE INDEX IF NOT EXISTS ix_bookings_status ON bookings (""Status"");
+
+CREATE TABLE IF NOT EXISTS proposals (
+    ""Id"" uuid PRIMARY KEY,
+    ""ProposalReference"" text NOT NULL,
+    ""CustomerId"" uuid NULL,
+    ""CustomerName"" text NOT NULL DEFAULT 'Customer',
+    ""ProviderId"" uuid NULL,
+    ""ProviderName"" text NOT NULL DEFAULT '',
+    ""ServiceTitle"" text NOT NULL,
+    ""Category"" text NOT NULL,
+    ""Location"" text NOT NULL,
+    ""PreferredSchedule"" text NOT NULL,
+    ""EstimatedRate"" numeric(12,2) NOT NULL,
+    ""RateType"" text NOT NULL DEFAULT 'Hourly',
+    ""Status"" text NOT NULL DEFAULT 'Pending',
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
+    ""UpdatedAt"" timestamptz NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_proposals_reference ON proposals (""ProposalReference"");
+CREATE INDEX IF NOT EXISTS ix_proposals_status ON proposals (""Status"");
+CREATE INDEX IF NOT EXISTS ix_proposals_provider_id ON proposals (""ProviderId"");
+
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""StartedAt"" timestamptz NULL;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""EndedAt"" timestamptz NULL;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""DurationMinutes"" integer NULL;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""FinalCalculatedPrice"" numeric(12,2) NULL;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""BeforePhotoUrl"" text NULL;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""AgreedChecklist"" text NULL;
+
+CREATE TABLE IF NOT EXISTS job_completions (
+    ""Id"" uuid PRIMARY KEY,
+    ""BookingReference"" text NOT NULL,
+    ""BookingId"" uuid NULL,
+    ""ProviderId"" uuid NULL,
+    ""ProviderName"" text NOT NULL DEFAULT '',
+    ""CustomerId"" uuid NULL,
+    ""CustomerName"" text NOT NULL DEFAULT 'Customer',
+    ""ServiceTitle"" text NOT NULL DEFAULT '',
+    ""Category"" text NOT NULL DEFAULT '',
+    ""ProviderNotes"" text NOT NULL DEFAULT '',
+    ""BeforePhotoUrl"" text NULL,
+    ""AfterPhotoUrls"" text NOT NULL DEFAULT '[]',
+    ""StartedAt"" timestamptz NOT NULL DEFAULT now(),
+    ""EndedAt"" timestamptz NOT NULL DEFAULT now(),
+    ""DurationMinutes"" integer NOT NULL DEFAULT 0,
+    ""HourlyRate"" numeric(12,2) NOT NULL DEFAULT 0,
+    ""CalculatedPrice"" numeric(12,2) NOT NULL DEFAULT 0,
+    ""AiVerificationPassed"" boolean NOT NULL DEFAULT false,
+    ""AiConfidenceScore"" integer NOT NULL DEFAULT 0,
+    ""AiComparisonAnalysis"" text NOT NULL DEFAULT '',
+    ""AiVerifiedTasks"" text NOT NULL DEFAULT '[]',
+    ""AiMissingDetails"" text NOT NULL DEFAULT '[]',
+    ""Status"" text NOT NULL DEFAULT 'PendingAiReview',
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
+    ""UpdatedAt"" timestamptz NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_completions_booking_ref ON job_completions (""BookingReference"");
+CREATE INDEX IF NOT EXISTS ix_completions_provider_id ON job_completions (""ProviderId"");
+CREATE INDEX IF NOT EXISTS ix_completions_status ON job_completions (""Status"");
+
+CREATE TABLE IF NOT EXISTS feedbacks (
+    ""Id"" uuid PRIMARY KEY,
+    ""BookingReference"" text NOT NULL,
+    ""CustomerId"" uuid NULL,
+    ""CustomerName"" text NOT NULL DEFAULT 'Customer',
+    ""ProviderId"" uuid NULL,
+    ""ProviderName"" text NOT NULL DEFAULT '',
+    ""Rating"" integer NOT NULL DEFAULT 5,
+    ""Comment"" text NOT NULL DEFAULT '',
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_feedbacks_booking_ref ON feedbacks (""BookingReference"");
+CREATE INDEX IF NOT EXISTS ix_feedbacks_provider_id ON feedbacks (""ProviderId"");
+CREATE INDEX IF NOT EXISTS ix_feedbacks_customer_id ON feedbacks (""CustomerId"");
+
+CREATE TABLE IF NOT EXISTS chat_conversations (
+    ""Id"" uuid PRIMARY KEY,
+    ""BookingReference"" text NULL,
+    ""CustomerId"" uuid NOT NULL,
+    ""CustomerName"" varchar(150) NOT NULL,
+    ""ProviderId"" uuid NOT NULL,
+    ""ProviderName"" varchar(150) NOT NULL,
+    ""LastMessageAt"" timestamptz NOT NULL DEFAULT now(),
+    ""LastMessageSnippet"" text NULL,
+    ""UnreadCustomer"" integer NOT NULL DEFAULT 0,
+    ""UnreadProvider"" integer NOT NULL DEFAULT 0,
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_chat_conv_customer ON chat_conversations (""CustomerId"");
+CREATE INDEX IF NOT EXISTS ix_chat_conv_provider ON chat_conversations (""ProviderId"");
+CREATE INDEX IF NOT EXISTS ix_chat_conv_booking ON chat_conversations (""BookingReference"");
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    ""Id"" uuid PRIMARY KEY,
+    ""ConversationId"" uuid NOT NULL REFERENCES chat_conversations (""Id"") ON DELETE CASCADE,
+    ""SenderId"" uuid NOT NULL,
+    ""SenderName"" varchar(150) NOT NULL,
+    ""RecipientId"" uuid NOT NULL,
+    ""MessageType"" varchar(20) NOT NULL DEFAULT 'Text',
+    ""EncryptedContent"" text NOT NULL,
+    ""MediaUrl"" text NULL,
+    ""IsRead"" boolean NOT NULL DEFAULT false,
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_chat_messages_conv ON chat_messages (""ConversationId"");
+CREATE INDEX IF NOT EXISTS ix_chat_messages_created ON chat_messages (""CreatedAt"");
+
+CREATE TABLE IF NOT EXISTS chat_audit_logs (
+    ""Id"" uuid PRIMARY KEY,
+    ""AdminId"" uuid NOT NULL,
+    ""AdminName"" varchar(150) NOT NULL,
+    ""ConversationId"" uuid NOT NULL,
+    ""Reason"" varchar(500) NOT NULL,
+    ""AccessedAt"" timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_chat_audit_conv ON chat_audit_logs (""ConversationId"");
+";
+        await Database.ExecuteSqlRawAsync(sql, ct);
+    }
+}
