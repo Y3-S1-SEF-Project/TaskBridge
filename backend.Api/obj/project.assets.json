@@ -417,19 +417,19 @@
     ]
   },
   "packageFolders": {
-    "/Users/kavindualwis/.nuget/packages/": {}
+    "C:\\Users\\User\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/Users/kavindualwis/SLIIT/Y3_S1/SEF/Assignment/Project/TaskBridge/backend.Api/backend.Api.csproj",
+      "projectUniqueName": "C:\\Users\\User\\Desktop\\TaskBridge\\TaskBridge\\backend.Api\\backend.Api.csproj",
       "projectName": "backend.Api",
-      "projectPath": "/Users/kavindualwis/SLIIT/Y3_S1/SEF/Assignment/Project/TaskBridge/backend.Api/backend.Api.csproj",
-      "packagesPath": "/Users/kavindualwis/.nuget/packages/",
-      "outputPath": "/Users/kavindualwis/SLIIT/Y3_S1/SEF/Assignment/Project/TaskBridge/backend.Api/obj/",
+      "projectPath": "C:\\Users\\User\\Desktop\\TaskBridge\\TaskBridge\\backend.Api\\backend.Api.csproj",
+      "packagesPath": "C:\\Users\\User\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\User\\Desktop\\TaskBridge\\TaskBridge\\backend.Api\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "/Users/kavindualwis/.nuget/NuGet/NuGet.Config"
+        "C:\\Users\\User\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net10.0"
@@ -497,7 +497,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/10.0.302/PortableRuntimeIdentifierGraph.json",
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.302/PortableRuntimeIdentifierGraph.json",
         "packagesToPrune": {
           "Microsoft.AspNetCore": "(,10.0.32767]",
           "Microsoft.AspNetCore.Antiforgery": "(,10.0.32767]",
