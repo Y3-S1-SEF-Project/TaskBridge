@@ -254,3 +254,74 @@ public class CancelBookingRequest
     public string? Reason { get; set; }
 }
 
+public class ProposalDto
+{
+    [JsonPropertyName("id")]
+    public Guid Id { get; set; }
+
+    [JsonPropertyName("proposalReference")]
+    public string ProposalReference { get; set; } = string.Empty;
+
+    [JsonPropertyName("customerId")]
+    public Guid? CustomerId { get; set; }
+
+    [JsonPropertyName("customerName")]
+    public string CustomerName { get; set; } = "Customer";
+
+    [JsonPropertyName("providerId")]
+    public Guid? ProviderId { get; set; }
+
+    [JsonPropertyName("providerName")]
+    public string ProviderName { get; set; } = string.Empty;
+
+    [JsonPropertyName("serviceTitle")]
+    public string ServiceTitle { get; set; } = string.Empty;
+
+    [JsonPropertyName("category")]
+    public string Category { get; set; } = string.Empty;
+
+    [JsonPropertyName("location")]
+    public string Location { get; set; } = string.Empty;
+
+    [JsonPropertyName("preferredSchedule")]
+    public string PreferredSchedule { get; set; } = string.Empty;
+
+    [JsonPropertyName("estimatedRate")]
+    public decimal EstimatedRate { get; set; }
+
+    [JsonPropertyName("rateType")]
+    public string RateType { get; set; } = "Hourly";
+
+    [JsonPropertyName("notes")]
+    public string? Notes { get; set; }
+
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = "Pending";
+
+    [JsonPropertyName("createdAt")]
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+public class AcceptProposalRequest
+{
+    [JsonPropertyName("proposalReference")]
+    public string ProposalReference { get; set; } = string.Empty;
+
+    [JsonPropertyName("confirmedSchedule")]
+    public string ConfirmedSchedule { get; set; } = string.Empty;
+
+    [JsonPropertyName("confirmedPrice")]
+    public decimal ConfirmedPrice { get; set; }
+
+    [JsonPropertyName("rateType")]
+    public string? RateType { get; set; }
+}
+
+public class DeclineProposalRequest
+{
+    [JsonPropertyName("proposalReference")]
+    public string ProposalReference { get; set; } = string.Empty;
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+}
