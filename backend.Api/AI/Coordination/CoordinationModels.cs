@@ -59,4 +59,108 @@ public class CoordinationEvaluateRequest
     public string? CustomerName { get; set; }
 }
 
+public class BookingDetailsDto
+{
+    [JsonPropertyName("bookingReference")]
+    public string BookingReference { get; set; } = string.Empty;
+
+    [JsonPropertyName("customerId")]
+    public string? CustomerId { get; set; }
+
+    [JsonPropertyName("serviceTitle")]
+    public string ServiceTitle { get; set; } = string.Empty;
+
+    [JsonPropertyName("providerName")]
+    public string ProviderName { get; set; } = string.Empty;
+
+    [JsonPropertyName("customerName")]
+    public string CustomerName { get; set; } = string.Empty;
+
+    [JsonPropertyName("location")]
+    public string Location { get; set; } = string.Empty;
+
+    [JsonPropertyName("schedule")]
+    public string Schedule { get; set; } = string.Empty;
+
+    [JsonPropertyName("price")]
+    public decimal Price { get; set; }
+
+    [JsonPropertyName("priceFormatted")]
+    public string PriceFormatted { get; set; } = string.Empty;
+
+    [JsonPropertyName("notes")]
+    public string? Notes { get; set; }
+
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = "Upcoming"; // Upcoming, Active, Completed, Cancelled
+}
+
+public class BookingProposalResponse
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; } = true;
+
+    [JsonPropertyName("recommendedProviderId")]
+    public string RecommendedProviderId { get; set; } = string.Empty;
+
+    [JsonPropertyName("recommendedProviderName")]
+    public string RecommendedProviderName { get; set; } = string.Empty;
+
+    [JsonPropertyName("recommendationReason")]
+    public string RecommendationReason { get; set; } = string.Empty;
+
+    [JsonPropertyName("winningQuotation")]
+    public ProviderQuotationDto WinningQuotation { get; set; } = new();
+
+    [JsonPropertyName("allQuotations")]
+    public List<ProviderQuotationDto> AllQuotations { get; set; } = new();
+
+    [JsonPropertyName("bookingProposal")]
+    public BookingDetailsDto BookingProposal { get; set; } = new();
+
+    [JsonPropertyName("model")]
+    public string Model { get; set; } = "gpt-4o-mini";
+
+    [JsonPropertyName("latencyMs")]
+    public long LatencyMs { get; set; }
+}
+
+public class ConfirmBookingRequest
+{
+    [JsonPropertyName("bookingReference")]
+    public string? BookingReference { get; set; }
+
+    [JsonPropertyName("providerId")]
+    public string ProviderId { get; set; } = string.Empty;
+
+    [JsonPropertyName("providerName")]
+    public string ProviderName { get; set; } = string.Empty;
+
+    [JsonPropertyName("customerId")]
+    public string? CustomerId { get; set; }
+
+    [JsonPropertyName("customerName")]
+    public string? CustomerName { get; set; }
+
+    [JsonPropertyName("serviceTitle")]
+    public string ServiceTitle { get; set; } = string.Empty;
+
+    [JsonPropertyName("category")]
+    public string Category { get; set; } = string.Empty;
+
+    [JsonPropertyName("location")]
+    public string Location { get; set; } = string.Empty;
+
+    [JsonPropertyName("schedule")]
+    public string Schedule { get; set; } = string.Empty;
+
+    [JsonPropertyName("price")]
+    public decimal Price { get; set; }
+
+    [JsonPropertyName("rateType")]
+    public string? RateType { get; set; } = "Hourly";
+
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = "Requested";
+}
 
