@@ -164,6 +164,7 @@ public class CoordinationAgentService
         var bookingProposal = new BookingDetailsDto
         {
             BookingReference = propRef,
+            ServiceTitle = plan.ServiceTitle,
             ProviderName = bestQuote.FullName,
             CustomerId = request.CustomerId,
             CustomerName = customerDisplayName,
@@ -193,5 +194,5 @@ public class CoordinationAgentService
             LatencyMs = sw.ElapsedMilliseconds
         };
     }
-
 }
+ 
