@@ -70,7 +70,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
             entity.HasIndex(x => x.ProviderId);
             entity.Property(x => x.EstimatedRate).HasColumnType("numeric(12,2)");
         });
-
+        
         model.Entity<JobCompletionEntity>(entity =>
         {
             entity.ToTable("job_completions");
