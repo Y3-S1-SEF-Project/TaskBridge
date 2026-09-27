@@ -181,7 +181,7 @@ public sealed class ChatHub : Hub
             }
 
             var unreadMessages = await _db.ChatMessages
-                .Where(m => m.ConversationId == convId && m.RecipientId == userId && !m.IsRead)
+                .Where(m => m.ConversationId == convId && !m.IsRead && (m.RecipientId == userId || m.SenderId != userId || (conv.CustomerId == conv.ProviderId)))
                 .ToListAsync();
 
             foreach (var msg in unreadMessages)
@@ -191,6 +191,25 @@ public sealed class ChatHub : Hub
 
             await _db.SaveChangesAsync();
             await Clients.Group($"conv_{convId}").SendAsync("MessagesRead", new { conversationId = conversationIdStr, readBy = userId });
+        }
+    }
+
+    /// <summary>
+    /// Deletes a message and broadcasts the deletion to conversation participants.
+    /// </summary>
+    public async Task DeleteMessage(string conversationIdStr, string messageIdStr)
+    {
+        var userIdStr = Context.UserIdentifier;
+        if (!Guid.TryParse(userIdStr, out var userId) ||
+            !Guid.TryParse(messageIdStr, out var msgId) ||
+            !Guid.TryParse(conversationIdStr, out var convId)) return;
+
+        var msg = await _db.ChatMessages.FindAsync(msgId);
+        if (msg != null && (msg.SenderId == userId || msg.RecipientId == userId))
+        {
+            _db.ChatMessages.Remove(msg);
+            await _db.SaveChangesAsync();
+            await Clients.Group($"conv_{convId}").SendAsync("MessageDeleted", new { conversationId = conversationIdStr, messageId = messageIdStr });
         }
     }
 }

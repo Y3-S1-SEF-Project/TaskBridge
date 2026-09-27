@@ -65,16 +65,41 @@ class ApiConfig {
     return fallback;
   }
 
-  /// Active backend API Base URL read from .env
-  static String get baseUrl =>
-      get('API_BASE_URL', fallback: 'http://192.168.1.11:5298');
+  static String? _resolvedBaseUrl;
+
+  /// Whether a live, verified working base URL has been discovered.
+  static bool get hasWorkingBaseUrl =>
+      _resolvedBaseUrl != null && _resolvedBaseUrl!.isNotEmpty;
+
+  /// Updates the verified working base URL so all services can reuse it.
+  static void setWorkingBaseUrl(String url) {
+    if (url.isNotEmpty && _resolvedBaseUrl != url) {
+      _resolvedBaseUrl = url;
+      debugPrint(' [ApiConfig] Working base URL locked to: $url');
+    }
+  }
+
+  /// Active backend API Base URL read from .env (or dynamically verified working URL)
+  static String get baseUrl {
+    if (_resolvedBaseUrl != null && _resolvedBaseUrl!.isNotEmpty) {
+      return _resolvedBaseUrl!;
+    }
+    return get('API_BASE_URL', fallback: 'http://10.0.2.2:5298');
+  }
 
   /// Candidate URLs for connection probing read from .env
   static List<String> get candidateUrls {
-    final raw = get('API_CANDIDATE_URLS');
     final list = <String>[];
-    if (baseUrl.isNotEmpty) list.add(baseUrl);
+    if (_resolvedBaseUrl != null && _resolvedBaseUrl!.isNotEmpty) {
+      list.add(_resolvedBaseUrl!);
+    }
 
+    final envBase = get('API_BASE_URL');
+    if (envBase.isNotEmpty && !list.contains(envBase)) {
+      list.add(envBase);
+    }
+
+    final raw = get('API_CANDIDATE_URLS');
     if (raw.isNotEmpty) {
       for (final item in raw.split(',')) {
         final trimmed = item.trim();
@@ -83,6 +108,20 @@ class ApiConfig {
         }
       }
     }
+
+    // Always include standard fallbacks: Android emulator loopback, Mac IP, localhost
+    const fallbacks = [
+      'http://10.0.2.2:5298',
+      'http://192.168.1.12:5298',
+      'http://localhost:5298',
+      'http://127.0.0.1:5298',
+    ];
+    for (final fb in fallbacks) {
+      if (!list.contains(fb)) {
+        list.add(fb);
+      }
+    }
+
     return list;
   }
 

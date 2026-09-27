@@ -100,12 +100,23 @@ public sealed class ChatController : ControllerBase
             }
         }
 
+        // If providerId matches a ProviderProfile Id, resolve underlying User Id
+        if (providerId != Guid.Empty)
+        {
+            var providerProfile = await _db.Providers.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == providerId || p.UserId == providerId, ct);
+            if (providerProfile != null)
+            {
+                providerId = providerProfile.UserId;
+            }
+        }
+
         // Fallbacks based on caller's role
-        if (customerId == Guid.Empty && currentUserId.Value != providerId)
+        if (customerId == Guid.Empty)
         {
             customerId = currentUserId.Value;
         }
-        else if (providerId == Guid.Empty && currentUserId.Value != customerId)
+        else if (providerId == Guid.Empty)
         {
             providerId = currentUserId.Value;
         }
@@ -310,6 +321,27 @@ public sealed class ChatController : ControllerBase
             InquiryReason = request.Reason,
             LoggedAt = audit.AccessedAt
         });
+    }
+
+    /// <summary>
+    /// Deletes a message by its ID.
+    /// </summary>
+    [HttpDelete("messages/{id:guid}")]
+    public async Task<IActionResult> DeleteMessage(Guid id, CancellationToken ct = default)
+    {
+        var userId = CurrentUserId;
+        if (userId == null) return Unauthorized();
+
+        var msg = await _db.ChatMessages.FindAsync(new object[] { id }, ct);
+        if (msg == null) return NotFound(new { error = "Message not found." });
+
+        if (msg.SenderId != userId.Value && msg.RecipientId != userId.Value)
+            return Forbid();
+
+        _db.ChatMessages.Remove(msg);
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new { success = true, id });
     }
 }
 
