@@ -379,3 +379,86 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
     } else {
       _selectedDays = 'Mon–Sat';
     }
+
+    final timeRegex = RegExp(
+      r'(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:-|–|to)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?',
+      caseSensitive: false,
+    );
+    final match = timeRegex.firstMatch(text);
+    if (match != null) {
+      int startH = int.tryParse(match.group(1) ?? '') ?? 8;
+      int startM = int.tryParse(match.group(2) ?? '') ?? 0;
+      final startPeriod = match.group(3)?.toLowerCase();
+
+      int endH = int.tryParse(match.group(4) ?? '') ?? 18;
+      int endM = int.tryParse(match.group(5) ?? '') ?? 0;
+      final endPeriod = match.group(6)?.toLowerCase();
+
+      if (startPeriod == 'pm' && startH < 12) startH += 12;
+      if (startPeriod == 'am' && startH == 12) startH = 0;
+
+      if (endPeriod == 'pm' && endH < 12) endH += 12;
+      if (endPeriod == 'am' && endH == 12) endH = 0;
+      if (endPeriod == null && endH <= 12 && startH <= 12) {
+        if (endH < startH || endH <= 7) endH += 12;
+      }
+
+      _startTime = TimeOfDay(
+        hour: startH.clamp(0, 23),
+        minute: startM.clamp(0, 59),
+      );
+      _endTime = TimeOfDay(hour: endH.clamp(0, 23), minute: endM.clamp(0, 59));
+    }
+  }
+
+  Future<void> _pickStartTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _startTime,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: AppColors.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _startTime = picked;
+        _updateAvailabilityText();
+      });
+    }
+  }
+
+  Future<void> _pickEndTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _endTime,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: AppColors.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _endTime = picked;
+        _updateAvailabilityText();
+      });
+    }
+  }
