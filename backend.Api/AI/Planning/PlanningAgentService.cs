@@ -293,21 +293,24 @@ public class PlanningAgentService
         var promptLower = request.Prompt.ToLowerInvariant();
         var isPlumbing = promptLower.Contains("tap") || promptLower.Contains("pipe") || promptLower.Contains("leak") || promptLower.Contains("water") || promptLower.Contains("plumb");
         var isElectrical = promptLower.Contains("light") || promptLower.Contains("wire") || promptLower.Contains("power") || promptLower.Contains("socket") || promptLower.Contains("fan");
+        var isPainting = promptLower.Contains("paint") || promptLower.Contains("painter") || promptLower.Contains("wall");
         var isAc = promptLower.Contains("ac") || promptLower.Contains("air") || promptLower.Contains("cool");
         var isGarden = promptLower.Contains("garden") || promptLower.Contains("lawn") || promptLower.Contains("grass") || promptLower.Contains("yard");
         var isCleaning = promptLower.Contains("clean") || promptLower.Contains("wash") || promptLower.Contains("maid");
 
         var category = isPlumbing ? "Plumbing" 
+            : (isPainting ? "Painting"
             : (isGarden ? "Gardening" 
             : (isCleaning ? "Cleaning" 
             : (isElectrical ? "Electrical" 
-            : (isAc ? "HVAC" : "General Handyman"))));
+            : (isAc ? "HVAC" : "General Handyman")))));
 
         var title = isPlumbing ? "Kitchen tap repair" 
+            : (isPainting ? "Wall & surface painting"
             : (isGarden ? "Garden Cleaning" 
             : (isCleaning ? "Deep Cleaning" 
             : (isElectrical ? "Electrical wiring repair" 
-            : (isAc ? "Air conditioning repair" : "Home Maintenance"))));
+            : (isAc ? "Air conditioning repair" : "Home Maintenance")))));
 
         var desc = isPlumbing ? "Repair the leaking kitchen tap and test for leaks." 
             : (isGarden ? "Clean and restore the garden to pristine condition." 
