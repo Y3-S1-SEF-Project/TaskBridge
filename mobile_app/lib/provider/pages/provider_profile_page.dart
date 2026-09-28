@@ -100,3 +100,79 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
       setState(() => _currentUser = updated);
     }
   }
+
+  void _showEarningsSheet() {
+    final palette = AppPalette.of(context);
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      backgroundColor: palette.surface,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.s24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Earnings Overview',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: palette.text,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: palette.soft,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      'Total Earned This Month',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: palette.muted,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Rs. ${(_currentUser.providerEarnings ?? 54000).toStringAsFixed(0)}',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: palette.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: Icon(
+                  Icons.check_circle_outline,
+                  color: palette.primary,
+                ),
+                title: Text(
+                  'Completed Jobs & Feedback',
+                  style: TextStyle(color: palette.text),
+                ),
+                subtitle: Text(
+                  _feedbacks.isEmpty
+                      ? 'No ratings yet'
+                      : 'Average rating ${_averageRating.toStringAsFixed(1)} ★ (${_feedbacks.length} ${_feedbacks.length == 1 ? 'review' : 'reviews'})',
+                  style: TextStyle(color: palette.muted),
+                ),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
