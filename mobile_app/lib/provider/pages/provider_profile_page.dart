@@ -889,7 +889,7 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
       ),
     );
   }
-  
+
   Widget _buildSectionLabel(String label, AppPalette palette) {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 8),
@@ -902,6 +902,32 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
           color: palette.muted,
         ),
       ),
+    );
+  }
+}
+
+class _MenuCard extends StatelessWidget {
+  final List<Widget> children;
+
+  const _MenuCard({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(AppRadius.r16),
+        border: Border.all(color: palette.border, width: 1.1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: children),
     );
   }
 }
