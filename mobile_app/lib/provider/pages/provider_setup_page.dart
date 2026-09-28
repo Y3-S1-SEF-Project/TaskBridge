@@ -646,3 +646,48 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
       }
     }
   }
+
+  Future<void> _processCertUpload(ImageSource source) async {
+    try {
+      final picked = await _picker.pickImage(
+        source: source,
+        maxWidth: 1500,
+        maxHeight: 1500,
+        imageQuality: 85,
+      );
+      if (picked == null) return;
+
+      setState(() {
+        _uploadingCert = true;
+        _certFileName = picked.name;
+      });
+
+      final updated = await widget.api.uploadCertification(
+        picked.path,
+        userId: widget.user.id,
+      );
+
+      if (mounted) {
+        setState(() {
+          _certificationUrl = updated.providerCertifications;
+          _uploadingCert = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Certification photo uploaded successfully!'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _uploadingCert = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not upload certification: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
