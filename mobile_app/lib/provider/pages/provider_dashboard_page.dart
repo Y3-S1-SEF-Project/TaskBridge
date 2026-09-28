@@ -1,0 +1,15 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import '../../ai/models/coordination_models.dart';
+import '../../ai/models/review_models.dart';
+import '../../ai/services/bookings_sync_service.dart';
+import '../../ai/services/coordination_api.dart';
+import '../../ai/services/review_api.dart';
+import '../../auth/data/auth_models.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_icons.dart';
+import '../../core/theme/app_palette.dart';
+import '../../core/theme/app_radius.dart';
+import '../../core/theme/app_spacing.dart';
+import '../../home/widgets/booking_card_widget.dart';
+import 'provider_job_details_page.dart';
