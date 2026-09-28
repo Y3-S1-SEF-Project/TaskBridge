@@ -730,3 +730,302 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
       },
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+
+    final incomingRequests = _bookings.where((b) => b.isRequested).toList();
+    final upcomingJobs = _bookings.where((b) => b.isUpcoming).toList();
+    final activeJobs = _bookings
+        .where(
+          (b) =>
+              b.status.toLowerCase() == 'active' ||
+              b.status.toLowerCase() == 'in progress',
+        )
+        .toList();
+    final completedJobs = _bookings
+        .where((b) => b.status.toLowerCase() == 'completed')
+        .toList();
+
+    double totalEarnings = completedJobs.fold(0.0, (sum, b) => sum + b.price);
+    if (totalEarnings == 0 &&
+        widget.user.providerEarnings != null &&
+        widget.user.providerEarnings! > 0) {
+      totalEarnings = widget.user.providerEarnings!;
+    }
+
+    final activePendingText = activeJobs.isNotEmpty
+        ? '${activeJobs.length} Active'
+        : (upcomingJobs.isNotEmpty
+              ? '${upcomingJobs.length} Upcoming'
+              : (incomingRequests.isNotEmpty
+                    ? '${incomingRequests.length} Pending'
+                    : '0 Active'));
+
+    return Scaffold(
+      backgroundColor: palette.background,
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _loadBookings,
+          color: palette.primary,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.s20,
+              vertical: AppSpacing.s16,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // ── Header ──
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'PROVIDER DASHBOARD',
+                          style: TextStyle(
+                            color: palette.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Welcome back,\n${widget.user.fullName.split(' ').first}',
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800,
+                            color: palette.text,
+                            letterSpacing: -0.5,
+                            height: 1.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: palette.primary,
+                        side: BorderSide(color: palette.primary),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
+                      onPressed: widget.onSwitchToCustomer,
+                      icon: const Icon(AppIcons.switchMode, size: 18),
+                      label: const Text(
+                        'Customer',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.s20),
+
+                // ── Quick Metrics Row (Live & Dynamic) ──
+                Row(
+                  children: [
+                    Expanded(
+                      child: _MetricCard(
+                        label: 'This Month',
+                        value: 'Rs. ${totalEarnings.toStringAsFixed(0)}',
+                        icon: AppIcons.trendUp,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _MetricCard(
+                        label: 'Active Jobs',
+                        value: activePendingText,
+                        icon: AppIcons.briefcase,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _MetricCard(
+                        label: 'Rating',
+                        value: _ratingText,
+                        icon: AppIcons.star,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.s24),
+
+                // ── Incoming Requests Section (Live) ──
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Incoming Requests',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: palette.text,
+                      ),
+                    ),
+                    if (incomingRequests.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: palette.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${incomingRequests.length} New',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: palette.primary,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                if (_isLoading)
+                  Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          palette.primary,
+                        ),
+                      ),
+                    ),
+                  )
+                else if (incomingRequests.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.s24),
+                    decoration: BoxDecoration(
+                      color: palette.surface,
+                      borderRadius: BorderRadius.circular(AppRadius.r16),
+                      border: Border.all(color: palette.border),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.task_alt_rounded,
+                          size: 40,
+                          color: palette.primary,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'All Caught Up!',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: palette.text,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'No pending job requests right now. New customer bookings confirmed through AI will appear here in real time.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: palette.muted,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  ...incomingRequests.map(
+                    (booking) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _LiveJobCard(
+                        booking: booking,
+                        onAccept: () => _acceptJob(booking),
+                        onDecline: () => _declineJob(booking),
+                        onCounterBid: () => _showCounterBidModal(booking),
+                      ),
+                    ),
+                  ),
+
+                // ── Upcoming Confirmed Jobs Section ──
+                if (upcomingJobs.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.s24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Upcoming Confirmed Jobs',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: palette.text,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${upcomingJobs.length} Confirmed',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.green.shade800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ...upcomingJobs.map(
+                    (booking) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: BookingCardWidget(
+                        title: booking.serviceTitle,
+                        providerName: booking.customerName,
+                        reference: booking.bookingReference,
+                        schedule: booking.schedule,
+                        price: booking.isHourly
+                            ? 'Rs. ${booking.price.toInt()}/hr'
+                            : 'Rs. ${booking.price.toInt()}',
+                        status: BookingStatus.upcoming,
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  ProviderJobDetailsPage(booking: booking),
+                            ),
+                          );
+                          _loadBookings();
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
