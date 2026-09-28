@@ -500,3 +500,40 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
     );
   }
 
+  void _confirmLogout() {
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.r16),
+        ),
+        title: const Text('Log out'),
+        content: const Text(
+          'Are you sure you want to log out of your provider account?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+    ).then((confirmed) async {
+      if (confirmed == true && mounted) {
+        await widget.api.logout();
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => LoginPage(api: widget.api)),
+          (_) => false,
+        );
+      }
+    });
+  }
+
+
