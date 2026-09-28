@@ -1568,3 +1568,63 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
       if (mounted) setState(() => _busy = false);
     }
   }
+
+  Future<void> _submit() async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+
+    try {
+      final servicesString = _selectedServices.join(', ');
+      final serviceAreasString = _providerLocation != null
+          ? '${_providerLocation!.shortName} (Within $_selectedRadiusKm km)'
+          : 'Within $_selectedRadiusKm km';
+
+      final skillsText = _skillsController.text.trim().isNotEmpty
+          ? _skillsController.text.trim()
+          : (_selectedServices.isNotEmpty
+                ? _selectedServices.first
+                : 'Specialist');
+
+      final cleanRate = _hourlyRateController.text
+          .replaceAll(',', '')
+          .replaceAll('Rs.', '')
+          .replaceAll('LKR', '')
+          .trim();
+      final parsedRate =
+          double.tryParse(cleanRate) ??
+          (widget.user.providerHourlyRate ?? 2500.0);
+
+      final updated = await widget.api.saveProviderProfile(
+        category: _selectedCategory,
+        skills: skillsText,
+        services: servicesString,
+        experience: _experienceController.text.trim(),
+        certifications: _certificationUrl,
+        serviceAreas: serviceAreasString,
+        availability: _availabilityController.text.trim(),
+        bio: _bioController.text.trim(),
+        location: _providerLocation?.address ?? _providerLocation?.shortName,
+        hourlyRate: parsedRate,
+      );
+
+      await UserModeService.setMode(UserMode.provider);
+      if (!mounted) return;
+      if (widget.user.isProvider && Navigator.canPop(context)) {
+        Navigator.pop(context, updated);
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProviderMainPage(user: updated, api: widget.api),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
