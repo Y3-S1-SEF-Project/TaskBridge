@@ -1514,3 +1514,57 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
       },
     );
   }
+
+  void _skipAndEnterProviderMode() async {
+    setState(() => _busy = true);
+    try {
+      final servicesString = _selectedServices.isNotEmpty
+          ? _selectedServices.join(', ')
+          : widget.user.providerServices;
+      final serviceAreasString = _providerLocation != null
+          ? '${_providerLocation!.shortName} (Within $_selectedRadiusKm km)'
+          : widget.user.providerServiceAreas;
+
+      final updated = await widget.api.saveProviderProfile(
+        category: _selectedCategory ?? widget.user.providerCategory,
+        skills: widget.user.providerSkills,
+        services: servicesString,
+        experience: widget.user.providerExperience,
+        serviceAreas: serviceAreasString,
+        availability: widget.user.providerAvailability,
+        bio: widget.user.providerBio,
+        location: _providerLocation?.address ?? _providerLocation?.shortName,
+        hourlyRate: widget.user.providerHourlyRate ?? 2500.0,
+      );
+
+      await UserModeService.setMode(UserMode.provider);
+      if (!mounted) return;
+      if (widget.user.isProvider && Navigator.canPop(context)) {
+        Navigator.pop(context, updated);
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProviderMainPage(user: updated, api: widget.api),
+          ),
+        );
+      }
+    } catch (e) {
+      await UserModeService.setMode(UserMode.provider);
+      final fallbackUser = widget.user.copyWith(isProvider: true);
+      if (!mounted) return;
+      if (widget.user.isProvider && Navigator.canPop(context)) {
+        Navigator.pop(context, fallbackUser);
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                ProviderMainPage(user: fallbackUser, api: widget.api),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
