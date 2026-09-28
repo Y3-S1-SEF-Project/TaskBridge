@@ -264,3 +264,58 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
         ? widget.user.providerHourlyRate!.toInt().toString()
         : '2500';
     _hourlyRateController = TextEditingController(text: initialRate);
+
+    // Populate selected services
+    final servicesRaw = cleanMock(widget.user.providerServices, [
+      'Tap repair',
+      'Tap repair · Pipe replacement',
+    ]);
+    if (servicesRaw.isNotEmpty) {
+      final parsed = servicesRaw
+          .split(RegExp(r'[,·]'))
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty);
+      _selectedServices.addAll(parsed.toSet());
+    }
+
+    // Populate primary category
+    _selectedCategory = widget.user.providerCategory;
+    if (_selectedCategory == null || _selectedCategory!.trim().isEmpty) {
+      _selectedCategory = _detectCategoryFromServices(_selectedServices);
+    }
+
+    // Populate location & radius
+    final areasRaw = cleanMock(widget.user.providerServiceAreas, [
+      'Colombo and Nugegoda',
+      'Colombo 03, 04, 05, 06',
+    ]);
+    final matchRadius = RegExp(
+      r'Within\s+(\d+)\s*km',
+      caseSensitive: false,
+    ).firstMatch(areasRaw);
+    if (matchRadius != null) {
+      _selectedRadiusKm = int.tryParse(matchRadius.group(1) ?? '') ?? 15;
+    }
+
+    if (widget.user.location != null &&
+        widget.user.location!.trim().isNotEmpty) {
+      final locText = widget.user.location!.trim();
+      _providerLocation = UserLocation(
+        shortName: locText.split(',').first.trim(),
+        address: locText,
+        latitude: 6.9271,
+        longitude: 79.8612,
+      );
+    } else if (areasRaw.isNotEmpty) {
+      final cleanName = areasRaw
+          .replaceAll(RegExp(r'\(.*?\)', caseSensitive: false), '')
+          .trim();
+      if (cleanName.isNotEmpty) {
+        _providerLocation = UserLocation(
+          shortName: cleanName.split(',').first.trim(),
+          address: cleanName,
+          latitude: 6.9271,
+          longitude: 79.8612,
+        );
+      }
+    }
