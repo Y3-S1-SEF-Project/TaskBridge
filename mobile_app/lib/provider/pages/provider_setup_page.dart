@@ -691,3 +691,20 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
       }
     }
   }
+
+  double _getZoomForRadius(int radiusKm) {
+    switch (radiusKm) {
+      case 5:
+        return 12.0;
+      case 10:
+        return 11.0;
+      case 15:
+        return 10.3;
+      case 25:
+        return 9.4;
+      case 50:
+        return 8.4;
+      default:
+        return 10.3;
+    }
+  }
