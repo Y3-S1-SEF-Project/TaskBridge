@@ -179,3 +179,75 @@ public class ProvidersController : ControllerBase
         }
     }
 
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetProviderById(Guid id, CancellationToken ct = default)
+    {
+        var p = await _db.Providers
+            .Include(p => p.User)
+            .FirstOrDefaultAsync(x => x.Id == id, ct);
+
+        if (p == null) return NotFound(new { message = "Provider not found" });
+
+        var user = p.User;
+        var displayCategory = !string.IsNullOrWhiteSpace(p.Category) && !p.Category.Equals("General", StringComparison.OrdinalIgnoreCase)
+            ? p.Category
+            : (!string.IsNullOrWhiteSpace(user.ProviderCategory) ? user.ProviderCategory : "Specialist");
+
+        var providerLocationStr = p.ServiceAreas ?? user.ProviderServiceAreas ?? user.Location ?? "Colombo";
+        var (pLat, pLng) = ResolveCoordinates(providerLocationStr);
+
+        return Ok(new ProviderDto
+        {
+            Id = p.Id,
+            UserId = p.UserId,
+            FullName = !string.IsNullOrWhiteSpace(user.FullName) ? user.FullName : "TaskBridge Specialist",
+            ProfilePhotoUrl = user.ProfilePhotoUrl,
+            Phone = user.Phone,
+            Category = displayCategory,
+            Skills = p.Skills ?? user.ProviderSkills,
+            Services = p.Services ?? user.ProviderServices,
+            Experience = p.Experience ?? user.ProviderExperience,
+            Certifications = p.Certifications ?? user.ProviderCertifications,
+            ServiceAreas = p.ServiceAreas ?? user.ProviderServiceAreas ?? user.Location ?? "Colombo",
+            HourlyRate = p.HourlyRate > 0 ? p.HourlyRate : (user.ProviderHourlyRate ?? 2500m),
+            Rating = p.Rating > 0 ? p.Rating : 4.8,
+            ReviewCount = p.ReviewCount > 0 ? p.ReviewCount : 18,
+            DistanceKm = 2.4,
+            Latitude = pLat,
+            Longitude = pLng,
+            Bio = p.Bio ?? user.ProviderBio ?? "Experienced professional delivering quality services.",
+            IsActive = p.IsActive
+        });
+    }
+
+    private static (double Lat, double Lng) ResolveCoordinates(string locationText)
+    {
+        if (string.IsNullOrWhiteSpace(locationText))
+            return (6.9271, 79.8612); // Colombo default
+
+        foreach (var kvp in SriLankaLocations)
+        {
+            if (locationText.Contains(kvp.Key, StringComparison.OrdinalIgnoreCase))
+                return kvp.Value;
+        }
+
+        return (6.9271, 79.8612);
+    }
+
+    private static double CalculateHaversineDistance(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double R = 6371.0; // Earth's radius in kilometers
+        var dLat = (lat2 - lat1) * Math.PI / 180.0;
+        var dLon = (lon2 - lon1) * Math.PI / 180.0;
+        var rLat1 = lat1 * Math.PI / 180.0;
+        var rLat2 = lat2 * Math.PI / 180.0;
+
+        var a = Math.Sin(dLat / 2.0) * Math.Sin(dLat / 2.0) +
+                Math.Sin(dLon / 2.0) * Math.Sin(dLon / 2.0) * Math.Cos(rLat1) * Math.Cos(rLat2);
+        var c = 2.0 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1.0 - a));
+
+        var dist = R * c;
+        return dist < 0.5 ? 0.5 : Math.Round(dist, 1);
+    }
+}
+
