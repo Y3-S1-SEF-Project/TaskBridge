@@ -536,4 +536,358 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
     });
   }
 
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final isDark = ThemeService.instance.isDarkMode(context);
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
+    return Scaffold(
+      backgroundColor: palette.background,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.s20,
+            vertical: AppSpacing.s16,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ── Header Title ──
+              Text(
+                'Provider profile',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: palette.text,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // ── Profile Info (Clean, no box container) ──
+              Center(
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 46,
+                      backgroundColor: palette.soft,
+                      backgroundImage:
+                          (_currentUser.profilePhotoUrl != null &&
+                              _currentUser.profilePhotoUrl!.isNotEmpty)
+                          ? CachedNetworkImageProvider(
+                              _currentUser.profilePhotoUrl!,
+                            )
+                          : null,
+                      child:
+                          (_currentUser.profilePhotoUrl == null ||
+                              _currentUser.profilePhotoUrl!.isEmpty)
+                          ? Text(
+                              _initials,
+                              style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w700,
+                                color: palette.primary,
+                              ),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      _currentUser.fullName.isNotEmpty
+                          ? _currentUser.fullName
+                          : 'Kamal Perera',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: palette.text,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _providerTitle,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: palette.muted,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: _showFeedbacksSheet,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: palette.soft,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: palette.border),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.star_rounded,
+                              size: 16,
+                              color: Color(0xFFF59E0B),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _feedbacks.isEmpty
+                                  ? 'New Provider'
+                                  : '${_averageRating.toStringAsFixed(1)} (${_feedbacks.length} ${_feedbacks.length == 1 ? 'review' : 'reviews'})',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: palette.text,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: 14,
+                              color: palette.muted,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // ── Group 1: Services & Work Details ──
+              _buildSectionLabel('SERVICES & WORK DETAILS', palette),
+              _MenuCard(
+                children: [
+                  _SleekMenuTile(
+                    icon: Iconsax.briefcase,
+                    title: 'Skills & services',
+                    subtitle:
+                        (_currentUser.providerServices != null &&
+                            _currentUser.providerServices!.trim().isNotEmpty)
+                        ? _currentUser.providerServices!
+                        : ((_currentUser.providerSkills != null &&
+                                  _currentUser.providerSkills!
+                                      .trim()
+                                      .isNotEmpty)
+                              ? _currentUser.providerSkills!
+                              : 'Tap to add services'),
+                    iconBgColor: palette.soft,
+                    iconColor: palette.primary,
+                    onTap: _editProviderDetails,
+                  ),
+                  _SleekMenuTile(
+                    icon: Iconsax.shield_tick,
+                    title: 'Certifications',
+                    subtitle:
+                        _currentUser.providerCertifications != null &&
+                            _currentUser.providerCertifications!.isNotEmpty
+                        ? 'Uploaded · Verified'
+                        : 'Tap to upload certificates',
+                    iconBgColor: const Color(0xFFEBF3FF),
+                    iconColor: const Color(0xFF2563EB),
+                    onTap: _editProviderDetails,
+                  ),
+                  _SleekMenuTile(
+                    icon: Iconsax.location,
+                    title: 'Location & service radius',
+                    subtitle:
+                        (_currentUser.providerServiceAreas != null &&
+                            _currentUser.providerServiceAreas!
+                                .trim()
+                                .isNotEmpty)
+                        ? _currentUser.providerServiceAreas!
+                        : ((_currentUser.location != null &&
+                                  _currentUser.location!.trim().isNotEmpty)
+                              ? _currentUser.location!
+                              : 'Tap to set location and radius'),
+                    iconBgColor: const Color(0xFFEDFAF1),
+                    iconColor: const Color(0xFF16A34A),
+                    onTap: _editProviderDetails,
+                  ),
+                  _SleekMenuTile(
+                    icon: Iconsax.clock,
+                    title: 'Availability',
+                    subtitle:
+                        _currentUser.providerAvailability != null &&
+                            _currentUser.providerAvailability!.trim().isNotEmpty
+                        ? _currentUser.providerAvailability!
+                        : 'Set working hours',
+                    iconBgColor: const Color(0xFFFEF9C3),
+                    iconColor: const Color(0xFFCA8A04),
+                    onTap: _editProviderDetails,
+                  ),
+                  _SleekMenuTile(
+                    icon: Iconsax.star,
+                    title: 'Client reviews & ratings',
+                    subtitle: _feedbacks.isEmpty
+                        ? 'No client reviews yet'
+                        : '${_averageRating.toStringAsFixed(1)} ★ (${_feedbacks.length} ${_feedbacks.length == 1 ? 'review' : 'reviews'})',
+                    iconBgColor: const Color(0xFFFEF3C7),
+                    iconColor: const Color(0xFFD97706),
+                    onTap: _showFeedbacksSheet,
+                  ),
+                  _SleekMenuTile(
+                    icon: Iconsax.wallet_2,
+                    title: 'Earnings overview',
+                    subtitle:
+                        'Rs. ${(_currentUser.providerEarnings ?? 54000).toStringAsFixed(0)} this month',
+                    iconBgColor: const Color(0xFFF3E8FF),
+                    iconColor: const Color(0xFF9333EA),
+                    showDivider: false,
+                    onTap: _showEarningsSheet,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ── Switch Mode Section (Below Earnings overview) ──
+              _buildSectionLabel('SWITCH MODE', palette),
+              _MenuCard(
+                children: [
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: widget.onSwitchToCustomer,
+                      borderRadius: BorderRadius.circular(AppRadius.r16),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: palette.soft,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Center(
+                                child: Icon(
+                                  Iconsax.repeat,
+                                  size: 20,
+                                  color: palette.primary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Customer mode',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: palette.text,
+                                      letterSpacing: -0.2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Switch to customer dashboard',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: palette.muted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch.adaptive(
+                              value: false,
+                              activeTrackColor: palette.primary,
+                              activeThumbColor: Colors.white,
+                              onChanged: (val) {
+                                if (val) widget.onSwitchToCustomer();
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ── Group 2: Preferences ──
+              _buildSectionLabel('PREFERENCES', palette),
+              _MenuCard(
+                children: [
+                  _SleekMenuTile(
+                    icon: isDark ? Iconsax.moon : Iconsax.sun_1,
+                    title: 'Dark mode',
+                    subtitle:
+                        isDark ? 'Dark theme enabled' : 'Light theme enabled',
+                    iconBgColor: isDark
+                        ? palette.soft
+                        : const Color(0xFFFEF3C7),
+                    iconColor: isDark
+                        ? palette.primary
+                        : const Color(0xFFD97706),
+                    trailing: Switch.adaptive(
+                      value: isDark,
+                      activeTrackColor: palette.primary,
+                      activeThumbColor: Colors.white,
+                      onChanged: (val) {
+                        ThemeService.instance.toggleTheme(context);
+                      },
+                    ),
+                    onTap: () {
+                      ThemeService.instance.toggleTheme(context);
+                    },
+                  ),
+                  _SleekMenuTile(
+                    icon: Iconsax.setting_2,
+                    title: 'Settings',
+                    subtitle: 'Account, notifications and security',
+                    iconBgColor: const Color(0xFFF1F5F9),
+                    iconColor: const Color(0xFF475569),
+                    showDivider: false,
+                    onTap: _showSettingsSheet,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ── Group 3: Account Actions ──
+              _buildSectionLabel('ACCOUNT ACTIONS', palette),
+              _MenuCard(
+                children: [
+                  _SleekMenuTile(
+                    icon: Iconsax.logout,
+                    title: 'Log out',
+                    subtitle: 'Safely sign out from provider account',
+                    iconBgColor: const Color(0xFFFEE2E2),
+                    iconColor: AppColors.error,
+                    textColor: AppColors.error,
+                    trailing: const Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 18,
+                      color: AppColors.error,
+                    ),
+                    showDivider: false,
+                    onTap: _confirmLogout,
+                  ),
+                ],
+              ),
+              SizedBox(height: bottomInset > 0 ? bottomInset + 16 : 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
 
