@@ -319,3 +319,48 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
         );
       }
     }
+
+    _certificationUrl = widget.user.providerCertifications;
+    if (_certificationUrl != null && _certificationUrl!.isNotEmpty) {
+      final uri = Uri.tryParse(_certificationUrl!);
+      _certFileName = uri?.pathSegments.isNotEmpty == true
+          ? uri!.pathSegments.last
+          : 'Certificate document';
+    }
+
+    _loadDefaultLocationIfNeeded();
+  }
+
+  Future<void> _loadDefaultLocationIfNeeded() async {
+    if (_providerLocation != null) return;
+    try {
+      final cached = await LocationService.getSavedLocation();
+      if (cached != null && mounted && _providerLocation == null) {
+        setState(() => _providerLocation = cached);
+        _syncMiniMapCamera();
+      } else if (mounted && _providerLocation == null) {
+        setState(() => _providerLocation = UserLocation.defaultLocation);
+        _syncMiniMapCamera();
+      }
+    } catch (_) {
+      if (mounted && _providerLocation == null) {
+        setState(() => _providerLocation = UserLocation.defaultLocation);
+        _syncMiniMapCamera();
+      }
+    }
+  }
+
+  String _formatTimeOfDay(TimeOfDay tod) {
+    final hour = tod.hourOfPeriod == 0 ? 12 : tod.hourOfPeriod;
+    final minute = tod.minute.toString().padLeft(2, '0');
+    final period = tod.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$hour:$minute $period';
+  }
+
+  String _formatAvailabilityString() {
+    return '$_selectedDays · ${_formatTimeOfDay(_startTime)} – ${_formatTimeOfDay(_endTime)}';
+  }
+
+  void _updateAvailabilityText() {
+    _availabilityController.text = _formatAvailabilityString();
+  }
