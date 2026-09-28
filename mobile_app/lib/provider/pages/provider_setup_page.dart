@@ -708,3 +708,142 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
         return 10.3;
     }
   }
+
+  void _onRadiusSelected(int radius) {
+    setState(() => _selectedRadiusKm = radius);
+    _syncMiniMapCamera();
+  }
+
+  void _syncMiniMapCamera() {
+    if (_miniMapController != null && _providerLocation != null) {
+      _miniMapController!.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: LatLng(
+              _providerLocation!.latitude,
+              _providerLocation!.longitude,
+            ),
+            zoom: _getZoomForRadius(_selectedRadiusKm),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _pickLocationOnGoogleMaps() async {
+    final selected = await Navigator.push<UserLocation>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LocationPickerPage(
+          initialLocation: _providerLocation ?? UserLocation.defaultLocation,
+        ),
+      ),
+    );
+
+    if (selected != null && mounted) {
+      setState(() {
+        _providerLocation = selected;
+      });
+      _syncMiniMapCamera();
+    }
+  }
+
+  void _openCustomCategoryDialog(BuildContext sheetCtx) {
+    final textController = TextEditingController(
+      text:
+          kPredefinedServiceCategories.any(
+            (c) => c.categoryName == _selectedCategory,
+          )
+          ? ''
+          : (_selectedCategory ?? ''),
+    );
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Add Custom Category',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Enter your trade or service category:',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: textController,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                hintText: 'e.g. Masonry, Locksmith, Pest Control…',
+                hintStyle: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                ),
+                filled: true,
+                fillColor: AppColors.surface,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: AppColors.primary,
+                    width: 1.5,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              elevation: 0,
+            ),
+            onPressed: () {
+              final customVal = textController.text.trim();
+              if (customVal.isNotEmpty) {
+                setState(() {
+                  _selectedCategory = customVal;
+                });
+                Navigator.pop(dialogCtx);
+                Navigator.pop(sheetCtx);
+              }
+            },
+            child: const Text(
+              'Confirm',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
