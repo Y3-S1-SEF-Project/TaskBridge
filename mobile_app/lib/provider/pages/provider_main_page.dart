@@ -1,0 +1,10 @@
+import 'package:flutter/material.dart';
+import '../../auth/data/auth_api.dart';
+import '../../auth/data/auth_models.dart';
+import '../../core/services/user_mode_service.dart';
+import '../../home/pages/home_page.dart';
+import '../widgets/provider_bottom_nav.dart';
+import 'provider_chat_page.dart';
+import 'provider_dashboard_page.dart';
+import 'provider_jobs_page.dart';
+import 'provider_profile_page.dart';
