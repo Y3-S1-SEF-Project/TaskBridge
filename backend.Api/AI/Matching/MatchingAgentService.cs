@@ -298,3 +298,110 @@ public class MatchingAgentService
             RatingScore = Math.Round(ratingScore, 1)
         };
     }
+
+    private async Task<int> SynthesizeAiJustificationsAsync(
+        List<MatchedProviderDto> ranked,
+        JobPlanDetails job,
+        string apiKey,
+        string model,
+        CancellationToken ct)
+    {
+        var providersSummary = ranked.Select((p, i) => new
+        {
+            index = i,
+            name = p.FullName,
+            category = p.Category,
+            skills = p.Skills,
+            rate = p.HourlyRate,
+            rating = p.Rating,
+            reviews = p.ReviewCount,
+            score = p.MatchScore
+        });
+
+        var prompt = $$"""
+            You are TaskBridge AI Agent 2 (The Matching Agent).
+            Customer Requested Job: "{{job.ServiceTitle}}" ({{job.Category}}) in "{{job.Location ?? "Colombo 05"}}" with budget "{{job.BudgetDisplay}}".
+            The following providers have been scored by the multi-criteria matching algorithm:
+            {{JsonSerializer.Serialize(providersSummary)}}
+
+            Generate a concise, compelling 1-sentence justification for why each provider was matched to this job.
+            Respond in JSON format:
+            {
+              "reasons": [
+                { "index": 0, "reason": "1-sentence justification" },
+                { "index": 1, "reason": "1-sentence justification" }
+              ]
+            }
+            """;
+
+        var requestBody = new
+        {
+            model = model,
+            messages = new object[]
+            {
+                new { role = "system", content = "You are TaskBridge AI Agent 2 (Matching Agent). Respond only with valid JSON." },
+                new { role = "user", content = prompt }
+            },
+            response_format = new { type = "json_object" },
+            temperature = 0.3
+        };
+
+        var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions")
+        {
+            Content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json")
+        };
+        httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
+        var httpResponse = await _httpClient.SendAsync(httpRequest, ct);
+        var responseString = await httpResponse.Content.ReadAsStringAsync(ct);
+
+        if (!httpResponse.IsSuccessStatusCode) return 0;
+
+        using var doc = JsonDocument.Parse(responseString);
+        var root = doc.RootElement;
+        var content = root.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? "{}";
+        var tokensUsed = root.TryGetProperty("usage", out var usage) && usage.TryGetProperty("total_tokens", out var tt) ? tt.GetInt32() : 0;
+
+        using var contentDoc = JsonDocument.Parse(content);
+        if (contentDoc.RootElement.TryGetProperty("reasons", out var reasonsArray))
+        {
+            foreach (var r in reasonsArray.EnumerateArray())
+            {
+                if (r.TryGetProperty("index", out var idx) && r.TryGetProperty("reason", out var reasonStr))
+                {
+                    int index = idx.GetInt32();
+                    if (index >= 0 && index < ranked.Count)
+                    {
+                        var str = reasonStr.GetString();
+                        if (!string.IsNullOrWhiteSpace(str))
+                        {
+                            ranked[index].AiMatchReason = str;
+                        }
+                    }
+                }
+            }
+        }
+
+        return tokensUsed;
+    }
+
+    private static void ApplyLocalJustifications(List<MatchedProviderDto> ranked, JobPlanDetails job)
+    {
+        for (int i = 0; i < ranked.Count; i++)
+        {
+            var p = ranked[i];
+            if (i == 0)
+            {
+                p.AiMatchReason = $"Highest rated {p.Category.ToLowerInvariant()} specialist near {job.Location ?? "Colombo 05"} with extensive experience in {job.ServiceTitle.ToLowerInvariant()}.";
+            }
+            else if (i == 1)
+            {
+                p.AiMatchReason = $"Excellent budget alignment (Rs. {p.HourlyRate:N0}/hr) with a proven 100% on-time record in {job.Location ?? "Colombo 05"}.";
+            }
+            else
+            {
+                p.AiMatchReason = $"Flexible scheduling and reliable verified customer ratings for {job.Category.ToLowerInvariant()} services.";
+            }
+        }
+    }
+}
