@@ -216,3 +216,85 @@ public class MatchingAgentService
             Model = model
         };
     }
+
+    private static ScoreBreakdown CalculateScores(
+        string category,
+        string? skills,
+        string? serviceAreas,
+        decimal hourlyRate,
+        double rating,
+        int reviewCount,
+        JobPlanDetails job,
+        bool isRealDbProvider = false)
+    {
+        // 1. Skill Score (Max 35)
+        double skillScore = 15.0;
+        var reqCat = (job.Category ?? "").ToLowerInvariant();
+        var reqTitle = (job.ServiceTitle ?? "").ToLowerInvariant();
+        var reqDesc = (job.Description ?? "").ToLowerInvariant();
+        var candSkills = ((skills ?? "") + " " + category).ToLowerInvariant();
+
+        bool hasCategoryMatch = candSkills.Contains(reqCat) || reqCat.Contains(category.ToLowerInvariant());
+        if (hasCategoryMatch)
+        {
+            skillScore += 12.0;
+        }
+
+        var keywords = new[] { "garden", "lawn", "grass", "yard", "clean", "tap", "pipe", "leak", "wire", "ac", "cool", "plumb" };
+        foreach (var kw in keywords)
+        {
+            if ((reqTitle.Contains(kw) || reqCat.Contains(kw) || reqDesc.Contains(kw)) && candSkills.Contains(kw))
+            {
+                skillScore += 4.0;
+            }
+        }
+
+        if (isRealDbProvider && hasCategoryMatch)
+        {
+            skillScore += 5.0;
+        }
+
+        skillScore = Math.Min(skillScore, 35.0);
+
+        // 2. Location Score (Max 25)
+        double locScore = 15.0;
+        var reqLoc = (job.Location ?? "Colombo").ToLowerInvariant();
+        var candAreas = (serviceAreas ?? "Colombo").ToLowerInvariant();
+        if (candAreas.Contains(reqLoc) || reqLoc.Contains("colombo") || candAreas.Contains("colombo"))
+        {
+            locScore = 24.5;
+        }
+
+        // 3. Budget Fit Score (Max 20)
+        double budgetScore = 20.0;
+        var budget = job.Budget;
+        if (budget.HasValue && budget.Value > 0)
+        {
+            var estimatedCost = hourlyRate * 1.5m;
+            if (estimatedCost <= budget.Value)
+            {
+                budgetScore = 20.0;
+            }
+            else
+            {
+                var diff = (double)((estimatedCost - budget.Value) / budget.Value);
+                budgetScore = Math.Max(8.0, 20.0 - (diff * 20.0));
+            }
+        }
+        else
+        {
+            budgetScore = 19.5;
+        }
+
+        // 4. Rating & Track Record Score (Max 20)
+        double ratingScore = (rating / 5.0) * 15.0 + Math.Min(reviewCount, 50) / 50.0 * 5.0;
+        ratingScore = Math.Min(ratingScore, 20.0);
+
+        return new ScoreBreakdown
+        {
+            SkillScore = Math.Round(skillScore, 1),
+            LocationScore = Math.Round(locScore, 1),
+            BudgetScore = Math.Round(budgetScore, 1),
+            RatingScore = Math.Round(ratingScore, 1)
+        };
+    }
