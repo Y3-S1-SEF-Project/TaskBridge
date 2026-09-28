@@ -600,3 +600,49 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
       ),
     );
   }
+
+  Future<void> _processDocUpload() async {
+    try {
+      final files = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
+      );
+      if (files.isEmpty) return;
+      final file = files.first;
+      final path = file.path;
+      if (path == null) return;
+
+      setState(() {
+        _uploadingCert = true;
+        _certFileName = file.name;
+      });
+
+      final updated = await widget.api.uploadCertification(
+        path,
+        userId: widget.user.id,
+      );
+
+      if (mounted) {
+        setState(() {
+          _certificationUrl = updated.providerCertifications;
+          _uploadingCert = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Document "${file.name}" uploaded successfully!'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _uploadingCert = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not upload document: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
