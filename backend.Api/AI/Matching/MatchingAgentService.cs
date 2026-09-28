@@ -119,3 +119,53 @@ public class MatchingAgentService
                     return true;
                 }
             }
+
+            // 2. Specific domain keywords matching without substring collisions (e.g., 'air' inside 'repair')
+            // Plumbing
+            if (combinedRequest.Contains("plumb") || combinedRequest.Contains("tap") || combinedRequest.Contains("pipe") || combinedRequest.Contains("faucet") || combinedRequest.Contains("leak") || combinedRequest.Contains("drain"))
+            {
+                return pFull.Contains("plumb") || pFull.Contains("tap") || pFull.Contains("pipe") || pFull.Contains("faucet") || pFull.Contains("drain");
+            }
+
+            // Electrical
+            if (combinedRequest.Contains("electric") || combinedRequest.Contains("wire") || combinedRequest.Contains("wiring") || combinedRequest.Contains("breaker"))
+            {
+                return pFull.Contains("electric") || pFull.Contains("wire") || pFull.Contains("wiring");
+            }
+
+            // HVAC / Air Conditioning (distinct terms, NOT substring 'air' which matches 'repair')
+            if (combinedRequest.Contains("hvac") || combinedRequest.Contains("air condition") || combinedRequest.Contains("a/c") || combinedRequest.Contains("cooling"))
+            {
+                return pFull.Contains("hvac") || pFull.Contains("air condition") || pFull.Contains("a/c") || pFull.Contains("cooling");
+            }
+
+            // Gardening & Outdoor
+            if (combinedRequest.Contains("garden") || combinedRequest.Contains("lawn") || combinedRequest.Contains("grass") || combinedRequest.Contains("yard") || combinedRequest.Contains("landscap"))
+            {
+                return pFull.Contains("garden") || pFull.Contains("lawn") || pFull.Contains("grass") || pFull.Contains("yard") || pFull.Contains("landscap");
+            }
+
+            // Cleaning
+            if (combinedRequest.Contains("deep clean") || combinedRequest.Contains("home clean") || combinedRequest.Contains("house clean") || (reqCat == "cleaning" && pCat.Contains("clean")))
+            {
+                return pFull.Contains("clean");
+            }
+
+            // IT & Security
+            if (combinedRequest.Contains("it & security") || combinedRequest.Contains("cctv") || combinedRequest.Contains("camera") || combinedRequest.Contains("wifi") || combinedRequest.Contains("network"))
+            {
+                return pFull.Contains("it") || pFull.Contains("security") || pFull.Contains("cctv") || pFull.Contains("network");
+            }
+
+            return false;
+        }).ToList();
+
+        // Strictly use matching providers. If none match the category, do not fall back to unrelated providers
+        var poolToRank = matchingProviders;
+
+        // Sort by composite match score descending and take requested top N (ONLY real DB providers)
+        var ranked = poolToRank
+            .OrderByDescending(c => c.MatchScore)
+            .ThenByDescending(c => c.Rating)
+            .Take(request.MaxResults)
+            .ToList();
