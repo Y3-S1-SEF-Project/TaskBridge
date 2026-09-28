@@ -376,3 +376,127 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
       ),
     );
   }
+
+  void _showSettingsSheet() {
+    final palette = AppPalette.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      backgroundColor: palette.surface,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          final sheetIsDark = ThemeService.instance.isDarkMode(ctx);
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.s24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Provider Settings',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: palette.text,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      sheetIsDark ? Iconsax.moon : Iconsax.sun_1,
+                      color: palette.primary,
+                    ),
+                    title: Text(
+                      'Dark Mode',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: palette.text,
+                      ),
+                    ),
+                    subtitle: Text(
+                      sheetIsDark ? 'Dark theme enabled' : 'Light theme enabled',
+                      style: TextStyle(color: palette.muted, fontSize: 13),
+                    ),
+                    trailing: Switch.adaptive(
+                      value: sheetIsDark,
+                      activeTrackColor: palette.primary,
+                      activeThumbColor: Colors.white,
+                      onChanged: (val) async {
+                        await ThemeService.instance.toggleTheme(context);
+                        setSheetState(() {});
+                      },
+                    ),
+                  ),
+                  const Divider(),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.edit_outlined,
+                      color: palette.primary,
+                    ),
+                    title: Text(
+                      'Edit Provider Profile',
+                      style: TextStyle(color: palette.text),
+                    ),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _editProviderDetails();
+                    },
+                  ),
+                  const Divider(),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.swap_horiz_rounded,
+                      color: palette.primary,
+                    ),
+                    title: Text(
+                      'Switch to Customer Mode',
+                      style: TextStyle(color: palette.text),
+                    ),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      widget.onSwitchToCustomer();
+                    },
+                  ),
+                  const Divider(),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(
+                      Icons.logout_rounded,
+                      color: AppColors.error,
+                    ),
+                    title: const Text(
+                      'Log out',
+                      style: TextStyle(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      await widget.api.logout();
+                      if (!mounted) return;
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => LoginPage(api: widget.api),
+                        ),
+                        (_) => false,
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
