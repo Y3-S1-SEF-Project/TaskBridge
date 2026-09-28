@@ -12,6 +12,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
     public DbSet<ProposalEntity> Proposals => Set<ProposalEntity>();
     public DbSet<JobCompletionEntity> JobCompletions => Set<JobCompletionEntity>();
     public DbSet<FeedbackEntity> Feedbacks => Set<FeedbackEntity>();
+    public DbSet<ServiceRequestEntity> ServiceRequests => Set<ServiceRequestEntity>();
     public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<ChatAuditLog> ChatAuditLogs => Set<ChatAuditLog>();
@@ -49,6 +50,18 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
                   .WithOne(x => x.ProviderProfile)
                   .HasForeignKey<ProviderProfile>(x => x.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        model.Entity<ServiceRequestEntity>(entity =>
+        {
+            entity.ToTable("service_requests");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.CustomerId);
+            entity.HasIndex(x => x.Status);
+            entity.HasIndex(x => x.Category);
+            entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Category).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.EstimatedBudget).HasColumnType("numeric(12,2)");
         });
 
         model.Entity<BookingEntity>(entity =>
@@ -332,6 +345,32 @@ CREATE TABLE IF NOT EXISTS chat_audit_logs (
 );
 
 CREATE INDEX IF NOT EXISTS ix_chat_audit_conv ON chat_audit_logs (""ConversationId"");
+
+CREATE TABLE IF NOT EXISTS service_requests (
+    ""Id"" uuid PRIMARY KEY,
+    ""CustomerId"" uuid NOT NULL,
+    ""CustomerName"" varchar(150) NOT NULL,
+    ""CustomerPhone"" varchar(30) NOT NULL,
+    ""Title"" varchar(200) NOT NULL,
+    ""Category"" varchar(100) NOT NULL,
+    ""Description"" text NOT NULL,
+    ""Location"" text NOT NULL,
+    ""LocationAddress"" text NULL,
+    ""EstimatedBudget"" numeric(12,2) NULL,
+    ""ScheduledDate"" text NOT NULL,
+    ""ScheduledTime"" text NOT NULL,
+    ""Status"" varchar(50) NOT NULL DEFAULT 'ClarificationRequired',
+    ""MediaUrlsJson"" text NULL,
+    ""AiPlanJson"" text NULL,
+    ""ClarificationAnswersJson"" text NULL,
+    ""CancellationReason"" text NULL,
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
+    ""UpdatedAt"" timestamptz NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_service_requests_customer ON service_requests (""CustomerId"");
+CREATE INDEX IF NOT EXISTS ix_service_requests_status ON service_requests (""Status"");
+CREATE INDEX IF NOT EXISTS ix_service_requests_category ON service_requests (""Category"");
 ";
         await Database.ExecuteSqlRawAsync(sql, ct);
     }
