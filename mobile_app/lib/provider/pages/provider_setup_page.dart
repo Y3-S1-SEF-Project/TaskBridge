@@ -491,3 +491,112 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
       return status.isGranted || status.isLimited;
     }
   }
+
+  Future<void> _pickAndUploadCert() async {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      backgroundColor: Colors.white,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Upload Certification / Document',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const CircleAvatar(
+                  backgroundColor: AppColors.primaryLight,
+                  child: Icon(
+                    Icons.picture_as_pdf_rounded,
+                    color: AppColors.primary,
+                  ),
+                ),
+                title: const Text(
+                  'Upload PDF or Document',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text(
+                  'PDF, DOC, DOCX up to 10MB',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _processDocUpload();
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const CircleAvatar(
+                  backgroundColor: AppColors.primaryLight,
+                  child: Icon(
+                    Icons.photo_library_outlined,
+                    color: AppColors.primary,
+                  ),
+                ),
+                title: const Text(
+                  'Choose photo from Gallery',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text(
+                  'JPG, PNG, WEBP',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final allowed = await _ensurePermission(ImageSource.gallery);
+                  if (!allowed) return;
+                  _processCertUpload(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const CircleAvatar(
+                  backgroundColor: AppColors.primaryLight,
+                  child: Icon(
+                    Icons.camera_alt_outlined,
+                    color: AppColors.primary,
+                  ),
+                ),
+                title: const Text(
+                  'Take photo of certificate',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text(
+                  'Use camera to capture paper document',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final allowed = await _ensurePermission(ImageSource.camera);
+                  if (!allowed) return;
+                  _processCertUpload(ImageSource.camera);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
