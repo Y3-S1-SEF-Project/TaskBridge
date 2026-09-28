@@ -251,3 +251,25 @@ public class ProvidersController : ControllerBase
     }
 }
 
+public class ProviderDto
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public string FullName { get; set; } = string.Empty;
+    public string? ProfilePhotoUrl { get; set; }
+    public string Phone { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public string? Skills { get; set; }
+    public string? Services { get; set; }
+    public string? Experience { get; set; }
+    public string? Certifications { get; set; }
+    public string? ServiceAreas { get; set; }
+    public decimal HourlyRate { get; set; }
+    public double Rating { get; set; }
+    public int ReviewCount { get; set; }
+    public double DistanceKm { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    public string? Bio { get; set; }
+    public bool IsActive { get; set; }
+}
