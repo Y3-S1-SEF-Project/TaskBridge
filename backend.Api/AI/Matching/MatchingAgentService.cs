@@ -169,3 +169,50 @@ public class MatchingAgentService
             .ThenByDescending(c => c.Rating)
             .Take(request.MaxResults)
             .ToList();
+
+        // 3. Synthesize personalized AI match justifications using OpenAI
+        var apiKey = _configuration["OpenAI:ApiKey"] ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? string.Empty;
+        var model = _configuration["OpenAI:Model"] ?? "gpt-4o-mini";
+        int tokensUsed = 0;
+
+        if (!string.IsNullOrWhiteSpace(apiKey) && !apiKey.StartsWith("YOUR_"))
+        {
+            try
+            {
+                tokensUsed = await SynthesizeAiJustificationsAsync(ranked, job, apiKey, model, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to call OpenAI for match justification synthesis. Using local templates.");
+                ApplyLocalJustifications(ranked, job);
+            }
+        }
+        else
+        {
+            ApplyLocalJustifications(ranked, job);
+        }
+
+        sw.Stop();
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine($"[✅ TASKBRIDGE AI: AGENT 2] Successfully Ranked {ranked.Count} Providers (Pool: {candidatePool.Count})");
+        for (int i = 0; i < ranked.Count; i++)
+        {
+            var p = ranked[i];
+            Console.WriteLine($"   #{i + 1} {p.FullName} ({p.MatchScore}% Match) - Rs. {p.HourlyRate:N0}/hr | {p.Rating}★ ({p.ReviewCount} reviews)");
+            Console.WriteLine($"      💡 AI Reason: {p.AiMatchReason}");
+        }
+        Console.WriteLine($"[⚡ TASKBRIDGE AI: AGENT 2] Finished in {sw.ElapsedMilliseconds} ms (Tokens: {tokensUsed})\n");
+        Console.ResetColor();
+
+        return new MatchingResponse
+        {
+            Success = true,
+            JobPlan = job,
+            MatchedProviders = ranked,
+            CandidatePoolCount = candidatePool.Count,
+            LatencyMs = sw.ElapsedMilliseconds,
+            TokensUsed = tokensUsed,
+            Model = model
+        };
+    }
