@@ -889,5 +889,19 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
       ),
     );
   }
-
-
+  
+  Widget _buildSectionLabel(String label, AppPalette palette) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.9,
+          color: palette.muted,
+        ),
+      ),
+    );
+  }
+}
