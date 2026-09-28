@@ -82,4 +82,41 @@ public sealed class PlanningTests
             StringComparison.OrdinalIgnoreCase
         );
     }
+        [Fact]
+    public async Task PlanningAgent_EnforcesAntiHallucination_WhenBudgetOmitted()
+    {
+        var request = new PlanningAnalyzeRequest
+        {
+            Prompt = "Fix leaking water pipe near main valve tomorrow morning",
+            UserLocation = "Colombo 03"
+        };
+
+        var result = await _planningService.AnalyzePromptAsync(request);
+
+        Assert.NotNull(result);
+        Assert.Null(result.JobPlan.Budget);
+        Assert.Equal("Budget not specified", result.JobPlan.BudgetDisplay);
+        Assert.Contains("budget", result.MissingFields);
+    }
+
+    [Fact]
+    public async Task PlanningAgent_OfflineFallback_ProducesValidStructuredSchema()
+    {
+        var request = new PlanningAnalyzeRequest
+        {
+            Prompt = "Clean full 3 bedroom house before the weekend",
+            UserLocation = "Nugegoda"
+        };
+
+        var result = await _planningService.AnalyzePromptAsync(request);
+
+        Assert.NotNull(result);
+        Assert.True(
+            result.Model == "rule-based-fallback" ||
+            result.Model == "local-demo-fallback" ||
+            result.Model.Contains("gpt")
+        );
+        Assert.Equal(4, result.ProgressSteps.Count);
+        Assert.False(string.IsNullOrWhiteSpace(result.JobPlan.ServiceTitle));
+    }
 }
