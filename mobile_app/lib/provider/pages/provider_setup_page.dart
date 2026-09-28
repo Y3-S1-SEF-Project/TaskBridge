@@ -364,3 +364,18 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
   void _updateAvailabilityText() {
     _availabilityController.text = _formatAvailabilityString();
   }
+
+  void _initAvailability(String raw) {
+    if (raw.trim().isEmpty) return;
+    final text = raw.trim();
+    if (text.contains('Mon–Fri') || text.contains('Mon-Fri')) {
+      _selectedDays = 'Mon–Fri';
+    } else if (text.contains('Everyday') ||
+        text.contains('All Week') ||
+        text.contains('Mon–Sun')) {
+      _selectedDays = 'Everyday';
+    } else if (text.contains('Weekend')) {
+      _selectedDays = 'Weekends';
+    } else {
+      _selectedDays = 'Mon–Sat';
+    }
