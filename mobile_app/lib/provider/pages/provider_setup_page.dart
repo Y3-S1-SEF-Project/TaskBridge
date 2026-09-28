@@ -462,3 +462,32 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
       });
     }
   }
+
+   @override
+  void dispose() {
+    _miniMapController?.dispose();
+    _skillsController.dispose();
+    _experienceController.dispose();
+    _availabilityController.dispose();
+    _bioController.dispose();
+    _hourlyRateController.dispose();
+    super.dispose();
+  }
+
+  Future<bool> _ensurePermission(ImageSource source) async {
+    if (source == ImageSource.camera) {
+      final status = await Permission.camera.request();
+      return status.isGranted || status.isLimited;
+    } else {
+      PermissionStatus status;
+      if (Platform.isAndroid) {
+        status = await Permission.photos.request();
+        if (status.isDenied) {
+          status = await Permission.storage.request();
+        }
+      } else {
+        status = await Permission.photos.request();
+      }
+      return status.isGranted || status.isLimited;
+    }
+  }
