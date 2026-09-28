@@ -98,3 +98,24 @@ public class MatchingAgentService
                 AiMatchReason = "Specialized skills and strong service coverage in your area."
             });
         }
+
+        // 2. Filter candidate pool strictly to real DB providers matching the requested category / service
+        var reqCat = (job.Category ?? "").ToLowerInvariant().Trim();
+        var reqTitle = (job.ServiceTitle ?? "").ToLowerInvariant().Trim();
+        var reqDesc = (job.Description ?? "").ToLowerInvariant().Trim();
+        var combinedRequest = $"{reqCat} {reqTitle} {reqDesc}";
+
+        var matchingProviders = candidatePool.Where(p =>
+        {
+            var pCat = (p.Category ?? "").ToLowerInvariant().Trim();
+            var pSkills = (p.Skills ?? "").ToLowerInvariant().Trim();
+            var pFull = $"{pCat} {pSkills}";
+
+            // 1. Direct category match (e.g. "plumbing" in "plumbing" or "gardening" in "gardening & outdoor")
+            if (!string.IsNullOrWhiteSpace(reqCat) && !string.IsNullOrWhiteSpace(pCat))
+            {
+                if (pCat == reqCat || pCat.Contains(reqCat) || reqCat.Contains(pCat))
+                {
+                    return true;
+                }
+            }
