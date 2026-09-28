@@ -176,3 +176,34 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
       _loadBookings();
     }
   }
+
+  Future<void> _declineJob(BookingItem booking) async {
+    final isProposal = booking.bookingReference.startsWith('PR-');
+    final success = isProposal
+        ? await CoordinationApi.declineProposal(
+            proposalReference: booking.bookingReference,
+            reason: 'Declined by provider',
+          )
+        : await CoordinationApi.cancelBooking(
+            bookingReference: booking.bookingReference,
+            reason: 'Declined by provider',
+          );
+
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isProposal
+                ? 'Proposal #${booking.bookingReference} declined.'
+                : 'Job #${booking.bookingReference} has been declined.',
+          ),
+          backgroundColor: Colors.orange.shade800,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+      _loadBookings();
+    }
+  }
