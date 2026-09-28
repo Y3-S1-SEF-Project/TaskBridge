@@ -150,3 +150,117 @@ const List<PredefinedServiceCategory> kPredefinedServiceCategories = [
     ],
   ),
 ];
+
+class ProviderSetupPage extends StatefulWidget {
+  final AuthUser user;
+  final AuthApi api;
+  final bool? isFirstTime;
+
+  const ProviderSetupPage({
+    super.key,
+    required this.user,
+    required this.api,
+    this.isFirstTime,
+  });
+
+  @override
+  State<ProviderSetupPage> createState() => _ProviderSetupPageState();
+}
+
+class _ProviderSetupPageState extends State<ProviderSetupPage> {
+  late final TextEditingController _skillsController;
+  late final TextEditingController _experienceController;
+  late final TextEditingController _availabilityController;
+  late final TextEditingController _bioController;
+  late final TextEditingController _hourlyRateController;
+
+  String? _selectedCategory;
+  final List<String> _selectedServices = [];
+  UserLocation? _providerLocation;
+  int _selectedRadiusKm = 15;
+  GoogleMapController? _miniMapController;
+
+  TimeOfDay _startTime = const TimeOfDay(hour: 8, minute: 0);
+  TimeOfDay _endTime = const TimeOfDay(hour: 18, minute: 0);
+  String _selectedDays = 'Mon–Sat';
+
+  final ImagePicker _picker = ImagePicker();
+  String? _certificationUrl;
+  String? _certFileName;
+  bool _uploadingCert = false;
+  bool _busy = false;
+  String? _error;
+
+  String? _detectCategoryFromServices(Iterable<String> services) {
+    if (services.isEmpty) return null;
+    for (final cat in kPredefinedServiceCategories) {
+      for (final s in services) {
+        if (cat.services.any(
+          (cs) =>
+              cs.toLowerCase().contains(s.toLowerCase()) ||
+              s.toLowerCase().contains(cs.toLowerCase()),
+        )) {
+          return cat.categoryName;
+        }
+      }
+    }
+    return null;
+  }
+
+  bool get _isExistingProvider {
+    if (widget.isFirstTime != null) {
+      return !widget.isFirstTime!;
+    }
+    if (widget.user.isProvider) return true;
+    final skills = widget.user.providerSkills?.trim() ?? '';
+    final services = widget.user.providerServices?.trim() ?? '';
+    return skills.isNotEmpty || services.isNotEmpty;
+  }
+
+  bool get _showDoLater => !_isExistingProvider;
+
+  @override
+  void initState() {
+    super.initState();
+
+    String cleanMock(String? val, List<String> mocks) {
+      if (val == null) return '';
+      final trimmed = val.trim();
+      if (trimmed.isEmpty) return '';
+      for (final m in mocks) {
+        if (trimmed == m || trimmed.contains(m)) return '';
+      }
+      return trimmed;
+    }
+
+    _skillsController = TextEditingController(
+      text: cleanMock(widget.user.providerSkills, [
+        'Plumbing',
+        'Plumbing · Leak detection',
+      ]),
+    );
+    _experienceController = TextEditingController(
+      text: cleanMock(widget.user.providerExperience, ['8 years']),
+    );
+
+    final availabilityRaw = cleanMock(widget.user.providerAvailability, [
+      'Mon–Sat · 8 AM–6 PM',
+    ]);
+    _initAvailability(availabilityRaw);
+    _availabilityController = TextEditingController(
+      text: _formatAvailabilityString(),
+    );
+
+    _bioController = TextEditingController(
+      text: cleanMock(widget.user.providerBio, [
+        'Experienced plumbing & leak detection professional.',
+        'Experienced plumbing & leak detection professional',
+      ]),
+    );
+
+    final initialRate =
+        widget.user.providerHourlyRate != null &&
+            widget.user.providerHourlyRate! > 0
+        ? widget.user.providerHourlyRate!.toInt().toString()
+        : '2500';
+    _hourlyRateController = TextEditingController(text: initialRate);
