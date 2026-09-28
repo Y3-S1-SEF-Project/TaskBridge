@@ -847,3 +847,161 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
       ),
     );
   }
+
+  void _openCategoryPicker() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: Colors.white,
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                const Text(
+                  'Select Primary Category',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Choose the main category that best represents your trade.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: kPredefinedServiceCategories.length + 1,
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      // Custom "Other" option at the end
+                      if (index == kPredefinedServiceCategories.length) {
+                        final isCustom =
+                            _selectedCategory != null &&
+                            _selectedCategory!.trim().isNotEmpty &&
+                            !kPredefinedServiceCategories.any(
+                              (c) =>
+                                  c.categoryName.toLowerCase() ==
+                                  _selectedCategory!.toLowerCase(),
+                            );
+
+                        return ListTile(
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: isCustom
+                                  ? AppColors.primary
+                                  : AppColors.primaryLight,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.add_circle_outline_rounded,
+                              size: 18,
+                              color: isCustom
+                                  ? Colors.white
+                                  : AppColors.primary,
+                            ),
+                          ),
+                          title: Text(
+                            isCustom
+                                ? 'Other: $_selectedCategory'
+                                : 'Other (Add custom category)',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: isCustom
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                              color: isCustom
+                                  ? AppColors.primary
+                                  : AppColors.textPrimary,
+                            ),
+                          ),
+                          subtitle: isCustom
+                              ? const Text(
+                                  'Tap to change custom category',
+                                  style: TextStyle(fontSize: 12),
+                                )
+                              : null,
+                          trailing: isCustom
+                              ? const Icon(
+                                  Icons.check_circle,
+                                  color: AppColors.primary,
+                                )
+                              : const Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: AppColors.textSecondary,
+                                ),
+                          onTap: () => _openCustomCategoryDialog(ctx),
+                        );
+                      }
+
+                      final cat = kPredefinedServiceCategories[index];
+                      final isSelected =
+                          _selectedCategory != null &&
+                          _selectedCategory!.toLowerCase() ==
+                              cat.categoryName.toLowerCase();
+                      return ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.primaryLight,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            cat.icon,
+                            size: 18,
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.primary,
+                          ),
+                        ),
+                        title: Text(
+                          cat.categoryName,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w600,
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.textPrimary,
+                          ),
+                        ),
+                        trailing: isSelected
+                            ? const Icon(
+                                Icons.check_circle,
+                                color: AppColors.primary,
+                              )
+                            : null,
+                        onTap: () {
+                          setState(() {
+                            _selectedCategory = cat.categoryName;
+                          });
+                          Navigator.pop(ctx);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
