@@ -176,3 +176,203 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
       ),
     );
   }
+
+  void _showFeedbacksSheet() {
+    final palette = AppPalette.of(context);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      backgroundColor: palette.surface,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.65,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (ctx, scrollController) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.s20,
+              vertical: AppSpacing.s16,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: palette.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Client Reviews',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: palette.text,
+                      ),
+                    ),
+                    if (_feedbacks.isNotEmpty)
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.star_rounded,
+                            color: Color(0xFFF59E0B),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _averageRating.toStringAsFixed(1),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: palette.text,
+                            ),
+                          ),
+                          Text(
+                            ' (${_feedbacks.length})',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: palette.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: _isLoadingFeedbacks
+                      ? const Center(child: CircularProgressIndicator())
+                      : _feedbacks.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.rate_review_outlined,
+                                    size: 48,
+                                    color: palette.muted,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'No reviews yet',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: palette.text,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Completed jobs with client ratings will appear here.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: palette.muted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              controller: scrollController,
+                              itemCount: _feedbacks.length,
+                              separatorBuilder: (_, _) =>
+                                  const SizedBox(height: 12),
+                          itemBuilder: (ctx, i) {
+                            final fb = _feedbacks[i];
+                            return Container(
+                              padding: const EdgeInsets.all(AppSpacing.s16),
+                              decoration: BoxDecoration(
+                                color: palette.soft,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: palette.border),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        fb.customerName.isNotEmpty
+                                            ? fb.customerName
+                                            : 'Customer',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          color: palette.text,
+                                        ),
+                                      ),
+                                      Row(
+                                        children: [
+                                          ...List.generate(5, (starIdx) {
+                                            return Icon(
+                                              starIdx < fb.rating.floor()
+                                                  ? Icons.star_rounded
+                                                  : (starIdx < fb.rating
+                                                      ? Icons.star_half_rounded
+                                                      : Icons
+                                                          .star_outline_rounded),
+                                              color: const Color(0xFFF59E0B),
+                                              size: 16,
+                                            );
+                                          }),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            fb.rating.toStringAsFixed(1),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: palette.text,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Booking #${fb.bookingReference}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: palette.muted,
+                                    ),
+                                  ),
+                                  if (fb.comment.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      fb.comment,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: palette.text,
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
