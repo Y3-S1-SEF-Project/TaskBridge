@@ -1005,3 +1005,512 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
       },
     );
   }
+
+  void _openServiceSelectionSheet() {
+    final tempSelected = Set<String>.from(_selectedServices);
+    String searchQuery = '';
+    String? selectedCategoryFilter;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final query = searchQuery.trim().toLowerCase();
+
+            // Filter categories and services
+            final visibleCategories = kPredefinedServiceCategories.where((cat) {
+              if (selectedCategoryFilter != null &&
+                  cat.categoryName != selectedCategoryFilter) {
+                return false;
+              }
+              if (query.isEmpty) return true;
+              return cat.categoryName.toLowerCase().contains(query) ||
+                  cat.services.any((s) => s.toLowerCase().contains(query));
+            }).toList();
+
+            return DraggableScrollableSheet(
+              initialChildSize: 0.82,
+              minChildSize: 0.5,
+              maxChildSize: 0.94,
+              expand: false,
+              builder: (context, scrollController) {
+                return Column(
+                  children: [
+                    // Sheet Header
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Select Services You Provide',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${tempSelected.length} service${tempSelected.length == 1 ? '' : 's'} selected',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: tempSelected.isNotEmpty
+                                        ? AppColors.primary
+                                        : AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (tempSelected.isNotEmpty)
+                            TextButton(
+                              onPressed: () {
+                                setSheetState(() => tempSelected.clear());
+                              },
+                              child: const Text(
+                                'Clear all',
+                                style: TextStyle(
+                                  color: AppColors.error,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded),
+                            onPressed: () => Navigator.pop(ctx),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Search Field
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 6,
+                      ),
+                      child: TextField(
+                        autofocus: false,
+                        decoration: InputDecoration(
+                          hintText: 'Search plumbing, AC, wiring, cleaning…',
+                          hintStyle: const TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.search_rounded,
+                            color: AppColors.textSecondary,
+                          ),
+                          suffixIcon: query.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(
+                                    Icons.clear_rounded,
+                                    size: 18,
+                                  ),
+                                  onPressed: () {
+                                    setSheetState(() => searchQuery = '');
+                                  },
+                                )
+                              : null,
+                          filled: true,
+                          fillColor: AppColors.background,
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 16,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                              color: AppColors.border,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                              color: AppColors.border,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                              color: AppColors.primary,
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                        onChanged: (val) {
+                          setSheetState(() => searchQuery = val);
+                        },
+                      ),
+                    ),
+
+                    // Category Filter Pills
+                    SizedBox(
+                      height: 42,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: ChoiceChip(
+                              label: const Text('All Categories'),
+                              selected: selectedCategoryFilter == null,
+                              labelStyle: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: selectedCategoryFilter == null
+                                    ? Colors.white
+                                    : AppColors.textPrimary,
+                              ),
+                              selectedColor: AppColors.primary,
+                              backgroundColor: AppColors.surface,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(
+                                  color: selectedCategoryFilter == null
+                                      ? AppColors.primary
+                                      : AppColors.border,
+                                ),
+                              ),
+                              onSelected: (_) {
+                                setSheetState(
+                                  () => selectedCategoryFilter = null,
+                                );
+                              },
+                            ),
+                          ),
+                          ...kPredefinedServiceCategories.map((cat) {
+                            final isSel =
+                                selectedCategoryFilter == cat.categoryName;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: ChoiceChip(
+                                label: Text(cat.categoryName),
+                                selected: isSel,
+                                labelStyle: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: isSel
+                                      ? Colors.white
+                                      : AppColors.textPrimary,
+                                ),
+                                selectedColor: AppColors.primary,
+                                backgroundColor: AppColors.surface,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  side: BorderSide(
+                                    color: isSel
+                                        ? AppColors.primary
+                                        : AppColors.border,
+                                  ),
+                                ),
+                                onSelected: (_) {
+                                  setSheetState(() {
+                                    selectedCategoryFilter = isSel
+                                        ? null
+                                        : cat.categoryName;
+                                  });
+                                },
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+
+                    const Divider(height: 12),
+
+                    // Services List
+                    Expanded(
+                      child: visibleCategories.isEmpty
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.search_off_rounded,
+                                      size: 48,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'No services found for "$searchQuery"',
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ElevatedButton.icon(
+                                      onPressed: () {
+                                        final customName = searchQuery.trim();
+                                        if (customName.isNotEmpty) {
+                                          setSheetState(() {
+                                            tempSelected.add(customName);
+                                            searchQuery = '';
+                                          });
+                                        }
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.primary,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                        ),
+                                      ),
+                                      icon: const Icon(
+                                        Icons.add_rounded,
+                                        size: 18,
+                                      ),
+                                      label: Text(
+                                        'Add "$searchQuery" as Custom Service',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
+                              controller: scrollController,
+                              padding: const EdgeInsets.only(bottom: 20),
+                              itemCount: visibleCategories.length,
+                              itemBuilder: (context, catIndex) {
+                                final cat = visibleCategories[catIndex];
+                                final services = cat.services.where((s) {
+                                  if (query.isEmpty) return true;
+                                  return s.toLowerCase().contains(query);
+                                }).toList();
+
+                                if (services.isEmpty) {
+                                  return const SizedBox.shrink();
+                                }
+
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 4,
+                                  ),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surface,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: AppColors.border,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        // Category Header
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 10,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(
+                                                  6,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.primaryLight,
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                child: Icon(
+                                                  cat.icon,
+                                                  size: 16,
+                                                  color: AppColors.primary,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Text(
+                                                cat.categoryName,
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: AppColors.textPrimary,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const Divider(height: 1),
+
+                                        // Category Services
+                                        ...services.map((service) {
+                                          final isChecked = tempSelected
+                                              .contains(service);
+                                          return InkWell(
+                                            onTap: () {
+                                              setSheetState(() {
+                                                if (isChecked) {
+                                                  tempSelected.remove(service);
+                                                } else {
+                                                  tempSelected.add(service);
+                                                }
+                                              });
+                                            },
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 14,
+                                                    vertical: 10,
+                                                  ),
+                                              child: Row(
+                                                children: [
+                                                  AnimatedContainer(
+                                                    duration: const Duration(
+                                                      milliseconds: 180,
+                                                    ),
+                                                    width: 22,
+                                                    height: 22,
+                                                    decoration: BoxDecoration(
+                                                      color: isChecked
+                                                          ? AppColors.primary
+                                                          : Colors.transparent,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            6,
+                                                          ),
+                                                      border: Border.all(
+                                                        color: isChecked
+                                                            ? AppColors.primary
+                                                            : AppColors.border,
+                                                        width: 1.5,
+                                                      ),
+                                                    ),
+                                                    child: isChecked
+                                                        ? const Icon(
+                                                            Icons.check_rounded,
+                                                            size: 16,
+                                                            color: Colors.white,
+                                                          )
+                                                        : null,
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  Expanded(
+                                                    child: Text(
+                                                      service,
+                                                      style: TextStyle(
+                                                        fontSize: 14,
+                                                        fontWeight: isChecked
+                                                            ? FontWeight.w600
+                                                            : FontWeight.normal,
+                                                        color: isChecked
+                                                            ? AppColors
+                                                                  .textPrimary
+                                                            : AppColors
+                                                                  .textPrimary,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          );
+                                        }),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+
+                    // Bottom Confirm Button
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            offset: const Offset(0, -3),
+                            blurRadius: 10,
+                          ),
+                        ],
+                      ),
+                      child: SafeArea(
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              elevation: 0,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _selectedServices.clear();
+                                _selectedServices.addAll(tempSelected);
+                                if (selectedCategoryFilter != null) {
+                                  _selectedCategory = selectedCategoryFilter;
+                                } else if (_selectedCategory == null ||
+                                    _selectedCategory!.isEmpty) {
+                                  _selectedCategory =
+                                      _detectCategoryFromServices(
+                                        _selectedServices,
+                                      );
+                                }
+                                if (_skillsController.text.trim().isEmpty &&
+                                    _selectedServices.isNotEmpty) {
+                                  _skillsController.text = _selectedServices
+                                      .take(2)
+                                      .join(' · ');
+                                }
+                              });
+                              Navigator.pop(ctx);
+                            },
+                            child: Text(
+                              tempSelected.isEmpty
+                                  ? 'Done'
+                                  : 'Done (${tempSelected.length} Selected)',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
