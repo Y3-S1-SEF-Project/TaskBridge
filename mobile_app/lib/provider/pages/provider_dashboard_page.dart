@@ -144,3 +144,35 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
       }
     }
   }
+
+  Future<void> _acceptJob(BookingItem booking) async {
+    final isProposal = booking.bookingReference.startsWith('PR-');
+    final success = isProposal
+        ? await CoordinationApi.acceptProposal(
+            proposalReference: booking.bookingReference,
+            price: booking.price,
+            schedule: booking.schedule,
+          )
+        : await CoordinationApi.updateBookingStatus(
+            bookingReference: booking.bookingReference,
+            newStatus: 'Active',
+          );
+
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isProposal
+                ? 'Proposal #${booking.bookingReference} accepted! Appointment confirmed.'
+                : 'Job #${booking.bookingReference} moved to Active Jobs!',
+          ),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+      _loadBookings();
+    }
+  }
