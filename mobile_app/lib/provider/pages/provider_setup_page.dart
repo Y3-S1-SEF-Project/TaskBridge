@@ -1628,3 +1628,1308 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
       if (mounted) setState(() => _busy = false);
     }
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.s20,
+                vertical: AppSpacing.s16,
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - 32,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 480),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // ── Top Tag Row with "Do Later" ──
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _isExistingProvider
+                                  ? 'EDIT PROVIDER PROFILE'
+                                  : 'YOUR EXPERTISE, YOUR OPPORTUNITY',
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.1,
+                              ),
+                            ),
+                            if (_showDoLater)
+                              GestureDetector(
+                                onTap: _skipAndEnterProviderMode,
+                                child: const Text(
+                                  'DO LATER',
+                                  style: TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1.1,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.s4),
+
+                        // ── Title Row with Back Arrow ──
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _isExistingProvider
+                                    ? 'Edit your provider\nprofile'
+                                    : 'Set up your provider\nprofile',
+                                style: const TextStyle(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textPrimary,
+                                  letterSpacing: -0.5,
+                                  height: 1.2,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(AppIcons.arrowLeft),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.s20),
+
+                        // ── 0. Primary Trade Category ──
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Primary Trade Category',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            InkWell(
+                              onTap: _busy ? null : _openCategoryPicker,
+                              borderRadius: BorderRadius.circular(14),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: _selectedCategory != null
+                                        ? AppColors.primary
+                                        : AppColors.border,
+                                    width: _selectedCategory != null
+                                        ? 1.5
+                                        : 1.0,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.category_outlined,
+                                      color: _selectedCategory != null
+                                          ? AppColors.primary
+                                          : AppColors.textSecondary,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        _selectedCategory ??
+                                            'Select your primary trade category',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: _selectedCategory != null
+                                              ? FontWeight.w700
+                                              : FontWeight.normal,
+                                          color: _selectedCategory != null
+                                              ? AppColors.textPrimary
+                                              : AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ),
+                                    const Icon(
+                                      Icons.arrow_drop_down,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.s16),
+
+                        // ── 1. Skills Field ──
+                        AuthInput(
+                          label: 'Primary Skills',
+                          hint: 'e.g. Plumbing, Leak Detection, Home Repairs',
+                          controller: _skillsController,
+                          enabled: !_busy,
+                        ),
+                        const SizedBox(height: AppSpacing.s16),
+
+                        // ── 2. Services I Provide Section ──
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Text(
+                                      'Services I Provide',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    if (_selectedServices.isNotEmpty) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primaryLight,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          '${_selectedServices.length}',
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                const Text(
+                                  'Choose all tasks you are qualified to do',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            TextButton.icon(
+                              onPressed: _openServiceSelectionSheet,
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.primary,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                  side: const BorderSide(
+                                    color: AppColors.primary,
+                                    width: 1.2,
+                                  ),
+                                ),
+                              ),
+                              icon: const Icon(Icons.add_rounded, size: 18),
+                              label: const Text(
+                                'Add Service',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Selected Services Chips or Empty State
+                        if (_selectedServices.isEmpty)
+                          GestureDetector(
+                            onTap: _openServiceSelectionSheet,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 20,
+                                horizontal: 16,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.add_circle_outline_rounded,
+                                    color: AppColors.primary,
+                                    size: 20,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Tap "+ Add Service" to select services',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: AppColors.textSecondary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _selectedServices.map((service) {
+                              return Container(
+                                padding: const EdgeInsets.only(
+                                  left: 12,
+                                  top: 6,
+                                  bottom: 6,
+                                  right: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryLight.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      service,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _selectedServices.remove(service);
+                                        });
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.all(2),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: AppColors.primary.withValues(
+                                            alpha: 0.15,
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.close_rounded,
+                                          size: 14,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        const SizedBox(height: AppSpacing.s20),
+
+                        // ── 3. Provider Location & Coverage ──
+                        const Text(
+                          'Provider Location',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Your primary working location on Google Maps',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Google Maps Location Card with Embedded Live Mini Map
+                        Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Top info bar with location details & Change button
+                              Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primaryLight,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.location_on_rounded,
+                                        color: AppColors.primary,
+                                        size: 22,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _providerLocation?.shortName ??
+                                                'Select Base Location',
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.textPrimary,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            _providerLocation?.address ??
+                                                'Tap to pick on Google Maps',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    InkWell(
+                                      onTap: _pickLocationOnGoogleMaps,
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primaryLight,
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.map_rounded,
+                                              size: 14,
+                                              color: AppColors.primary,
+                                            ),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'Change',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.primary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              // Real Embedded Mini Map with dynamic service radius circle
+                              SizedBox(
+                                height: 180,
+                                child: Stack(
+                                  children: [
+                                    GoogleMap(
+                                      initialCameraPosition: CameraPosition(
+                                        target: LatLng(
+                                          _providerLocation?.latitude ?? 6.9271,
+                                          _providerLocation?.longitude ??
+                                              79.8612,
+                                        ),
+                                        zoom: _getZoomForRadius(
+                                          _selectedRadiusKm,
+                                        ),
+                                      ),
+                                      onMapCreated: (controller) {
+                                        _miniMapController = controller;
+                                      },
+                                      circles: {
+                                        if (_providerLocation != null)
+                                          Circle(
+                                            circleId: const CircleId(
+                                              'provider_radius_circle',
+                                            ),
+                                            center: LatLng(
+                                              _providerLocation!.latitude,
+                                              _providerLocation!.longitude,
+                                            ),
+                                            radius: _selectedRadiusKm * 1000.0,
+                                            fillColor: AppColors.primary
+                                                .withValues(alpha: 0.18),
+                                            strokeColor: AppColors.primary,
+                                            strokeWidth: 2,
+                                          ),
+                                      },
+                                      markers: {
+                                        if (_providerLocation != null)
+                                          Marker(
+                                            markerId: const MarkerId(
+                                              'provider_marker',
+                                            ),
+                                            position: LatLng(
+                                              _providerLocation!.latitude,
+                                              _providerLocation!.longitude,
+                                            ),
+                                            infoWindow: InfoWindow(
+                                              title:
+                                                  _providerLocation!.shortName,
+                                              snippet:
+                                                  'Coverage: $_selectedRadiusKm km',
+                                            ),
+                                          ),
+                                      },
+                                      zoomControlsEnabled: false,
+                                      myLocationButtonEnabled: false,
+                                      compassEnabled: false,
+                                      mapToolbarEnabled: false,
+                                      tiltGesturesEnabled: false,
+                                      rotateGesturesEnabled: false,
+                                    ),
+
+                                    // Floating Radius Badge on Map
+                                    Positioned(
+                                      top: 10,
+                                      left: 10,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 5,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.94,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(
+                                                alpha: 0.1,
+                                              ),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                              Icons.radar_rounded,
+                                              size: 14,
+                                              color: AppColors.primary,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              '$_selectedRadiusKm km Radius',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+
+                                    // Floating "Full Map" Button on Map
+                                    Positioned(
+                                      bottom: 10,
+                                      right: 10,
+                                      child: InkWell(
+                                        onTap: _pickLocationOnGoogleMaps,
+                                        borderRadius: BorderRadius.circular(20),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(
+                                              20,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(
+                                                  alpha: 0.15,
+                                                ),
+                                                blurRadius: 6,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.fullscreen_rounded,
+                                                size: 16,
+                                                color: AppColors.primary,
+                                              ),
+                                              SizedBox(width: 4),
+                                              Text(
+                                                'Full Map',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: AppColors.primary,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.s16),
+
+                        // Service Radius Selector
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Service Radius',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                Text(
+                                  'Within $_selectedRadiusKm km',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [5, 10, 15, 25, 50].map((radius) {
+                                final isSelected = _selectedRadiusKm == radius;
+                                return Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 3,
+                                    ),
+                                    child: InkWell(
+                                      onTap: () => _onRadiusSelected(radius),
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 9,
+                                        ),
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? AppColors.primary
+                                              : AppColors.surface,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          border: Border.all(
+                                            color: isSelected
+                                                ? AppColors.primary
+                                                : AppColors.border,
+                                            width: isSelected ? 1.5 : 1,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          '$radius km',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: isSelected
+                                                ? FontWeight.w700
+                                                : FontWeight.w500,
+                                            color: isSelected
+                                                ? Colors.white
+                                                : AppColors.textPrimary,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryLight.withValues(
+                                  alpha: 0.4,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.radar_rounded,
+                                    size: 16,
+                                    color: AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'Receiving tasks within $_selectedRadiusKm km of ${_providerLocation?.shortName ?? "your location"}',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.s20),
+
+                        // ── 4. Experience Field ──
+                        AuthInput(
+                          label: 'Experience (years)',
+                          hint: 'e.g. 5',
+                          controller: _experienceController,
+                          enabled: !_busy,
+                        ),
+
+                        // ── 5. Upload Certifications Card ──
+                        InkWell(
+                          onTap: _uploadingCert ? null : _pickAndUploadCert,
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color:
+                                  _certificationUrl != null &&
+                                      _certificationUrl!.isNotEmpty
+                                  ? AppColors.primaryLight.withValues(
+                                      alpha: 0.3,
+                                    )
+                                  : AppColors.surface,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color:
+                                    _certificationUrl != null &&
+                                        _certificationUrl!.isNotEmpty
+                                    ? AppColors.primary
+                                    : AppColors.border,
+                                width:
+                                    _certificationUrl != null &&
+                                        _certificationUrl!.isNotEmpty
+                                    ? 1.5
+                                    : 1,
+                              ),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 20,
+                              horizontal: 16,
+                            ),
+                            child: _uploadingCert
+                                ? const Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        SizedBox.square(
+                                          dimension: 26,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                  AppColors.primary,
+                                                ),
+                                          ),
+                                        ),
+                                        SizedBox(height: 10),
+                                        Text(
+                                          'Uploading document to Cloudflare R2…',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : Row(
+                                    children: [
+                                      Container(
+                                        width: 52,
+                                        height: 52,
+                                        decoration: BoxDecoration(
+                                          color:
+                                              _certificationUrl != null &&
+                                                  _certificationUrl!.isNotEmpty
+                                              ? AppColors.primary.withValues(
+                                                  alpha: 0.12,
+                                                )
+                                              : AppColors.background,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          _certificationUrl != null &&
+                                                  _certificationUrl!.isNotEmpty
+                                              ? (_certFileName
+                                                            ?.toLowerCase()
+                                                            .endsWith('.pdf') ==
+                                                        true
+                                                    ? Icons
+                                                          .picture_as_pdf_rounded
+                                                    : Icons.task_alt_rounded)
+                                              : Icons.camera_alt_outlined,
+                                          size: 28,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              _certificationUrl != null &&
+                                                      _certificationUrl!
+                                                          .isNotEmpty
+                                                  ? (_certFileName ??
+                                                        'Certificate uploaded')
+                                                  : 'Upload certifications',
+                                              style: const TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              _certificationUrl != null &&
+                                                      _certificationUrl!
+                                                          .isNotEmpty
+                                                  ? 'Attached · Tap to replace or add more'
+                                                  : 'PDF, DOC or photo · Optional',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                color:
+                                                    _certificationUrl != null &&
+                                                        _certificationUrl!
+                                                            .isNotEmpty
+                                                    ? AppColors.primary
+                                                    : AppColors.textSecondary,
+                                                fontWeight:
+                                                    _certificationUrl != null &&
+                                                        _certificationUrl!
+                                                            .isNotEmpty
+                                                    ? FontWeight.w600
+                                                    : FontWeight.normal,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (_certificationUrl != null &&
+                                          _certificationUrl!.isNotEmpty)
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.close_rounded,
+                                            size: 20,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                          tooltip: 'Remove certification',
+                                          onPressed: () {
+                                            setState(() {
+                                              _certificationUrl = null;
+                                              _certFileName = null;
+                                            });
+                                          },
+                                        ),
+                                    ],
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.s16),
+
+                        // ── 6. Availability & Working Hours Section ──
+                        const Text(
+                          'Availability & Working Hours',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Set your operating days and daily working hours (AM to PM)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Working Days Presets
+                        SizedBox(
+                          height: 38,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            children:
+                                [
+                                  'Mon–Sat',
+                                  'Mon–Fri',
+                                  'Everyday',
+                                  'Weekends',
+                                ].map((days) {
+                                  final isSel = _selectedDays == days;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          _selectedDays = days;
+                                          _updateAvailabilityText();
+                                        });
+                                      },
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isSel
+                                              ? AppColors.primary
+                                              : AppColors.surface,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          border: Border.all(
+                                            color: isSel
+                                                ? AppColors.primary
+                                                : AppColors.border,
+                                            width: isSel ? 1.5 : 1,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          days,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: isSel
+                                                ? FontWeight.w700
+                                                : FontWeight.w500,
+                                            color: isSel
+                                                ? Colors.white
+                                                : AppColors.textPrimary,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Time Pickers (From AM to To PM)
+                        Row(
+                          children: [
+                            // Start Time Card (AM)
+                            Expanded(
+                              child: InkWell(
+                                onTap: _pickStartTime,
+                                borderRadius: BorderRadius.circular(14),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surface,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: AppColors.border),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Row(
+                                        children: [
+                                          Icon(
+                                            Icons.wb_sunny_outlined,
+                                            size: 14,
+                                            color: AppColors.primary,
+                                          ),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'FROM (AM)',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.textSecondary,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            _formatTimeOfDay(_startTime),
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w800,
+                                              color: AppColors.textPrimary,
+                                            ),
+                                          ),
+                                          const Icon(
+                                            Icons.keyboard_arrow_down_rounded,
+                                            size: 18,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primaryLight,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.arrow_forward_rounded,
+                                  size: 14,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                            // End Time Card (PM)
+                            Expanded(
+                              child: InkWell(
+                                onTap: _pickEndTime,
+                                borderRadius: BorderRadius.circular(14),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surface,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: AppColors.border),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Row(
+                                        children: [
+                                          Icon(
+                                            Icons.nightlight_round_outlined,
+                                            size: 14,
+                                            color: AppColors.primary,
+                                          ),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'TO (PM)',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.textSecondary,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            _formatTimeOfDay(_endTime),
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w800,
+                                              color: AppColors.textPrimary,
+                                            ),
+                                          ),
+                                          const Icon(
+                                            Icons.keyboard_arrow_down_rounded,
+                                            size: 18,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Active Availability Badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryLight.withValues(
+                              alpha: 0.4,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.schedule_rounded,
+                                size: 16,
+                                color: AppColors.primary,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Working hours: $_selectedDays · ${_formatTimeOfDay(_startTime)} – ${_formatTimeOfDay(_endTime)}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.s20),
+
+                        // ── 7. Standard Hourly Rate (LKR) ──
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: const [
+                                Text(
+                                  'Standard Hourly Rate (LKR)',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                Text(
+                                  'LKR / hr',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Set your baseline hourly rate. TaskBridge AI uses this to match you with customer job budgets.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                                height: 1.35,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            AuthInput(
+                              label: 'Rate per hour (LKR)',
+                              hint: 'e.g. 2500',
+                              controller: _hourlyRateController,
+                              enabled: !_busy,
+                              keyboardType: TextInputType.number,
+                            ),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [1500, 2000, 2500, 3500, 5000].map((
+                                preset,
+                              ) {
+                                final isSelected =
+                                    _hourlyRateController.text.trim() ==
+                                    preset.toString();
+                                return InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _hourlyRateController.text = preset
+                                          .toString();
+                                    });
+                                  },
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? AppColors.primary
+                                          : AppColors.primaryLight.withValues(
+                                              alpha: 0.5,
+                                            ),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? AppColors.primary
+                                            : AppColors.primary.withValues(
+                                                alpha: 0.25,
+                                              ),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Rs. $preset',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : AppColors.primary,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.s20),
+
+                        // ── 8. Bio Field (Enlarged Multi-line Text Area) ──
+                        AuthInput(
+                          label: 'Bio (Optional)',
+                          hint:
+                              'Tell clients about your professional experience, work guarantees, tools, and background...',
+                          controller: _bioController,
+                          enabled: !_busy,
+                          minLines: 4,
+                          maxLines: 6,
+                        ),
+
+                        if (_error != null) ...[
+                          AuthError(_error),
+                          const SizedBox(height: 12),
+                        ],
+
+                        const SizedBox(height: AppSpacing.s16),
+
+                        // ── Finish Setup Button ──
+                        AppButton(
+                          label: _isExistingProvider
+                              ? 'Save Changes'
+                              : 'Save & Continue',
+                          loading: _busy,
+                          onPressed: _submit,
+                        ),
+                        const SizedBox(height: AppSpacing.s16),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
