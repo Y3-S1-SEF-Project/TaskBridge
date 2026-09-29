@@ -294,3 +294,21 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
       ],
     );
   }
+
+  bool _isRequestingQuotes = false;
+
+  List<MatchedProvider> _filterNonSelfProviders(List<MatchedProvider> list) {
+    if (widget.user == null) return list;
+    final currentUserId = widget.user!.id.toLowerCase();
+    final currentName = widget.user!.fullName.trim().toLowerCase();
+
+    return list.where((p) {
+      if (p.userId.isNotEmpty && p.userId.toLowerCase() == currentUserId) {
+        return false;
+      }
+      if (p.fullName.trim().toLowerCase() == currentName) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
