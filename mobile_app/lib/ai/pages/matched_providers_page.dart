@@ -433,3 +433,28 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
                         ],
                       ),
                       const SizedBox(height: AppSpacing.s12),
+
+                      // Header Tag
+                      Text(
+                        'AI MATCHING',
+                        style: TextStyle(
+                          color: palette.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.s8),
+
+                      // Screen Title
+                      Text(
+                        'Your provider shortlist',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          color: palette.text,
+                          height: 1.2,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.s20),
