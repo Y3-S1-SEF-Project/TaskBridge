@@ -4,6 +4,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TaskBridge.Api.Data;
 using backend.Api.AI;
+[HttpGet("all")]
+public async Task<IActionResult> GetAllRequests(
+    [FromQuery] string? status,
+    [FromQuery] string? category,
+    [FromQuery] string? search,
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 20,
+    CancellationToken ct = default)
 
 namespace TaskBridge.Api.Requests;
 
