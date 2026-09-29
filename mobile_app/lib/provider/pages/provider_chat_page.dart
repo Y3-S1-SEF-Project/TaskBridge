@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../auth/data/auth_api.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
@@ -20,20 +22,44 @@ class _ProviderChatPageState extends State<ProviderChatPage> {
   List<ChatConversationModel> _conversations = [];
   List<ChatConversationModel> _filteredConversations = [];
   bool _isLoading = true;
+  StreamSubscription<ChatMessageModel>? _messageSub;
+  StreamSubscription<void>? _refreshSub;
 
   @override
   void initState() {
     super.initState();
     _loadConversations();
     _searchController.addListener(_filterChats);
+    _initLiveSync();
+  }
+
+  void _initLiveSync() async {
+    await _chatService.initSignalR();
+    _messageSub = _chatService.messageStream.listen((_) {
+      if (mounted) _loadConversations();
+    });
+    _refreshSub = _chatService.refreshConversationsStream.listen((_) {
+      if (mounted) _loadConversations();
+    });
   }
 
   Future<void> _loadConversations() async {
-    final convs = await _chatService.fetchConversations();
+    final user = await AuthApi.getCachedUser();
+    final convs = await _chatService.fetchConversations(role: 'provider');
     if (mounted) {
+      final myId = user?.id ?? '';
+      // Ensure only chats where the user is acting as a provider are shown
+      // Customer-mode chats are strictly excluded from provider mode
+      final providerConvs = convs.where((c) {
+        if (myId.isNotEmpty) {
+          return c.customerId != myId;
+        }
+        return true;
+      }).toList();
+
       setState(() {
-        _conversations = convs;
-        _filteredConversations = convs;
+        _conversations = providerConvs;
+        _filteredConversations = providerConvs;
         _isLoading = false;
       });
     }
@@ -56,6 +82,8 @@ class _ProviderChatPageState extends State<ProviderChatPage> {
 
   @override
   void dispose() {
+    _messageSub?.cancel();
+    _refreshSub?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -254,7 +282,9 @@ class _ProviderChatPageState extends State<ProviderChatPage> {
                               Divider(height: 1, indent: 72, color: p.border),
                           itemBuilder: (context, index) {
                             final conv = _filteredConversations[index];
-                            final name = conv.customerName;
+                            final name = conv.customerName.isNotEmpty
+                                ? conv.customerName
+                                : 'Customer';
                             final initial = name.isNotEmpty
                                 ? name[0].toUpperCase()
                                 : 'C';
@@ -264,7 +294,7 @@ class _ProviderChatPageState extends State<ProviderChatPage> {
                               onTap: () => _openChatDetail(
                                 conversationId: conv.id,
                                 customerId: conv.customerId,
-                                customerName: conv.customerName,
+                                customerName: name,
                                 bookingRef: conv.bookingReference,
                               ),
                               borderRadius: BorderRadius.circular(

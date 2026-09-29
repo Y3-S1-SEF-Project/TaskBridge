@@ -39,17 +39,38 @@ public sealed class ChatController : ControllerBase
     }
 
     /// <summary>
-    /// Returns all conversations where current user is Customer or Provider.
+    /// Returns conversations for current user filtered by role ('customer' or 'provider').
     /// </summary>
     [HttpGet("conversations")]
-    public async Task<IActionResult> GetConversations(CancellationToken ct)
+    public async Task<IActionResult> GetConversations([FromQuery] string? role, CancellationToken ct)
     {
         var userId = CurrentUserId;
         if (userId == null) return Unauthorized();
 
-        var convs = await _db.ChatConversations
-            .AsNoTracking()
-            .Where(c => c.CustomerId == userId.Value || c.ProviderId == userId.Value)
+        var providerProfile = await _db.Providers.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.UserId == userId.Value, ct);
+        var providerProfileId = providerProfile?.Id;
+
+        IQueryable<ChatConversation> query = _db.ChatConversations.AsNoTracking();
+
+        if (string.Equals(role, "customer", StringComparison.OrdinalIgnoreCase))
+        {
+            // Customer mode: user is acting as customer.
+            // Exclude conversations where user is the provider.
+            query = query.Where(c => c.CustomerId == userId.Value && c.ProviderId != userId.Value && (!providerProfileId.HasValue || c.ProviderId != providerProfileId.Value));
+        }
+        else if (string.Equals(role, "provider", StringComparison.OrdinalIgnoreCase))
+        {
+            // Provider mode: user is acting as provider.
+            // Exclude conversations where user is the customer.
+            query = query.Where(c => (c.ProviderId == userId.Value || (providerProfileId.HasValue && c.ProviderId == providerProfileId.Value)) && c.CustomerId != userId.Value);
+        }
+        else
+        {
+            query = query.Where(c => c.CustomerId == userId.Value || c.ProviderId == userId.Value || (providerProfileId.HasValue && c.ProviderId == providerProfileId.Value));
+        }
+
+        var convs = await query
             .OrderByDescending(c => c.LastMessageAt)
             .Select(c => new
             {
@@ -123,6 +144,9 @@ public sealed class ChatController : ControllerBase
 
         if (customerId == Guid.Empty || providerId == Guid.Empty)
             return BadRequest(new { error = "Unable to determine customer and provider for this conversation." });
+
+        if (customerId == providerId)
+            return BadRequest(new { error = "Cannot create a conversation with yourself." });
 
         // Search for existing conversation
         var existing = await _db.ChatConversations
