@@ -751,3 +751,70 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
       ),
     );
   }
+
+  Widget _buildProviderCard({
+    required MatchedProvider provider,
+    required AppPalette palette,
+  }) {
+    final locationText = widget.jobPlan.location ?? 'Colombo 05';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: palette.border, width: 1.0),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Top Banner: "Recommended by TaskBridge AI" + Match Score ──
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: palette.primary.withValues(alpha: 0.10),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(17),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.auto_awesome, color: palette.primary, size: 16),
+                const SizedBox(width: 8),
+                Text(
+                  'Recommended by TaskBridge AI',
+                  style: TextStyle(
+                    color: palette.primary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: palette.primary,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${provider.matchScore}% Match',
+                    style: TextStyle(
+                      color: palette.onPrimary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
