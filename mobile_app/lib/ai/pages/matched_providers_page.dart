@@ -659,3 +659,52 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
       ),
     );
   }
+
+  void _navigateToDetail(MatchedProvider provider) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProviderDetailPage(provider: provider.toProviderItem()),
+      ),
+    );
+  }
+
+  Future<void> _callProvider(BuildContext context, String phone) async {
+    final rawPhone = phone.trim();
+    if (rawPhone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Phone number not available for this specialist.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final cleaned = rawPhone.replaceAll(RegExp(r'[^\d+]'), '');
+    final uri = Uri(scheme: 'tel', path: cleaned);
+
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open dialer for $rawPhone'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error launching dialer for $rawPhone'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
