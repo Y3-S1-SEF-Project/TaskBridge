@@ -32,9 +32,7 @@ public class ServiceRequestsController : ControllerBase
         _planningService = planningService;
         _logger = logger;
     }
-    /// <summary>
-/// 3. Get all service requests for the current customer with optional status filtering.
-/// </summary>
+
 [HttpGet("my")]
 public async Task<IActionResult> GetMyRequests(
     [FromQuery] Guid? customerId,
@@ -90,9 +88,7 @@ public async Task<IActionResult> GetMyRequests(
 }
 
 }
-/// <summary>
-/// 2. Get a single service request with its AI breakdown and subtask checklist by ID.
-/// </summary>
+
 [HttpGet("{id:guid}")]
 public async Task<IActionResult> GetRequestById(Guid id, CancellationToken ct)
 {
