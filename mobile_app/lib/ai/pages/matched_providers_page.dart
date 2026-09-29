@@ -1,0 +1,11 @@
+import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../auth/data/auth_models.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_palette.dart';
+import '../../core/theme/app_spacing.dart';
+import '../models/matching_models.dart';
+import '../models/planning_models.dart';
+import '../services/coordination_api.dart';
+import 'quotation_proposal_page.dart';
+import '../../home/pages/provider_detail_page.dart';
