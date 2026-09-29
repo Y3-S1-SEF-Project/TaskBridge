@@ -18,3 +18,13 @@ public sealed class CreateServiceRequestDto
     public string? CustomerName { get; set; }
     public string? CustomerPhone { get; set; }
 }
+
+public sealed class SubmitClarificationDto
+{
+    public string? Location { get; set; }
+    public string? LocationAddress { get; set; }
+    public string? ScheduledDate { get; set; }
+    public string? ScheduledTime { get; set; }
+    public decimal? Budget { get; set; }
+    public Dictionary<string, string>? Answers { get; set; }
+}
