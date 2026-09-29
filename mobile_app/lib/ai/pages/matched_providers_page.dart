@@ -523,3 +523,139 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.s24),
+
+                      // ── Section Title: "1 suitable provider" or "X suitable providers" ──
+                      Text(
+                        providers.isEmpty
+                            ? 'No providers found'
+                            : providers.length == 1
+                            ? '1 suitable provider'
+                            : '${providers.length} suitable providers',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: palette.text,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.s16),
+
+                      // ── Provider Cards (ProviderCard/AI from Figma) or Empty State ──
+                      if (providers.isEmpty)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.s20,
+                            vertical: AppSpacing.s24,
+                          ),
+                          decoration: BoxDecoration(
+                            color: palette.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: palette.border),
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.search_off_rounded,
+                                size: 44,
+                                color: palette.muted,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'No providers currently available',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: palette.text,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'No providers currently available for this category in your area.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: palette.muted,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        ...providers.map((provider) {
+                          return Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: AppSpacing.s16,
+                            ),
+                            child: _buildProviderCard(
+                              provider: provider,
+                              palette: palette,
+                            ),
+                          );
+                        }),
+                      const SizedBox(height: AppSpacing.s20),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── Sticky Bottom Button: "Request Quotations" ──
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.s20,
+                  vertical: AppSpacing.s16,
+                ),
+                decoration: BoxDecoration(
+                  color: palette.background,
+                  border: Border(
+                    top: BorderSide(color: palette.border, width: 0.8),
+                  ),
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: palette.primary,
+                      foregroundColor: palette.onPrimary,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: _isRequestingQuotes
+                        ? null
+                        : providers.isEmpty
+                        ? () => _handleBack(context, true)
+                        : _onRequestQuotations,
+                    child: _isRequestingQuotes
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                        : Text(
+                            providers.isEmpty
+                                ? 'Back to Home'
+                                : 'Request Quotations',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
