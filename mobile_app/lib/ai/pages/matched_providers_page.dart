@@ -458,3 +458,68 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.s20),
+
+                      // ── Job Summary Card (Matches Figma C20 & C19) ──
+                      Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: palette.surface,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: palette.border, width: 1),
+                        ),
+                        padding: const EdgeInsets.all(AppSpacing.s20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.jobPlan.serviceTitle,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: palette.text,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              widget.jobPlan.description.isNotEmpty
+                                  ? widget.jobPlan.description
+                                  : 'Repair the leaking kitchen tap and test for leaks.',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: palette.muted,
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Location Row
+                            _buildDetailRow(
+                              palette: palette,
+                              icon: Icons.location_on_outlined,
+                              title: widget.jobPlan.location ?? 'Colombo 05',
+                              subtitle:
+                                  widget.jobPlan.locationAddress ??
+                                  '24 Park Road',
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Calendar Row
+                            _buildDetailRow(
+                              palette: palette,
+                              icon: Icons.calendar_today_outlined,
+                              title: widget.jobPlan.scheduledDate,
+                              subtitle: widget.jobPlan.scheduledTime,
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Budget Row
+                            _buildDetailRow(
+                              palette: palette,
+                              icon: Icons.account_balance_wallet_outlined,
+                              title: widget.jobPlan.budgetDisplay,
+                              subtitle: null,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.s24),
