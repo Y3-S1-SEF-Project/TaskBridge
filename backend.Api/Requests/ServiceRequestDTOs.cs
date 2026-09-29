@@ -40,36 +40,22 @@ public sealed class ServiceRequestResponseDto
     public Guid CustomerId { get; set; }
     public string CustomerName { get; set; } = string.Empty;
     public string CustomerPhone { get; set; } = string.Empty;
-
     public string Title { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-
     public string Location { get; set; } = string.Empty;
     public string? LocationAddress { get; set; }
-
     public decimal? EstimatedBudget { get; set; }
-
     public string ScheduledDate { get; set; } = string.Empty;
     public string ScheduledTime { get; set; } = string.Empty;
-
     public string Status { get; set; } = string.Empty;
-
     public List<string> MediaUrls { get; set; } = [];
-
     public JobPlanDetails? AiPlan { get; set; }
-
     public List<string> AcceptanceChecklist { get; set; } = [];
-
     public string? ClarificationQuestion { get; set; }
-
     public bool IsLocationMissing { get; set; }
-
     public List<string> MissingFields { get; set; } = [];
-
     public string? CancellationReason { get; set; }
-
     public DateTimeOffset CreatedAt { get; set; }
-
     public DateTimeOffset? UpdatedAt { get; set; }
 }
