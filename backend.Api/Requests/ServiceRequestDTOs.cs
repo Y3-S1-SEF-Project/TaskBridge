@@ -28,3 +28,8 @@ public sealed class SubmitClarificationDto
     public decimal? Budget { get; set; }
     public Dictionary<string, string>? Answers { get; set; }
 }
+
+public sealed class CancelServiceRequestDto
+{
+    public string Reason { get; set; } = string.Empty;
+}
