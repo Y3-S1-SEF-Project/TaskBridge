@@ -359,3 +359,77 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
       Navigator.of(context).pop();
     }
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final providers = _filterNonSelfProviders(
+      widget.matchingResponse.matchedProviders,
+    );
+
+    return PopScope(
+      canPop: providers.isNotEmpty,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      },
+      child: Scaffold(
+        backgroundColor: palette.background,
+        body: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.s20,
+                    vertical: AppSpacing.s12,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Top Bar (Back button & AI Trace)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          InkWell(
+                            onTap: () =>
+                                _handleBack(context, providers.isEmpty),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.all(4),
+                              child: Icon(
+                                Icons.arrow_back,
+                                color: palette.text,
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                          ActionChip(
+                            avatar: Icon(
+                              Icons.auto_awesome,
+                              color: palette.primary,
+                              size: 16,
+                            ),
+                            label: Text(
+                              'AI Trace',
+                              style: TextStyle(
+                                color: palette.primary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
+                            backgroundColor: palette.primary.withValues(
+                              alpha: 0.1,
+                            ),
+                            side: BorderSide(
+                              color: palette.primary.withValues(alpha: 0.2),
+                            ),
+                            onPressed: () {
+                              if (providers.isNotEmpty) {
+                                _showAiBreakdown(providers.first);
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.s12),
