@@ -708,3 +708,46 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
       }
     }
   }
+
+  Widget _buildProviderAvatar(
+    MatchedProvider provider, {
+    double dimension = 52,
+  }) {
+    final photoUrl = provider.profilePhotoUrl;
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(dimension / 3),
+        child: Image.network(
+          photoUrl,
+          width: dimension,
+          height: dimension,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _buildFallbackAvatar(provider, dimension),
+        ),
+      );
+    }
+    return _buildFallbackAvatar(provider, dimension);
+  }
+
+  Widget _buildFallbackAvatar(MatchedProvider provider, double dimension) {
+    final initial = provider.fullName.isNotEmpty
+        ? provider.fullName.substring(0, 1).toUpperCase()
+        : 'P';
+    return Container(
+      width: dimension,
+      height: dimension,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F5E9),
+        borderRadius: BorderRadius.circular(dimension / 3),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: TextStyle(
+          color: const Color(0xFF2E7D32),
+          fontWeight: FontWeight.w800,
+          fontSize: dimension * 0.35,
+        ),
+      ),
+    );
+  }
