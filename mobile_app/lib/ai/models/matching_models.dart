@@ -23,3 +23,38 @@ class ScoreBreakdown {
     );
   }
 }
+
+class MatchedProvider {
+  final String providerId;
+  final String userId;
+  final String fullName;
+  final String? profilePhotoUrl;
+  final String phone;
+  final String category;
+  final String? skills;
+  final String? serviceAreas;
+  final double distanceKm;
+  final double hourlyRate;
+  final double rating;
+  final int reviewCount;
+  final int matchScore; // e.g. 98
+  final String aiMatchReason;
+  final ScoreBreakdown scoreBreakdown;
+
+  const MatchedProvider({
+    required this.providerId,
+    required this.userId,
+    required this.fullName,
+    this.profilePhotoUrl,
+    required this.phone,
+    required this.category,
+    this.skills,
+    this.serviceAreas,
+    required this.distanceKm,
+    required this.hourlyRate,
+    required this.rating,
+    required this.reviewCount,
+    required this.matchScore,
+    required this.aiMatchReason,
+    required this.scoreBreakdown,
+  });
