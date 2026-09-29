@@ -58,3 +58,27 @@ class MatchedProvider {
     required this.aiMatchReason,
     required this.scoreBreakdown,
   });
+
+  factory MatchedProvider.fromJson(Map<String, dynamic> json) {
+    return MatchedProvider(
+      providerId: json['providerId'] as String? ?? '',
+      userId: json['userId'] as String? ?? '',
+      fullName: json['fullName'] as String? ?? 'TaskBridge Specialist',
+      profilePhotoUrl: json['profilePhotoUrl'] as String?,
+      phone: json['phone'] as String? ?? '',
+      category: json['category'] as String? ?? 'General',
+      skills: json['skills'] as String?,
+      serviceAreas: json['serviceAreas'] as String?,
+      distanceKm: (json['distanceKm'] as num?)?.toDouble() ?? 2.4,
+      hourlyRate: (json['hourlyRate'] as num?)?.toDouble() ?? 2500.0,
+      rating: (json['rating'] as num?)?.toDouble() ?? 4.8,
+      reviewCount: json['reviewCount'] as int? ?? 12,
+      matchScore: json['matchScore'] as int? ?? 90,
+      aiMatchReason:
+          json['aiMatchReason'] as String? ??
+          'Matched based on expertise and proximity to your location.',
+      scoreBreakdown: ScoreBreakdown.fromJson(
+        json['scoreBreakdown'] as Map<String, dynamic>? ?? {},
+      ),
+    );
+  }
