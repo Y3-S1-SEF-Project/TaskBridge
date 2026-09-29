@@ -24,6 +24,62 @@ public class ServiceRequestsController : ControllerBase
         _planningService = planningService;
         _logger = logger;
     }
+    /// <summary>
+/// 3. Get all service requests for the current customer with optional status filtering.
+/// </summary>
+[HttpGet("my")]
+public async Task<IActionResult> GetMyRequests(
+    [FromQuery] Guid? customerId,
+    [FromQuery] string? status,
+    [FromQuery] string? category,
+    CancellationToken ct)
+{
+    try
+    {
+        var targetCustomerId = GetCurrentUserId() ?? customerId;
+
+        if (!targetCustomerId.HasValue)
+        {
+            return BadRequest(new
+            {
+                message = "CustomerId is required to retrieve customer requests."
+            });
+        }
+
+        var query = _db.ServiceRequests
+            .AsNoTracking()
+            .Where(x => x.CustomerId == targetCustomerId.Value);
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            query = query.Where(x => x.Status.ToLower() == status.ToLower());
+        }
+
+        if (!string.IsNullOrWhiteSpace(category))
+        {
+            query = query.Where(x => x.Category.ToLower() == category.ToLower());
+        }
+
+        var list = await query
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync(ct);
+
+        var result = list
+            .Select(x => MapToResponse(x))
+            .ToList();
+
+        return Ok(result);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error fetching customer service requests");
+
+        return StatusCode(500, new
+        {
+            message = "An error occurred while fetching your service requests."
+        });
+    }
+}
 
 }
 /// <summary>
