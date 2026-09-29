@@ -82,3 +82,21 @@ class MatchedProvider {
       ),
     );
   }
+
+  ProviderItem toProviderItem() {
+    return ProviderItem(
+      id: providerId,
+      userId: userId,
+      fullName: fullName,
+      profilePhotoUrl: profilePhotoUrl,
+      phone: phone,
+      category: category,
+      skills: skills,
+      serviceAreas: serviceAreas,
+      hourlyRate: hourlyRate,
+      rating: rating,
+      reviewCount: reviewCount,
+      distanceKm: distanceKm,
+    );
+  }
+}
