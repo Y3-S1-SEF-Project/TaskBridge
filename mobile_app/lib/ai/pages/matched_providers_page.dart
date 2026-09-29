@@ -312,3 +312,42 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
       return true;
     }).toList();
   }
+
+  Future<void> _onRequestQuotations() async {
+    setState(() => _isRequestingQuotes = true);
+
+    try {
+      final validCandidates = _filterNonSelfProviders(
+        widget.matchingResponse.matchedProviders,
+      );
+      final proposal = await CoordinationApi.evaluateQuotations(
+        jobPlan: widget.jobPlan,
+        candidateProviders: validCandidates,
+        customerId: widget.user?.id,
+        customerName: widget.user?.fullName,
+      );
+
+      if (!mounted) return;
+      setState(() => _isRequestingQuotes = false);
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => QuotationProposalPage(
+            jobPlan: widget.jobPlan,
+            proposalResponse: proposal,
+            user: widget.user,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isRequestingQuotes = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error evaluating quotations: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
