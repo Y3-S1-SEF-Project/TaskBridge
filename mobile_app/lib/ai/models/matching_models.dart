@@ -119,3 +119,21 @@ class MatchingResponse {
     required this.tokensUsed,
     required this.model,
   });
+
+  factory MatchingResponse.fromJson(Map<String, dynamic> json) {
+    final rawProviders = json['matchedProviders'] as List<dynamic>? ?? [];
+    final list = rawProviders
+        .map((p) => MatchedProvider.fromJson(p as Map<String, dynamic>))
+        .toList();
+
+    return MatchingResponse(
+      success: json['success'] as bool? ?? true,
+      jobPlan: JobPlan.fromJson(json['jobPlan'] as Map<String, dynamic>? ?? {}),
+      matchedProviders: list,
+      candidatePoolCount: json['candidatePoolCount'] as int? ?? list.length,
+      latencyMs: json['latencyMs'] as int? ?? 0,
+      tokensUsed: json['tokensUsed'] as int? ?? 0,
+      model: json['model'] as String? ?? 'gpt-4o-mini',
+    );
+  }
+}
