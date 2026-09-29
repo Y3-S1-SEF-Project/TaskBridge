@@ -26,3 +26,35 @@ public class ServiceRequestsController : ControllerBase
     }
 
 }
+/// <summary>
+/// 2. Get a single service request with its AI breakdown and subtask checklist by ID.
+/// </summary>
+[HttpGet("{id:guid}")]
+public async Task<IActionResult> GetRequestById(Guid id, CancellationToken ct)
+{
+    try
+    {
+        var entity = await _db.ServiceRequests
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, ct);
+
+        if (entity == null)
+        {
+            return NotFound(new
+            {
+                message = $"Service request with ID '{id}' was not found."
+            });
+        }
+
+        return Ok(MapToResponse(entity));
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error fetching service request {RequestId}", id);
+
+        return StatusCode(500, new
+        {
+            message = "An error occurred while retrieving the service request."
+        });
+    }
+}
