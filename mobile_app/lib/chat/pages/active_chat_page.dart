@@ -72,6 +72,7 @@ class _ActiveChatPageState extends State<ActiveChatPage> {
     // Listen for live messages
     _messageSub = _chatService.messageStream.listen((newMsg) {
       if (newMsg.conversationId == widget.conversationId && mounted) {
+        final myId = _currentUser?.id ?? '';
         setState(() {
           // Avoid duplicate messages if already present
           if (!_messages.any((m) => m.id == newMsg.id)) {
@@ -79,7 +80,10 @@ class _ActiveChatPageState extends State<ActiveChatPage> {
           }
         });
         _scrollToBottom();
-        _chatService.markAsRead(widget.conversationId);
+        // Only mark as read if the incoming message is from the other person
+        if (!newMsg.isSender(myId)) {
+          _chatService.markAsRead(widget.conversationId);
+        }
       }
     });
 
@@ -91,14 +95,20 @@ class _ActiveChatPageState extends State<ActiveChatPage> {
       }
     });
 
-    // Listen for real-time read receipts (instant double tick)
+    // Listen for real-time read receipts (instant double tick when the OTHER party reads)
     _readReceiptSub = _chatService.readReceiptStream.listen((data) {
       final convId = data['conversationId']?.toString();
-      if (convId == widget.conversationId && mounted) {
-        final myId = _currentUser?.id ?? '';
+      final readBy = data['readBy']?.toString().toLowerCase();
+      final myId = (_currentUser?.id ?? '').toLowerCase();
+
+      // Only update my sent messages to double-tick if the OTHER person read them
+      if (convId == widget.conversationId &&
+          readBy != null &&
+          readBy != myId &&
+          mounted) {
         setState(() {
           _messages = _messages.map((m) {
-            if (m.isSender(myId)) {
+            if (m.isSender(_currentUser?.id ?? '')) {
               return m.copyWith(isRead: true);
             }
             return m;
@@ -584,34 +594,44 @@ class _ActiveChatPageState extends State<ActiveChatPage> {
       child: Align(
         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
+          margin: const EdgeInsets.only(bottom: 10),
           constraints: BoxConstraints(
             maxWidth: MediaQuery.of(context).size.width * 0.75,
           ),
           decoration: BoxDecoration(
-            color: isMe ? p.primary : p.pillBackground,
+            gradient: isMe
+                ? LinearGradient(
+                    colors: [p.primary, p.primary.withValues(alpha: 0.90)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            color: isMe ? null : p.surface,
+            border: isMe
+                ? null
+                : Border.all(color: p.border.withValues(alpha: 0.65), width: 1),
             borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(16),
-              topRight: const Radius.circular(16),
+              topLeft: const Radius.circular(18),
+              topRight: const Radius.circular(18),
               bottomLeft: isMe
-                  ? const Radius.circular(16)
+                  ? const Radius.circular(18)
                   : const Radius.circular(4),
               bottomRight: isMe
                   ? const Radius.circular(4)
-                  : const Radius.circular(16),
+                  : const Radius.circular(18),
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
+                color: isMe
+                    ? p.primary.withValues(alpha: 0.22)
+                    : Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
           child: Column(
-            crossAxisAlignment: isMe
-                ? CrossAxisAlignment.end
-                : CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Image content
               if (msg.isImage &&
@@ -621,7 +641,7 @@ class _ActiveChatPageState extends State<ActiveChatPage> {
                   onTap: () => _openFullscreenImage(msg.mediaUrl!),
                   child: ClipRRect(
                     borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
+                      top: Radius.circular(18),
                     ),
                     child: CachedNetworkImage(
                       imageUrl: msg.mediaUrl!,
@@ -642,50 +662,97 @@ class _ActiveChatPageState extends State<ActiveChatPage> {
                   ),
                 ),
 
-              // Text content
+              // Text message or caption with compact inline timestamp
               if (msg.content.isNotEmpty &&
                   !(msg.isImage && msg.content == 'Photo'))
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 9,
-                  ),
-                  child: Text(
-                    msg.content,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isMe ? Colors.white : p.textPrimary,
-                      height: 1.3,
-                    ),
-                  ),
-                ),
-
-              // Timestamp & ticks
-              Padding(
-                padding: const EdgeInsets.only(left: 12, right: 12, bottom: 6),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _formatTime(msg.createdAt),
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: isMe ? Colors.white70 : p.textSecondary,
+                  padding: const EdgeInsets.fromLTRB(14, 9, 12, 8),
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.end,
+                    runSpacing: 4,
+                    spacing: 10,
+                    children: [
+                      Text(
+                        msg.content,
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w400,
+                          color: isMe ? Colors.white : p.textPrimary,
+                          height: 1.32,
+                          letterSpacing: 0.1,
+                        ),
                       ),
-                    ),
-                    if (isMe) ...[
-                      const SizedBox(width: 4),
-                      Icon(
-                        msg.isRead ? Icons.done_all : Icons.done,
-                        size: 13,
-                        color: msg.isRead
-                            ? Colors.lightBlueAccent
-                            : Colors.white70,
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 1),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _formatTime(msg.createdAt),
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w500,
+                                color: isMe
+                                    ? Colors.white.withValues(alpha: 0.78)
+                                    : p.textSecondary,
+                              ),
+                            ),
+                            if (isMe) ...[
+                              const SizedBox(width: 3.5),
+                              Icon(
+                                msg.isRead
+                                    ? Icons.done_all_rounded
+                                    : Icons.done_rounded,
+                                size: 14,
+                                color: msg.isRead
+                                    ? const Color(0xFF67E8F9)
+                                    : Colors.white.withValues(alpha: 0.75),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                     ],
-                  ],
+                  ),
+                )
+              else if (msg.isImage)
+                Padding(
+                  padding: const EdgeInsets.only(
+                    left: 12,
+                    right: 12,
+                    top: 4,
+                    bottom: 7,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text(
+                        _formatTime(msg.createdAt),
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w500,
+                          color: isMe
+                              ? Colors.white.withValues(alpha: 0.78)
+                              : p.textSecondary,
+                        ),
+                      ),
+                      if (isMe) ...[
+                        const SizedBox(width: 3.5),
+                        Icon(
+                          msg.isRead
+                              ? Icons.done_all_rounded
+                              : Icons.done_rounded,
+                          size: 14,
+                          color: msg.isRead
+                              ? const Color(0xFF67E8F9)
+                              : Colors.white.withValues(alpha: 0.75),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              ),
             ],
           ),
         ),

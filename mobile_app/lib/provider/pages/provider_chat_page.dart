@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
@@ -67,17 +66,21 @@ class _ProviderChatPageState extends State<ProviderChatPage> {
     required String customerName,
     String? bookingRef,
   }) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ActiveChatPage(
-          conversationId: conversationId,
-          recipientId: customerId,
-          recipientName: customerName,
-          subtitle: bookingRef != null ? 'Booking #$bookingRef' : 'Customer Inquiry',
-          bookingReference: bookingRef,
-        ),
-      ),
-    ).then((_) => _loadConversations());
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => ActiveChatPage(
+              conversationId: conversationId,
+              recipientId: customerId,
+              recipientName: customerName,
+              subtitle: bookingRef != null
+                  ? 'Booking #$bookingRef'
+                  : 'Customer Inquiry',
+              bookingReference: bookingRef,
+            ),
+          ),
+        )
+        .then((_) => _loadConversations());
   }
 
   @override
@@ -109,18 +112,29 @@ class _ProviderChatPageState extends State<ProviderChatPage> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.green.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Row(
                       children: [
-                        Icon(Icons.shield_outlined, size: 11, color: Colors.green),
+                        Icon(
+                          Icons.shield_outlined,
+                          size: 11,
+                          color: Colors.green,
+                        ),
                         SizedBox(width: 4),
                         Text(
                           'AES-256 Protected',
-                          style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
@@ -146,31 +160,42 @@ class _ProviderChatPageState extends State<ProviderChatPage> {
                   borderRadius: BorderRadius.circular(AppRadius.r12),
                   border: Border.all(color: p.border),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: Row(
-                  children: [
-                    Icon(AppIcons.searchNormal, color: p.textSecondary, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        style: TextStyle(color: p.textPrimary, fontSize: 14),
-                        decoration: InputDecoration(
-                          hintText: 'Search customer name or message...',
-                          hintStyle: TextStyle(
-                            color: p.textSecondary,
-                            fontSize: 14,
-                          ),
-                          border: InputBorder.none,
-                        ),
-                      ),
+                child: TextField(
+                  controller: _searchController,
+                  style: TextStyle(color: p.textPrimary, fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: 'Search customer name or message...',
+                    hintStyle: TextStyle(color: p.textSecondary, fontSize: 14),
+                    prefixIcon: Icon(
+                      Icons.search_rounded,
+                      color: p.textSecondary,
+                      size: 20,
                     ),
-                    if (_searchController.text.isNotEmpty)
-                      GestureDetector(
-                        onTap: () => _searchController.clear(),
-                        child: Icon(AppIcons.closeCircle, size: 18, color: p.textSecondary),
-                      ),
-                  ],
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? GestureDetector(
+                            onTap: () {
+                              _searchController.clear();
+                              FocusScope.of(context).unfocus();
+                            },
+                            child: Icon(
+                              Icons.close_rounded,
+                              size: 18,
+                              color: p.textSecondary,
+                            ),
+                          )
+                        : null,
+                    filled: false,
+                    fillColor: Colors.transparent,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 14,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -181,154 +206,189 @@ class _ProviderChatPageState extends State<ProviderChatPage> {
                   color: p.primary,
                   onRefresh: _loadConversations,
                   child: _isLoading
-                      ? Center(child: CircularProgressIndicator(color: p.primary))
+                      ? Center(
+                          child: CircularProgressIndicator(color: p.primary),
+                        )
                       : _filteredConversations.isEmpty
-                          ? ListView(
-                              children: [
-                                const SizedBox(height: 80),
-                                Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.mark_chat_unread_outlined, size: 56, color: p.textSecondary.withValues(alpha: 0.5)),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        'No messages yet',
-                                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: p.textPrimary),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Customer inquiries for jobs and proposals will appear here.',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(color: p.textSecondary, fontSize: 13),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            )
-                          : ListView.separated(
-                              padding: const EdgeInsets.only(bottom: 24),
-                              itemCount: _filteredConversations.length,
-                              separatorBuilder: (context, index) => Divider(
-                                height: 1,
-                                indent: 72,
-                                color: p.border,
-                              ),
-                              itemBuilder: (context, index) {
-                                final conv = _filteredConversations[index];
-                                final name = conv.customerName;
-                                final initial = name.isNotEmpty ? name[0].toUpperCase() : 'C';
-                                final unread = conv.unreadCount;
-
-                                return InkWell(
-                                  onTap: () => _openChatDetail(
-                                    conversationId: conv.id,
-                                    customerId: conv.customerId,
-                                    customerName: conv.customerName,
-                                    bookingRef: conv.bookingReference,
-                                  ),
-                                  borderRadius: BorderRadius.circular(AppRadius.r12),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                      horizontal: 4,
+                      ? ListView(
+                          children: [
+                            const SizedBox(height: 80),
+                            Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.mark_chat_unread_outlined,
+                                    size: 56,
+                                    color: p.textSecondary.withValues(
+                                      alpha: 0.5,
                                     ),
-                                    child: Row(
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 26,
-                                          backgroundColor: p.primary,
-                                          child: Text(
-                                            initial,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 18,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 14),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No messages yet',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: p.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Customer inquiries for jobs and proposals will appear here.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: p.textSecondary,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.only(bottom: 24),
+                          itemCount: _filteredConversations.length,
+                          separatorBuilder: (context, index) =>
+                              Divider(height: 1, indent: 72, color: p.border),
+                          itemBuilder: (context, index) {
+                            final conv = _filteredConversations[index];
+                            final name = conv.customerName;
+                            final initial = name.isNotEmpty
+                                ? name[0].toUpperCase()
+                                : 'C';
+                            final unread = conv.unreadCount;
 
-                                        // Customer details
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                            return InkWell(
+                              onTap: () => _openChatDetail(
+                                conversationId: conv.id,
+                                customerId: conv.customerId,
+                                customerName: conv.customerName,
+                                bookingRef: conv.bookingReference,
+                              ),
+                              borderRadius: BorderRadius.circular(
+                                AppRadius.r12,
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                  horizontal: 4,
+                                ),
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 26,
+                                      backgroundColor: p.primary,
+                                      child: Text(
+                                        initial,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 18,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+
+                                    // Customer details
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
                                             children: [
-                                              Row(
-                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                children: [
-                                                  Expanded(
-                                                    child: Text(
-                                                      name,
-                                                      style: TextStyle(
-                                                        fontSize: 15,
-                                                        fontWeight: FontWeight.w700,
-                                                        color: p.textPrimary,
-                                                      ),
-                                                      maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    _formatChatTime(conv.lastMessageAt),
-                                                    style: TextStyle(
-                                                      fontSize: 11,
-                                                      color: unread > 0 ? p.primary : p.textSecondary,
-                                                      fontWeight: unread > 0 ? FontWeight.w700 : FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 2),
-                                              if (conv.bookingReference != null)
-                                                Text(
-                                                  'Booking #${conv.bookingReference}',
+                                              Expanded(
+                                                child: Text(
+                                                  name,
                                                   style: TextStyle(
-                                                    fontSize: 11,
-                                                    color: p.primary,
-                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: p.textPrimary,
                                                   ),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
-                                              const SizedBox(height: 3),
+                                              ),
                                               Text(
-                                                conv.lastMessageSnippet ?? 'No messages yet',
-                                                style: TextStyle(
-                                                  fontSize: 13,
-                                                  color: unread > 0 ? p.textPrimary : p.textSecondary,
-                                                  fontWeight: unread > 0 ? FontWeight.w600 : FontWeight.normal,
+                                                _formatChatTime(
+                                                  conv.lastMessageAt,
                                                 ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: unread > 0
+                                                      ? p.primary
+                                                      : p.textSecondary,
+                                                  fontWeight: unread > 0
+                                                      ? FontWeight.w700
+                                                      : FontWeight.w500,
+                                                ),
                                               ),
                                             ],
                                           ),
-                                        ),
-
-                                        // Unread Badge
-                                        if (unread > 0)
-                                          Container(
-                                            margin: const EdgeInsets.only(left: 8),
-                                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                                            decoration: BoxDecoration(
-                                              color: p.primary,
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                            child: Text(
-                                              unread.toString(),
-                                              style: const TextStyle(
-                                                color: Colors.white,
+                                          const SizedBox(height: 2),
+                                          if (conv.bookingReference != null)
+                                            Text(
+                                              'Booking #${conv.bookingReference}',
+                                              style: TextStyle(
                                                 fontSize: 11,
-                                                fontWeight: FontWeight.w700,
+                                                color: p.primary,
+                                                fontWeight: FontWeight.w600,
                                               ),
                                             ),
+                                          const SizedBox(height: 3),
+                                          Text(
+                                            conv.lastMessageSnippet ??
+                                                'No messages yet',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: unread > 0
+                                                  ? p.textPrimary
+                                                  : p.textSecondary,
+                                              fontWeight: unread > 0
+                                                  ? FontWeight.w600
+                                                  : FontWeight.normal,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                );
-                              },
-                            ),
+
+                                    // Unread Badge
+                                    if (unread > 0)
+                                      Container(
+                                        margin: const EdgeInsets.only(left: 8),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 7,
+                                          vertical: 3,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: p.primary,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          unread.toString(),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                 ),
               ),
             ],

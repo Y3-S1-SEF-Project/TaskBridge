@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
@@ -149,31 +148,45 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                   borderRadius: BorderRadius.circular(AppRadius.r12),
                   border: Border.all(color: p.border),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: Row(
-                  children: [
-                    Icon(AppIcons.searchNormal, color: p.textSecondary, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        style: TextStyle(color: p.textPrimary, fontSize: 14),
-                        decoration: InputDecoration(
-                          hintText: 'Search provider or messages...',
-                          hintStyle: TextStyle(
-                            color: p.textSecondary,
-                            fontSize: 14,
-                          ),
-                          border: InputBorder.none,
-                        ),
-                      ),
+                child: TextField(
+                  controller: _searchController,
+                  style: TextStyle(color: p.textPrimary, fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: 'Search provider or messages...',
+                    hintStyle: TextStyle(
+                      color: p.textSecondary,
+                      fontSize: 14,
                     ),
-                    if (_searchController.text.isNotEmpty)
-                      GestureDetector(
-                        onTap: () => _searchController.clear(),
-                        child: Icon(AppIcons.closeCircle, size: 18, color: p.textSecondary),
-                      ),
-                  ],
+                    prefixIcon: Icon(
+                      Icons.search_rounded,
+                      color: p.textSecondary,
+                      size: 20,
+                    ),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? GestureDetector(
+                            onTap: () {
+                              _searchController.clear();
+                              FocusScope.of(context).unfocus();
+                            },
+                            child: Icon(
+                              Icons.close_rounded,
+                              size: 18,
+                              color: p.textSecondary,
+                            ),
+                          )
+                        : null,
+                    filled: false,
+                    fillColor: Colors.transparent,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 14,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
