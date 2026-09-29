@@ -818,3 +818,87 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
               ],
             ),
           ),
+
+          // ── Provider Card Content (Same layout as Home & Search) ──
+          InkWell(
+            onTap: () => _navigateToDetail(provider),
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(17),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.s16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      _buildProviderAvatar(provider, dimension: 52),
+                      const SizedBox(width: AppSpacing.s12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    provider.fullName,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: palette.text,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.verified_rounded,
+                                  color: palette.primary,
+                                  size: 15,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              '${provider.category} · ★ ${provider.rating.toStringAsFixed(1)} (${provider.reviewCount})',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: palette.muted,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Text(
+                                  'From Rs. ${provider.hourlyRate.toInt()}/hr',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: palette.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '· ${provider.distanceKm} km',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: palette.muted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: palette.muted,
+                        size: 22,
+                      ),
+                    ],
+                  ),
