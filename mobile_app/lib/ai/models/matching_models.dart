@@ -100,3 +100,22 @@ class MatchedProvider {
     );
   }
 }
+
+class MatchingResponse {
+  final bool success;
+  final JobPlan jobPlan;
+  final List<MatchedProvider> matchedProviders;
+  final int candidatePoolCount;
+  final int latencyMs;
+  final int tokensUsed;
+  final String model;
+
+  const MatchingResponse({
+    required this.success,
+    required this.jobPlan,
+    required this.matchedProviders,
+    required this.candidatePoolCount,
+    required this.latencyMs,
+    required this.tokensUsed,
+    required this.model,
+  });
