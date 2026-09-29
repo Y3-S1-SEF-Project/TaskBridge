@@ -351,3 +351,11 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
       );
     }
   }
+
+  void _handleBack(BuildContext context, bool isEmpty) {
+    if (isEmpty) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
