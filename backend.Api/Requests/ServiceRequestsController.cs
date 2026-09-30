@@ -45,7 +45,10 @@ public class ServiceRequestsController : ControllerBase
             var analyzeReq = new PlanningAnalyzeRequest
             {
                 Prompt = dto.Description,
-                UserLocation = dto.Location
+                UserLocation = dto.Location,
+                ScheduledDate = dto.ScheduledDate,
+                ScheduledTime = dto.ScheduledTime,
+                Budget = dto.EstimatedBudget
             };
 
             var aiResult = await _planningService.AnalyzePromptAsync(analyzeReq, ct);
