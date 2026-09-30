@@ -23,6 +23,7 @@ import '../models/provider_item.dart';
 import '../widgets/provider_card.dart';
 import '../../ai/widgets/ai_prompt_sheet.dart';
 import '../../ai/services/bookings_sync_service.dart';
+import '../../chat/services/chat_service.dart';
 
 class HomePage extends StatefulWidget {
   final AuthUser? user;
@@ -218,6 +219,8 @@ class _HomePageState extends State<HomePage> {
         onTap: (index) {
           if (index == 1) {
             BookingsSyncService.instance.triggerImmediateUpdate();
+          } else if (index == 2) {
+            ChatService().triggerConversationsRefresh();
           }
           setState(() => _currentNavIndex = index);
         },

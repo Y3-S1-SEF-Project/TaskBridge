@@ -335,5 +335,6 @@ public sealed class AuthService(
         u.ProviderAvailability,
         u.ProviderBio,
         u.ProviderEarnings,
-        u.ProviderHourlyRate ?? 2500m);
+        u.ProviderHourlyRate ?? 2500m,
+        u.Role ?? "User");
 }
