@@ -42,6 +42,7 @@ export async function loginAdmin(identifier: string, password: string): Promise<
         email: data.email,
         role: data.role,
         isEmailVerified: true,
+        isActive: true,
         createdAt: new Date().toISOString(),
       };
       saveAdminSession(data.token, user);
@@ -164,6 +165,7 @@ export async function fetchAdmins(): Promise<AdminUser[]> {
       email: 'admin1@taskbridge.com',
       role: 'SuperAdmin',
       isEmailVerified: true,
+      isActive: true,
       createdAt: '2026-09-01T08:00:00Z',
     },
     {
@@ -172,6 +174,7 @@ export async function fetchAdmins(): Promise<AdminUser[]> {
       email: 'disputes@taskbridge.com',
       role: 'Admin',
       isEmailVerified: true,
+      isActive: true,
       createdAt: '2026-09-15T10:30:00Z',
     },
   ];
@@ -214,4 +217,43 @@ export async function deleteAdminAccount(adminId: string): Promise<void> {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to remove admin account.');
   }
+}
+
+export async function updateAdminAccount(
+  adminId: string,
+  data: { fullName: string; role: string; isActive: boolean; newPassword?: string }
+): Promise<AdminUser> {
+  const token = getStoredToken();
+  const res = await fetch(`${API_BASE}/admins/${adminId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (res.ok) {
+    return await res.json();
+  }
+
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.error || 'Failed to update administrator access.');
+}
+
+export async function toggleAdminStatus(adminId: string): Promise<{ id: string; isActive: boolean }> {
+  const token = getStoredToken();
+  const res = await fetch(`${API_BASE}/admins/${adminId}/status`, {
+    method: 'PATCH',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (res.ok) {
+    return await res.json();
+  }
+
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.error || 'Failed to toggle administrator status.');
 }

@@ -52,6 +52,14 @@ export const AdminApp: React.FC = () => {
         );
 
       case 'admin-management':
+        if (currentUser.role !== 'SuperAdmin') {
+          return (
+            <AdminPlaceholderView
+              title="Access Restricted"
+              subtitle="Only Super Administrators are authorized to access administrator directory and permissions."
+            />
+          );
+        }
         return <AdminManagementView currentUser={currentUser} />;
 
       case 'service-requests':

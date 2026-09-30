@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TaskBridge.Api.Admin;
 using TaskBridge.Api.Auth;
 using backend.Api.AI;
 
@@ -7,6 +8,7 @@ namespace TaskBridge.Api.Data;
 public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(options)
 {
     public DbSet<AppUser> Users => Set<AppUser>();
+    public DbSet<AdminUser> Admins => Set<AdminUser>();
     public DbSet<ProviderProfile> Providers => Set<ProviderProfile>();
     public DbSet<BookingEntity> Bookings => Set<BookingEntity>();
     public DbSet<ProposalEntity> Proposals => Set<ProposalEntity>();
@@ -32,6 +34,21 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
             entity.Property(x => x.EmailOtp).HasMaxLength(10);
             entity.Property(x => x.Role).HasMaxLength(32).HasDefaultValue("User");
             entity.HasIndex(x => x.Role);
+        });
+
+        model.Entity<AdminUser>(entity =>
+        {
+            entity.ToTable("admins");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.Username).IsUnique();
+            entity.HasIndex(x => x.Email).IsUnique();
+            entity.HasIndex(x => x.SessionToken);
+            entity.Property(x => x.Username).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.FullName).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Email).HasMaxLength(255).IsRequired();
+            entity.Property(x => x.PasswordHash).IsRequired();
+            entity.Property(x => x.Role).HasMaxLength(32).HasDefaultValue("Admin");
+            entity.Property(x => x.IsActive).HasDefaultValue(true);
         });
 
         model.Entity<ProviderProfile>(entity =>
@@ -145,6 +162,27 @@ CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (""Email"");
 CREATE INDEX IF NOT EXISTS ix_users_phone ON users (""Phone"");
 CREATE INDEX IF NOT EXISTS ix_users_session_token ON users (""SessionToken"");
 CREATE INDEX IF NOT EXISTS ix_users_role ON users (""Role"");
+
+-- Separate Dedicated Admins Table
+CREATE TABLE IF NOT EXISTS admins (
+    ""Id"" uuid PRIMARY KEY,
+    ""Username"" text NOT NULL,
+    ""FullName"" text NOT NULL,
+    ""Email"" text NOT NULL,
+    ""PasswordHash"" text NOT NULL,
+    ""Role"" text NOT NULL DEFAULT 'Admin',
+    ""SessionToken"" text NULL,
+    ""IsActive"" boolean NOT NULL DEFAULT true,
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
+    ""UpdatedAt"" timestamptz NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_admins_username ON admins (""Username"");
+CREATE UNIQUE INDEX IF NOT EXISTS ix_admins_email ON admins (""Email"");
+CREATE INDEX IF NOT EXISTS ix_admins_session_token ON admins (""SessionToken"");
+
+-- Clean up any admin credentials that were temporarily placed in users table
+DELETE FROM users WHERE ""Email"" = 'admin1@taskbridge.com' OR ""Phone"" = 'admin1';
 
 CREATE TABLE IF NOT EXISTS providers (
     ""Id"" uuid PRIMARY KEY,

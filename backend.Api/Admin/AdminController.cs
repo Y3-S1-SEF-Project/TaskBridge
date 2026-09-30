@@ -11,9 +11,9 @@ namespace TaskBridge.Api.Admin;
 [Route("api/admin")]
 public sealed class AdminController(
     AuthDbContext db,
-    IPasswordHasher<AppUser> hasher) : ControllerBase
+    IPasswordHasher<AdminUser> hasher) : ControllerBase
 {
-    // Authenticates Admin / SuperAdmin credentials
+    // Authenticates Admin / SuperAdmin credentials from dedicated 'admins' table
     [HttpPost("auth/login")]
     public async Task<ActionResult<AdminLoginResponse>> Login(
         [FromBody] AdminLoginRequest request,
@@ -21,34 +21,30 @@ public sealed class AdminController(
     {
         var id = request.Identifier.Trim().ToLowerInvariant();
 
-        var user = await db.Users.FirstOrDefaultAsync(u =>
-            u.Email.ToLower() == id ||
-            u.Phone.ToLower() == id, ct);
+        var admin = await db.Admins.FirstOrDefaultAsync(a =>
+            a.Username.ToLower() == id ||
+            a.Email.ToLower() == id, ct);
 
-        if (user is null)
+        if (admin is null || !admin.IsActive)
             return Unauthorized(new { error = "Invalid administrator credentials." });
 
-        if (user.Role != "SuperAdmin" && user.Role != "Admin")
-            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Access denied. Only authorized administrators can access this console." });
-
-        var verifyResult = hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
+        var verifyResult = hasher.VerifyHashedPassword(admin, admin.PasswordHash, request.Password);
         if (verifyResult == PasswordVerificationResult.Failed)
             return Unauthorized(new { error = "Invalid administrator credentials." });
 
         var token = AuthCrypto.Token();
-        user.SessionToken = token;
-        user.UpdatedAt = DateTimeOffset.UtcNow;
-        user.FailedLogins = 0;
+        admin.SessionToken = token;
+        admin.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
 
         var expiresAt = DateTimeOffset.UtcNow.AddDays(7);
 
         return Ok(new AdminLoginResponse(
             token,
-            user.FullName,
-            user.Email,
-            user.Role,
-            user.Id,
+            admin.FullName,
+            admin.Email,
+            admin.Role,
+            admin.Id,
             expiresAt));
     }
 
@@ -56,16 +52,16 @@ public sealed class AdminController(
     [HttpGet("auth/me")]
     public async Task<ActionResult<AdminUserDto>> Me(CancellationToken ct)
     {
-        var user = await GetCurrentAdmin(ct);
-        if (user is null) return Unauthorized(new { error = "Admin session expired or invalid." });
+        var admin = await GetCurrentAdmin(ct);
+        if (admin is null) return Unauthorized(new { error = "Admin session expired or invalid." });
 
         return Ok(new AdminUserDto(
-            user.Id,
-            user.FullName,
-            user.Email,
-            user.Role,
-            user.IsEmailVerified,
-            user.CreatedAt));
+            admin.Id,
+            admin.FullName,
+            admin.Email,
+            admin.Role,
+            admin.IsActive,
+            admin.CreatedAt));
     }
 
     // Returns dashboard KPI metrics and charts matching the console UI
@@ -154,31 +150,101 @@ public sealed class AdminController(
         return Ok(inquiries);
     }
 
-    // List all administrators in the system
+    // List all administrators from the dedicated 'admins' table
     [HttpGet("admins")]
     public async Task<ActionResult<List<AdminUserDto>>> GetAdmins(CancellationToken ct)
     {
         var caller = await GetCurrentAdmin(ct);
         if (caller is null) return Unauthorized();
 
-        var admins = await db.Users
+        if (caller.Role != "SuperAdmin")
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Access denied. Only Super Administrators can view the administrators directory." });
+
+        var admins = await db.Admins
             .AsNoTracking()
-            .Where(u => u.Role == "SuperAdmin" || u.Role == "Admin")
-            .OrderBy(u => u.Role == "SuperAdmin" ? 0 : 1)
-            .ThenBy(u => u.FullName)
-            .Select(u => new AdminUserDto(
-                u.Id,
-                u.FullName,
-                u.Email,
-                u.Role,
-                u.IsEmailVerified,
-                u.CreatedAt))
+            .OrderBy(a => a.Role == "SuperAdmin" ? 0 : 1)
+            .ThenBy(a => a.FullName)
+            .Select(a => new AdminUserDto(
+                a.Id,
+                a.FullName,
+                a.Email,
+                a.Role,
+                a.IsActive,
+                a.CreatedAt))
             .ToListAsync(ct);
 
         return Ok(admins);
     }
 
-    // Super Admin creates a new admin and receives shareable credentials
+    // Updates an administrator's permissions, role, status, or password
+    [HttpPut("admins/{id:guid}")]
+    public async Task<IActionResult> UpdateAdmin(
+        Guid id,
+        [FromBody] UpdateAdminRequest request,
+        CancellationToken ct)
+    {
+        var caller = await GetCurrentAdmin(ct);
+        if (caller is null) return Unauthorized();
+
+        if (caller.Role != "SuperAdmin")
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Only Super Administrators can update administrator access." });
+
+        var target = await db.Admins.FindAsync(new object[] { id }, ct);
+        if (target is null) return NotFound(new { error = "Administrator not found." });
+
+        if (target.Username == "admin1" && !request.IsActive)
+            return BadRequest(new { error = "Primary Super Administrator access cannot be deactivated." });
+
+        target.FullName = request.FullName.Trim();
+        target.Role = string.IsNullOrWhiteSpace(request.Role) ? target.Role : request.Role.Trim();
+        target.IsActive = request.IsActive;
+
+        if (!string.IsNullOrWhiteSpace(request.NewPassword))
+        {
+            target.PasswordHash = hasher.HashPassword(target, request.NewPassword.Trim());
+            target.SessionToken = null; // Invalidate active session
+        }
+
+        target.UpdatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(ct);
+
+        return Ok(new AdminUserDto(
+            target.Id,
+            target.FullName,
+            target.Email,
+            target.Role,
+            target.IsActive,
+            target.CreatedAt));
+    }
+
+    // Toggles administrator active/suspended status
+    [HttpPatch("admins/{id:guid}/status")]
+    public async Task<IActionResult> ToggleAdminStatus(Guid id, CancellationToken ct)
+    {
+        var caller = await GetCurrentAdmin(ct);
+        if (caller is null) return Unauthorized();
+
+        if (caller.Role != "SuperAdmin")
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Only Super Administrators can toggle administrator access." });
+
+        var target = await db.Admins.FindAsync(new object[] { id }, ct);
+        if (target is null) return NotFound(new { error = "Administrator not found." });
+
+        if (target.Username == "admin1")
+            return BadRequest(new { error = "Primary Super Administrator access cannot be suspended." });
+
+        target.IsActive = !target.IsActive;
+        if (!target.IsActive)
+        {
+            target.SessionToken = null;
+        }
+        target.UpdatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(ct);
+
+        return Ok(new { id = target.Id, isActive = target.IsActive });
+    }
+
+    // Super Admin creates a new admin into dedicated 'admins' table
     [HttpPost("create-admin")]
     public async Task<IActionResult> CreateAdmin(
         [FromBody] CreateAdminRequest request,
@@ -191,23 +257,25 @@ public sealed class AdminController(
             return StatusCode(StatusCodes.Status403Forbidden, new { error = "Only Super Administrators can provision new admin accounts." });
 
         var emailLower = request.Email.Trim().ToLowerInvariant();
-        var existing = await db.Users.AnyAsync(u => u.Email.ToLower() == emailLower, ct);
-        if (existing)
-            return BadRequest(new { error = "An account with this email address already exists." });
+        var username = emailLower.Contains('@') ? emailLower.Split('@')[0] : emailLower;
 
-        var newAdmin = new AppUser
+        var existing = await db.Admins.AnyAsync(a => a.Email.ToLower() == emailLower || a.Username.ToLower() == username, ct);
+        if (existing)
+            return BadRequest(new { error = "An administrator account with this email/username already exists." });
+
+        var newAdmin = new AdminUser
         {
             Id = Guid.NewGuid(),
+            Username = username,
             FullName = request.FullName.Trim(),
             Email = emailLower,
-            Phone = emailLower, // fallback identifier
             Role = string.IsNullOrWhiteSpace(request.Role) ? "Admin" : request.Role.Trim(),
-            IsEmailVerified = true,
+            IsActive = true,
             CreatedAt = DateTimeOffset.UtcNow
         };
 
         newAdmin.PasswordHash = hasher.HashPassword(newAdmin, request.Password);
-        db.Users.Add(newAdmin);
+        db.Admins.Add(newAdmin);
         await db.SaveChangesAsync(ct);
 
         var loginUrl = $"{Request.Scheme}://{Request.Host}/login";
@@ -224,7 +292,7 @@ public sealed class AdminController(
         });
     }
 
-    // Deletes an admin account
+    // Deletes or deactivates an admin account from 'admins' table
     [HttpDelete("admins/{id:guid}")]
     public async Task<IActionResult> DeleteAdmin(Guid id, CancellationToken ct)
     {
@@ -237,35 +305,35 @@ public sealed class AdminController(
         if (caller.Id == id)
             return BadRequest(new { error = "You cannot delete your own Super Administrator account." });
 
-        var target = await db.Users.FindAsync(new object[] { id }, ct);
+        var target = await db.Admins.FindAsync(new object[] { id }, ct);
         if (target is null) return NotFound(new { error = "Administrator not found." });
 
         if (target.Role == "SuperAdmin")
             return BadRequest(new { error = "Primary Super Administrator cannot be removed." });
 
-        db.Users.Remove(target);
+        db.Admins.Remove(target);
         await db.SaveChangesAsync(ct);
 
         return NoContent();
     }
 
-    private async Task<AppUser?> GetCurrentAdmin(CancellationToken ct)
+    private async Task<AdminUser?> GetCurrentAdmin(CancellationToken ct)
     {
         var header = Request.Headers.Authorization.ToString();
         if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
             var token = header[7..].Trim();
-            var user = await db.Users.SingleOrDefaultAsync(x => x.SessionToken == token, ct);
-            if (user is not null && (user.Role == "SuperAdmin" || user.Role == "Admin"))
-                return user;
+            var admin = await db.Admins.SingleOrDefaultAsync(x => x.SessionToken == token, ct);
+            if (admin is not null && admin.IsActive)
+                return admin;
         }
 
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!string.IsNullOrEmpty(claim) && Guid.TryParse(claim, out var parsed))
         {
-            var user = await db.Users.FindAsync(new object[] { parsed }, ct);
-            if (user is not null && (user.Role == "SuperAdmin" || user.Role == "Admin"))
-                return user;
+            var admin = await db.Admins.FindAsync(new object[] { parsed }, ct);
+            if (admin is not null && admin.IsActive)
+                return admin;
         }
 
         return null;

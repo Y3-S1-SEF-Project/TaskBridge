@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { AdminUser, CreatedAdminCredentials } from './types';
-import { fetchAdmins, createAdminAccount, deleteAdminAccount } from './api';
+import { fetchAdmins, createAdminAccount, deleteAdminAccount, updateAdminAccount, toggleAdminStatus } from './api';
 
 interface AdminManagementViewProps {
   currentUser: AdminUser;
@@ -9,15 +9,24 @@ interface AdminManagementViewProps {
 export const AdminManagementView: React.FC<AdminManagementViewProps> = ({ currentUser }) => {
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Form fields
+  // Create form fields
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('Admin');
+
+  // Edit modal fields
+  const [editingAdmin, setEditingAdmin] = useState<AdminUser | null>(null);
+  const [editFullName, setEditFullName] = useState('');
+  const [editRole, setEditRole] = useState('Admin');
+  const [editIsActive, setEditIsActive] = useState(true);
+  const [editNewPassword, setEditNewPassword] = useState('');
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editErrorMsg, setEditErrorMsg] = useState('');
 
   // Credentials card state after creation
   const [createdCreds, setCreatedCreds] = useState<CreatedAdminCredentials | null>(null);
@@ -52,7 +61,7 @@ export const AdminManagementView: React.FC<AdminManagementViewProps> = ({ curren
     e.preventDefault();
     setErrorMsg('');
     if (!fullName.trim() || !email.trim() || !password.trim()) {
-      setErrorMsg('Please complete all fields.');
+      setErrorMsg('Please complete all required fields.');
       return;
     }
 
@@ -65,7 +74,6 @@ export const AdminManagementView: React.FC<AdminManagementViewProps> = ({ curren
         role,
       });
 
-      // Update local state with login URL if not provided by backend
       const loginUrl = window.location.origin;
       const formattedCreds: CreatedAdminCredentials = {
         ...creds,
@@ -74,7 +82,6 @@ export const AdminManagementView: React.FC<AdminManagementViewProps> = ({ curren
 
       setCreatedCreds(formattedCreds);
       await loadAdmins();
-      // Clear form inputs
       setFullName('');
       setEmail('');
       setPassword('');
@@ -85,8 +92,59 @@ export const AdminManagementView: React.FC<AdminManagementViewProps> = ({ curren
     }
   };
 
+  const handleOpenEdit = (admin: AdminUser) => {
+    setEditingAdmin(admin);
+    setEditFullName(admin.fullName);
+    setEditRole(admin.role);
+    setEditIsActive(admin.isActive !== false);
+    setEditNewPassword('');
+    setEditErrorMsg('');
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAdmin) return;
+    setEditErrorMsg('');
+
+    if (!editFullName.trim()) {
+      setEditErrorMsg('Full name cannot be empty.');
+      return;
+    }
+
+    setEditSubmitting(true);
+    try {
+      await updateAdminAccount(editingAdmin.id, {
+        fullName: editFullName.trim(),
+        role: editRole,
+        isActive: editIsActive,
+        newPassword: editNewPassword.trim() || undefined,
+      });
+
+      setEditingAdmin(null);
+      await loadAdmins();
+    } catch (err: any) {
+      setEditErrorMsg(err.message || 'Failed to update administrator access.');
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const handleToggleStatus = async (admin: AdminUser) => {
+    const action = admin.isActive !== false ? 'suspend' : 'activate';
+    if (!window.confirm(`Are you sure you want to ${action} access for administrator "${admin.fullName}"?`)) {
+      return;
+    }
+
+    try {
+      await toggleAdminStatus(admin.id);
+      await loadAdmins();
+    } catch (err: any) {
+      alert(err.message || `Failed to ${action} administrator.`);
+    }
+  };
+
   const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to revoke access for administrator "${name}"?`)) {
+    if (!window.confirm(`Are you sure you want to permanently revoke access for administrator "${name}"?`)) {
       return;
     }
 
@@ -116,19 +174,17 @@ export const AdminManagementView: React.FC<AdminManagementViewProps> = ({ curren
             Provision, review, and manage administrator access for TaskBridge Operations.
           </p>
         </div>
-        {currentUser.role === 'SuperAdmin' && (
-          <button
-            type="button"
-            className="admin-btn admin-btn-primary"
-            onClick={() => {
-              setCreatedCreds(null);
-              setErrorMsg('');
-              setShowModal(true);
-            }}
-          >
-            + Provision New Admin
-          </button>
-        )}
+        <button
+          type="button"
+          className="admin-btn admin-btn-primary"
+          onClick={() => {
+            setCreatedCreds(null);
+            setErrorMsg('');
+            setShowCreateModal(true);
+          }}
+        >
+          + Provision New Admin
+        </button>
       </div>
 
       {/* Info notice */}
@@ -149,7 +205,7 @@ export const AdminManagementView: React.FC<AdminManagementViewProps> = ({ curren
           <line x1="12" y1="8" x2="12.01" y2="8" />
         </svg>
         <span>
-          <strong>Super Admin Security Rule:</strong> Only Super Administrators can provision staff accounts. Once created, a shareable credential card with the Login URL, username, and temporary password will be provided.
+          <strong>Super Admin Security Rule:</strong> Only Super Administrators can view this section, provision staff accounts, and update or revoke permissions.
         </span>
       </div>
 
@@ -175,45 +231,81 @@ export const AdminManagementView: React.FC<AdminManagementViewProps> = ({ curren
                     Loading administrators...
                   </td>
                 </tr>
-              ) : admins.map((admin) => (
-                <tr key={admin.id}>
-                  <td>
-                    <strong>{admin.fullName}</strong>
-                  </td>
-                  <td>{admin.email}</td>
-                  <td>
-                    <span className={`admin-badge ${admin.role === 'SuperAdmin' ? 'priority-high' : 'priority-normal'}`}>
-                      {admin.role}
-                    </span>
-                  </td>
-                  <td>
-                    <span className="admin-badge status-resolved">
-                      Active
-                    </span>
-                  </td>
-                  <td>{new Date(admin.createdAt).toLocaleDateString()}</td>
-                  <td style={{ textAlign: 'right' }}>
-                    {currentUser.role === 'SuperAdmin' && admin.role !== 'SuperAdmin' && (
-                      <button
-                        type="button"
-                        className="admin-btn admin-btn-secondary"
-                        style={{ padding: '4px 10px', fontSize: '12px', color: '#c81e1e' }}
-                        onClick={() => handleDelete(admin.id, admin.fullName)}
-                      >
-                        Revoke Access
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              ) : admins.map((admin) => {
+                const isActive = admin.isActive !== false;
+                const isSuper = admin.role === 'SuperAdmin';
+                const isSelf = admin.id === currentUser.id;
+
+                return (
+                  <tr key={admin.id}>
+                    <td>
+                      <strong>{admin.fullName}</strong>
+                      {isSelf && (
+                        <span style={{ marginLeft: '6px', fontSize: '11px', color: '#256b4a', fontWeight: 600 }}>
+                          (You)
+                        </span>
+                      )}
+                    </td>
+                    <td>{admin.email}</td>
+                    <td>
+                      <span className={`admin-badge ${isSuper ? 'priority-high' : 'priority-normal'}`}>
+                        {admin.role}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`admin-badge ${isActive ? 'status-resolved' : 'priority-high'}`}>
+                        {isActive ? 'Active' : 'Suspended'}
+                      </span>
+                    </td>
+                    <td>{new Date(admin.createdAt).toLocaleDateString()}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      {!isSuper && (
+                        <div style={{ display: 'inline-flex', gap: '8px' }}>
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-secondary"
+                            style={{ padding: '4px 10px', fontSize: '12px' }}
+                            onClick={() => handleOpenEdit(admin)}
+                          >
+                            Edit Access
+                          </button>
+
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-secondary"
+                            style={{
+                              padding: '4px 10px',
+                              fontSize: '12px',
+                              color: isActive ? '#92400e' : '#15803d',
+                              borderColor: isActive ? '#fef3c7' : '#bbf7d0',
+                            }}
+                            onClick={() => handleToggleStatus(admin)}
+                          >
+                            {isActive ? 'Suspend' : 'Activate'}
+                          </button>
+
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-secondary"
+                            style={{ padding: '4px 10px', fontSize: '12px', color: '#c81e1e', borderColor: '#fecaca' }}
+                            onClick={() => handleDelete(admin.id, admin.fullName)}
+                          >
+                            Revoke
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
 
       {/* Provision Admin Modal */}
-      {showModal && (
-        <div className="admin-modal-backdrop" onClick={() => setShowModal(false)}>
+      {showCreateModal && (
+        <div className="admin-modal-backdrop" onClick={() => setShowCreateModal(false)}>
           <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-header">
               <h2 className="admin-modal-title">
@@ -222,14 +314,13 @@ export const AdminManagementView: React.FC<AdminManagementViewProps> = ({ curren
               <button
                 type="button"
                 className="admin-icon-btn"
-                onClick={() => setShowModal(false)}
+                onClick={() => setShowCreateModal(false)}
               >
                 ✕
               </button>
             </div>
 
             {createdCreds ? (
-              // Step 2: Show credentials card with copy button
               <div className="admin-modal-body">
                 <div style={{ textAlign: 'center', padding: '10px 0' }}>
                   <div style={{
@@ -283,7 +374,6 @@ export const AdminManagementView: React.FC<AdminManagementViewProps> = ({ curren
                 </button>
               </div>
             ) : (
-              // Step 1: Input form
               <form onSubmit={handleCreate}>
                 <div className="admin-modal-body">
                   {errorMsg && (
@@ -321,9 +411,9 @@ export const AdminManagementView: React.FC<AdminManagementViewProps> = ({ curren
                       value={role}
                       onChange={(e) => setRole(e.target.value)}
                     >
-                      <option value="Admin">Administrator (Operations & Inquiries)</option>
+                      <option value="Admin">Administrator (General Operations)</option>
                       <option value="DisputeAdmin">Dispute Resolution Specialist</option>
-                      <option value="SupportAdmin">Support & Moderation</option>
+                      <option value="SupportAdmin">Support & Verification</option>
                     </select>
                   </div>
 
@@ -360,7 +450,7 @@ export const AdminManagementView: React.FC<AdminManagementViewProps> = ({ curren
                   <button
                     type="button"
                     className="admin-btn admin-btn-secondary"
-                    onClick={() => setShowModal(false)}
+                    onClick={() => setShowCreateModal(false)}
                   >
                     Cancel
                   </button>
@@ -374,6 +464,109 @@ export const AdminManagementView: React.FC<AdminManagementViewProps> = ({ curren
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit / Update Admin Modal */}
+      {editingAdmin && (
+        <div className="admin-modal-backdrop" onClick={() => setEditingAdmin(null)}>
+          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header">
+              <h2 className="admin-modal-title">Update Administrator Access</h2>
+              <button
+                type="button"
+                className="admin-icon-btn"
+                onClick={() => setEditingAdmin(null)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdate}>
+              <div className="admin-modal-body">
+                {editErrorMsg && (
+                  <div className="admin-login-error">{editErrorMsg}</div>
+                )}
+
+                <div className="admin-form-group">
+                  <label className="admin-form-label">Administrator Email (Immutable)</label>
+                  <input
+                    type="email"
+                    className="admin-form-input"
+                    value={editingAdmin.email}
+                    disabled
+                    style={{ background: '#f3f4f6', cursor: 'not-allowed' }}
+                  />
+                </div>
+
+                <div className="admin-form-group">
+                  <label className="admin-form-label">Full Name</label>
+                  <input
+                    type="text"
+                    className="admin-form-input"
+                    value={editFullName}
+                    onChange={(e) => setEditFullName(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="admin-form-group">
+                  <label className="admin-form-label">Assigned Role</label>
+                  <select
+                    className="admin-form-select"
+                    value={editRole}
+                    onChange={(e) => setEditRole(e.target.value)}
+                  >
+                    <option value="Admin">Administrator (General Operations)</option>
+                    <option value="DisputeAdmin">Dispute Resolution Specialist</option>
+                    <option value="SupportAdmin">Support & Verification</option>
+                  </select>
+                </div>
+
+                <div className="admin-form-group">
+                  <label className="admin-form-label">Access Status</label>
+                  <select
+                    className="admin-form-select"
+                    value={editIsActive ? 'active' : 'suspended'}
+                    onChange={(e) => setEditIsActive(e.target.value === 'active')}
+                  >
+                    <option value="active">Active (Access Allowed)</option>
+                    <option value="suspended">Suspended (Access Revoked)</option>
+                  </select>
+                </div>
+
+                <div className="admin-form-group">
+                  <label className="admin-form-label">
+                    Reset Password (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    className="admin-form-input"
+                    placeholder="Leave blank to keep existing password"
+                    value={editNewPassword}
+                    onChange={(e) => setEditNewPassword(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="admin-modal-footer">
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-secondary"
+                  onClick={() => setEditingAdmin(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="admin-btn admin-btn-primary"
+                  disabled={editSubmitting}
+                >
+                  {editSubmitting ? 'Updating...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
