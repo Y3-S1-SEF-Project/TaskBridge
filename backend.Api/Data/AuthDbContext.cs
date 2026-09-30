@@ -30,6 +30,8 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
             entity.Property(x => x.Phone).HasMaxLength(24).IsRequired();
             entity.Property(x => x.PasswordHash).IsRequired();
             entity.Property(x => x.EmailOtp).HasMaxLength(10);
+            entity.Property(x => x.Role).HasMaxLength(32).HasDefaultValue("User");
+            entity.HasIndex(x => x.Role);
         });
 
         model.Entity<ProviderProfile>(entity =>
@@ -137,10 +139,12 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderAvailability"" text NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderBio"" text NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderEarnings"" numeric(12,2) NULL DEFAULT 54000.00;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderHourlyRate"" numeric(12,2) NULL DEFAULT 2500.00;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ""Role"" text NOT NULL DEFAULT 'User';
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (""Email"");
 CREATE INDEX IF NOT EXISTS ix_users_phone ON users (""Phone"");
 CREATE INDEX IF NOT EXISTS ix_users_session_token ON users (""SessionToken"");
+CREATE INDEX IF NOT EXISTS ix_users_role ON users (""Role"");
 
 CREATE TABLE IF NOT EXISTS providers (
     ""Id"" uuid PRIMARY KEY,
