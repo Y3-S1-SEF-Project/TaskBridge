@@ -717,6 +717,7 @@ class CoordinationApi {
     required String schedule,
     required double price,
     String? rateType,
+    String? acceptedByRole,
   }) async {
     // Update local proposal
     final idx = _localProposals.indexWhere(
@@ -778,6 +779,7 @@ class CoordinationApi {
       'confirmedSchedule': schedule,
       'confirmedPrice': price,
       'rateType': rateType,
+      'acceptedByRole': acceptedByRole,
     });
 
     for (final candidate in candidates) {
