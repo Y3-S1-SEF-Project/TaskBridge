@@ -6,6 +6,7 @@ import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_spacing.dart';
 import '../models/planning_models.dart';
 import '../services/matching_api.dart';
+import '../services/service_requests_api.dart';
 import 'matched_providers_page.dart';
 
 /// Screen C18: "Finding the right help"
@@ -34,6 +35,37 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
   bool _isAllComplete = false;
   bool _isMatchingLoading = false;
   Timer? _timer;
+  String? _savedRequestId;
+
+  @override
+  void initState() {
+    super.initState();
+    _startSequentialAnimation();
+    _autoSaveServiceRequest();
+  }
+
+  Future<void> _autoSaveServiceRequest() async {
+    try {
+      final saved = await ServiceRequestsApi.createRequest(
+        title: widget.plan.serviceTitle.isNotEmpty ? widget.plan.serviceTitle : widget.plan.category,
+        category: widget.plan.category,
+        description: widget.plan.description,
+        location: widget.plan.location ?? 'Colombo 05',
+        locationAddress: widget.plan.locationAddress,
+        estimatedBudget: widget.plan.budget,
+        scheduledDate: widget.plan.scheduledDate,
+        scheduledTime: widget.plan.scheduledTime,
+        customerId: widget.user?.id,
+        customerName: widget.user?.fullName,
+        customerPhone: widget.user?.phone,
+      );
+      if (saved != null && mounted) {
+        setState(() {
+          _savedRequestId = saved.id;
+        });
+      }
+    } catch (_) {}
+  }
 
   Future<void> _navigateToMatching() async {
     setState(() => _isMatchingLoading = true);
@@ -65,12 +97,6 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
         ),
       );
     }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _startSequentialAnimation();
   }
 
   @override

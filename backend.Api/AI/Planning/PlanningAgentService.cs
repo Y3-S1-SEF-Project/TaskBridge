@@ -173,6 +173,28 @@ public class PlanningAgentService
                 if (!openAiData.MissingFields.Contains("time")) openAiData.MissingFields.Add("time");
             }
 
+            // If scheduled date/time/budget were explicitly provided in request context, apply them
+            if (!string.IsNullOrWhiteSpace(request.ScheduledDate))
+            {
+                openAiData.ScheduledDate = request.ScheduledDate;
+                openAiData.MissingFields.Remove("date");
+                isDateMissing = false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.ScheduledTime))
+            {
+                openAiData.ScheduledTime = request.ScheduledTime;
+                openAiData.MissingFields.Remove("time");
+                isTimeMissing = false;
+            }
+
+            if (request.Budget.HasValue && request.Budget.Value > 0)
+            {
+                openAiData.Budget = request.Budget.Value;
+                openAiData.BudgetDisplay = $"Budget up to Rs. {request.Budget.Value:N0}";
+                openAiData.MissingFields.Remove("budget");
+            }
+
             // If location was provided in request context, ensure location is set
             if (!string.IsNullOrWhiteSpace(request.UserLocation) && string.IsNullOrWhiteSpace(openAiData.Location))
             {
@@ -293,21 +315,24 @@ public class PlanningAgentService
         var promptLower = request.Prompt.ToLowerInvariant();
         var isPlumbing = promptLower.Contains("tap") || promptLower.Contains("pipe") || promptLower.Contains("leak") || promptLower.Contains("water") || promptLower.Contains("plumb");
         var isElectrical = promptLower.Contains("light") || promptLower.Contains("wire") || promptLower.Contains("power") || promptLower.Contains("socket") || promptLower.Contains("fan");
+        var isPainting = promptLower.Contains("paint") || promptLower.Contains("painter") || promptLower.Contains("wall");
         var isAc = promptLower.Contains("ac") || promptLower.Contains("air") || promptLower.Contains("cool");
         var isGarden = promptLower.Contains("garden") || promptLower.Contains("lawn") || promptLower.Contains("grass") || promptLower.Contains("yard");
         var isCleaning = promptLower.Contains("clean") || promptLower.Contains("wash") || promptLower.Contains("maid");
 
         var category = isPlumbing ? "Plumbing" 
+            : (isPainting ? "Painting"
             : (isGarden ? "Gardening" 
             : (isCleaning ? "Cleaning" 
             : (isElectrical ? "Electrical" 
-            : (isAc ? "HVAC" : "General Handyman"))));
+            : (isAc ? "HVAC" : "General Handyman")))));
 
         var title = isPlumbing ? "Kitchen tap repair" 
+            : (isPainting ? "Wall & surface painting"
             : (isGarden ? "Garden Cleaning" 
             : (isCleaning ? "Deep Cleaning" 
             : (isElectrical ? "Electrical wiring repair" 
-            : (isAc ? "Air conditioning repair" : "Home Maintenance"))));
+            : (isAc ? "Air conditioning repair" : "Home Maintenance")))));
 
         var desc = isPlumbing ? "Repair the leaking kitchen tap and test for leaks." 
             : (isGarden ? "Clean and restore the garden to pristine condition." 
@@ -332,12 +357,25 @@ public class PlanningAgentService
 
         var missing = new List<string>();
         if (locationMissing) missing.Add("location");
-        if (!hasDateWords) missing.Add("date");
-        if (!hasTimeWords) missing.Add("time");
-        if (!hasBudgetDigits) missing.Add("budget");
-
         var scheduledDate = hasDateWords ? "Tomorrow · 17 Sep" : string.Empty;
         var scheduledTime = hasTimeWords ? "After 3:00 PM" : string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(request.ScheduledDate))
+        {
+            scheduledDate = request.ScheduledDate;
+            missing.Remove("date");
+        }
+        if (!string.IsNullOrWhiteSpace(request.ScheduledTime))
+        {
+            scheduledTime = request.ScheduledTime;
+            missing.Remove("time");
+        }
+        if (request.Budget.HasValue && request.Budget.Value > 0)
+        {
+            budget = request.Budget.Value;
+            budgetDisplay = $"Budget up to Rs. {request.Budget.Value:N0}";
+            missing.Remove("budget");
+        }
 
         var plan = new JobPlanDetails
         {
