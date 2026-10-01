@@ -14,6 +14,7 @@ import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import 'customer_completion_review_page.dart';
 import 'customer_job_details_page.dart';
+import '../../notifications/widgets/notification_bell_button.dart';
 
 class CustomerBookingsPage extends StatefulWidget {
   final ValueChanged<int>? onSwitchTab;
@@ -1210,6 +1211,7 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                           schedule: booking.schedule,
                           price: booking.price,
                           rateType: booking.rateType,
+                          acceptedByRole: 'Customer',
                         );
                         if (mounted) {
                           await _loadBookings(silent: true);
@@ -1860,6 +1862,7 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                       ),
                     ],
                   ),
+                  NotificationBellButton(user: widget.user),
                 ],
               ),
               const SizedBox(height: 16),
