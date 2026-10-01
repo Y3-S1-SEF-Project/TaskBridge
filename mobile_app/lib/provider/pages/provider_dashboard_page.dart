@@ -126,19 +126,25 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
             .map((p) => p.toBookingItem())
             .toList();
 
-        final bookingRefs = <String>{};
-        final combined = <BookingItem>[];
+        final bookingMap = <String, BookingItem>{};
         for (final p in filteredProposals) {
-          bookingRefs.add(p.bookingReference);
-          combined.add(p);
+          final baseKey = p.bookingReference
+              .replaceFirst('TB-', '')
+              .replaceFirst('PR-', '');
+          bookingMap[baseKey] = p;
         }
         for (final b in filteredBookings) {
-          if (b.bookingReference.startsWith('PR-') &&
-              bookingRefs.contains(b.bookingReference)) {
-            continue;
+          final baseKey = b.bookingReference
+              .replaceFirst('TB-', '')
+              .replaceFirst('PR-', '');
+          // If TB- exists, prefer TB- over PR-
+          if (!bookingMap.containsKey(baseKey) ||
+              b.bookingReference.startsWith('TB-')) {
+            bookingMap[baseKey] = b;
           }
-          combined.add(b);
         }
+
+        final combined = bookingMap.values.toList();
 
         setState(() {
           _bookings = combined;
@@ -758,8 +764,10 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
         .where((b) => b.status.toLowerCase() == 'completed')
         .toList();
 
-    final double totalEarnings =
-        completedJobs.fold(0.0, (sum, b) => sum + b.price);
+    final double totalEarnings = completedJobs.fold(
+      0.0,
+      (sum, b) => sum + b.price,
+    );
 
     final activePendingText = activeJobs.isNotEmpty
         ? '${activeJobs.length} Active'

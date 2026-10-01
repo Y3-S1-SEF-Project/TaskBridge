@@ -108,8 +108,22 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
           return false;
         }).toList();
 
+        // Deduplicate bookings where one is PR-xxxx and one is TB-xxxx for the same job
+        final bookingMap = <String, BookingItem>{};
+        for (final b in filteredBookings) {
+          final baseKey = b.bookingReference
+              .replaceFirst('TB-', '')
+              .replaceFirst('PR-', '');
+          // If TB- exists, prefer TB- over PR-
+          if (!bookingMap.containsKey(baseKey) ||
+              b.bookingReference.startsWith('TB-')) {
+            bookingMap[baseKey] = b;
+          }
+        }
+        final dedupedBookings = bookingMap.values.toList();
+
         setState(() {
-          _bookings = filteredBookings;
+          _bookings = dedupedBookings;
           _proposals = filteredProposals;
           _isLoading = false;
         });
