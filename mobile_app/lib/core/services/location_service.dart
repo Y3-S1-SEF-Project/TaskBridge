@@ -4,18 +4,21 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/api_config.dart';
 
 class UserLocation {
   final String shortName;
   final String address;
   final double latitude;
   final double longitude;
+  final String? placeId;
 
   const UserLocation({
     required this.shortName,
     required this.address,
     required this.latitude,
     required this.longitude,
+    this.placeId,
   });
 
   Map<String, dynamic> toJson() => {
@@ -23,6 +26,7 @@ class UserLocation {
     'address': address,
     'latitude': latitude,
     'longitude': longitude,
+    if (placeId != null) 'placeId': placeId,
   };
 
   factory UserLocation.fromJson(Map<String, dynamic> json) => UserLocation(
@@ -34,6 +38,7 @@ class UserLocation {
     ),
     latitude: (json['latitude'] as num?)?.toDouble() ?? 6.9271,
     longitude: (json['longitude'] as num?)?.toDouble() ?? 79.8612,
+    placeId: json['placeId'] as String?,
   );
 
   // Default fallback location: Colombo, Sri Lanka
@@ -255,263 +260,13 @@ class LocationService {
     );
   }
 
-  /// Curated index of key Sri Lankan cities & hubs for instant 0ms autocomplete
-  static const List<UserLocation> popularSriLankanPlaces = [
-    UserLocation(
-      shortName: 'Maharagama',
-      address: 'Maharagama, Colombo District, Western Province, Sri Lanka',
-      latitude: 6.8480,
-      longitude: 79.9268,
-    ),
-    UserLocation(
-      shortName: 'Mahara',
-      address: 'Mahara, Gampaha District, Western Province, Sri Lanka',
-      latitude: 7.0167,
-      longitude: 79.9333,
-    ),
-    UserLocation(
-      shortName: 'Colombo 05 (Havelock Town)',
-      address: 'Colombo 05, Western Province, Sri Lanka',
-      latitude: 6.8833,
-      longitude: 79.8653,
-    ),
-    UserLocation(
-      shortName: 'Colombo 03 (Kollupitiya)',
-      address: 'Colombo 03, Western Province, Sri Lanka',
-      latitude: 6.9038,
-      longitude: 79.8519,
-    ),
-    UserLocation(
-      shortName: 'Colombo 07 (Cinnamon Gardens)',
-      address: 'Colombo 07, Western Province, Sri Lanka',
-      latitude: 6.9117,
-      longitude: 79.8646,
-    ),
-    UserLocation(
-      shortName: 'Colombo 04 (Bambalapitiya)',
-      address: 'Colombo 04, Western Province, Sri Lanka',
-      latitude: 6.8905,
-      longitude: 79.8580,
-    ),
-    UserLocation(
-      shortName: 'Colombo 01 (Fort)',
-      address: 'Colombo 01, Western Province, Sri Lanka',
-      latitude: 6.9344,
-      longitude: 79.8428,
-    ),
-    UserLocation(
-      shortName: 'Colombo 06 (Wellawatte)',
-      address: 'Colombo 06, Western Province, Sri Lanka',
-      latitude: 6.8741,
-      longitude: 79.8611,
-    ),
-    UserLocation(
-      shortName: 'Colombo 08 (Borella)',
-      address: 'Colombo 08, Western Province, Sri Lanka',
-      latitude: 6.9147,
-      longitude: 79.8778,
-    ),
-    UserLocation(
-      shortName: 'Nugegoda',
-      address: 'Nugegoda, Colombo District, Western Province, Sri Lanka',
-      latitude: 6.8649,
-      longitude: 79.8997,
-    ),
-    UserLocation(
-      shortName: 'Dehiwala',
-      address: 'Dehiwala-Mount Lavinia, Western Province, Sri Lanka',
-      latitude: 6.8511,
-      longitude: 79.8653,
-    ),
-    UserLocation(
-      shortName: 'Mount Lavinia',
-      address: 'Mount Lavinia, Western Province, Sri Lanka',
-      latitude: 6.8344,
-      longitude: 79.8658,
-    ),
-    UserLocation(
-      shortName: 'Moratuwa',
-      address: 'Moratuwa, Colombo District, Western Province, Sri Lanka',
-      latitude: 6.7730,
-      longitude: 79.8816,
-    ),
-    UserLocation(
-      shortName: 'Kottawa',
-      address: 'Kottawa, Colombo District, Western Province, Sri Lanka',
-      latitude: 6.8413,
-      longitude: 79.9654,
-    ),
-    UserLocation(
-      shortName: 'Pannipitiya',
-      address: 'Pannipitiya, Colombo District, Western Province, Sri Lanka',
-      latitude: 6.8471,
-      longitude: 79.9538,
-    ),
-    UserLocation(
-      shortName: 'Homagama',
-      address: 'Homagama, Colombo District, Western Province, Sri Lanka',
-      latitude: 6.8436,
-      longitude: 80.0031,
-    ),
-    UserLocation(
-      shortName: 'Malabe',
-      address: 'Malabe, Colombo District, Western Province, Sri Lanka',
-      latitude: 6.9042,
-      longitude: 79.9547,
-    ),
-    UserLocation(
-      shortName: 'Battaramulla',
-      address: 'Battaramulla, Colombo District, Western Province, Sri Lanka',
-      latitude: 6.8997,
-      longitude: 79.9171,
-    ),
-    UserLocation(
-      shortName: 'Rajagiriya',
-      address: 'Rajagiriya, Colombo District, Western Province, Sri Lanka',
-      latitude: 6.9088,
-      longitude: 79.8931,
-    ),
-    UserLocation(
-      shortName: 'Kaduwela',
-      address: 'Kaduwela, Colombo District, Western Province, Sri Lanka',
-      latitude: 6.9333,
-      longitude: 79.9833,
-    ),
-    UserLocation(
-      shortName: 'Boralesgamuwa',
-      address: 'Boralesgamuwa, Colombo District, Western Province, Sri Lanka',
-      latitude: 6.8447,
-      longitude: 79.9025,
-    ),
-    UserLocation(
-      shortName: 'Piliyandala',
-      address: 'Piliyandala, Colombo District, Western Province, Sri Lanka',
-      latitude: 6.8018,
-      longitude: 79.9227,
-    ),
-    UserLocation(
-      shortName: 'Gampaha',
-      address: 'Gampaha, Western Province, Sri Lanka',
-      latitude: 7.0917,
-      longitude: 79.9997,
-    ),
-    UserLocation(
-      shortName: 'Negombo',
-      address: 'Negombo, Gampaha District, Western Province, Sri Lanka',
-      latitude: 7.2083,
-      longitude: 79.8358,
-    ),
-    UserLocation(
-      shortName: 'Kadawatha',
-      address: 'Kadawatha, Gampaha District, Western Province, Sri Lanka',
-      latitude: 7.0016,
-      longitude: 79.9507,
-    ),
-    UserLocation(
-      shortName: 'Kiribathgoda',
-      address: 'Kiribathgoda, Gampaha District, Western Province, Sri Lanka',
-      latitude: 6.9796,
-      longitude: 79.9287,
-    ),
-    UserLocation(
-      shortName: 'Kelaniya',
-      address: 'Kelaniya, Gampaha District, Western Province, Sri Lanka',
-      latitude: 6.9553,
-      longitude: 79.9222,
-    ),
-    UserLocation(
-      shortName: 'Wattala',
-      address: 'Wattala, Gampaha District, Western Province, Sri Lanka',
-      latitude: 6.9897,
-      longitude: 79.8917,
-    ),
-    UserLocation(
-      shortName: 'Ja-Ela',
-      address: 'Ja-Ela, Gampaha District, Western Province, Sri Lanka',
-      latitude: 7.0754,
-      longitude: 79.8927,
-    ),
-    UserLocation(
-      shortName: 'Kandy',
-      address: 'Kandy, Central Province, Sri Lanka',
-      latitude: 7.2906,
-      longitude: 80.6337,
-    ),
-    UserLocation(
-      shortName: 'Peradeniya',
-      address: 'Peradeniya, Kandy District, Central Province, Sri Lanka',
-      latitude: 7.2583,
-      longitude: 80.5967,
-    ),
-    UserLocation(
-      shortName: 'Galle',
-      address: 'Galle, Southern Province, Sri Lanka',
-      latitude: 6.0535,
-      longitude: 80.2210,
-    ),
-    UserLocation(
-      shortName: 'Matara',
-      address: 'Matara, Southern Province, Sri Lanka',
-      latitude: 5.9549,
-      longitude: 80.5550,
-    ),
-    UserLocation(
-      shortName: 'Kurunegala',
-      address: 'Kurunegala, North Western Province, Sri Lanka',
-      latitude: 7.4867,
-      longitude: 80.3647,
-    ),
-    UserLocation(
-      shortName: 'Panadura',
-      address: 'Panadura, Kalutara District, Western Province, Sri Lanka',
-      latitude: 6.7133,
-      longitude: 79.9042,
-    ),
-    UserLocation(
-      shortName: 'Kalutara',
-      address: 'Kalutara, Western Province, Sri Lanka',
-      latitude: 6.5854,
-      longitude: 79.9592,
-    ),
-    UserLocation(
-      shortName: 'Ratnapura',
-      address: 'Ratnapura, Sabaragamuwa Province, Sri Lanka',
-      latitude: 6.7056,
-      longitude: 80.3847,
-    ),
-    UserLocation(
-      shortName: 'Anuradhapura',
-      address: 'Anuradhapura, North Central Province, Sri Lanka',
-      latitude: 8.3114,
-      longitude: 80.4037,
-    ),
-    UserLocation(
-      shortName: 'Jaffna',
-      address: 'Jaffna, Northern Province, Sri Lanka',
-      latitude: 9.6615,
-      longitude: 80.0255,
-    ),
-    UserLocation(
-      shortName: 'Batticaloa',
-      address: 'Batticaloa, Eastern Province, Sri Lanka',
-      latitude: 7.7102,
-      longitude: 81.6924,
-    ),
-    UserLocation(
-      shortName: 'Trincomalee',
-      address: 'Trincomalee, Eastern Province, Sri Lanka',
-      latitude: 8.5874,
-      longitude: 81.2152,
-    ),
-    UserLocation(
-      shortName: 'Nuwara Eliya',
-      address: 'Nuwara Eliya, Central Province, Sri Lanka',
-      latitude: 6.9497,
-      longitude: 80.7891,
-    ),
-  ];
+  static String get _googleApiKey {
+    final key = ApiConfig.googleMapsApiKey;
+    if (key.isNotEmpty) return key;
+    return 'AIzaSyBF12uONPYPGW6FFizwyficdIoPIasZz6s';
+  }
 
-  /// Searches location suggestions with instant local match + online Nominatim/Geocoding query
+  /// Live Google Places Autocomplete search across Sri Lanka (no hardcoded lists)
   static Future<List<UserLocation>> searchSuggestions(
     String query, {
     int limit = 6,
@@ -519,28 +274,67 @@ class LocationService {
     final clean = query.trim();
     if (clean.isEmpty) return [];
 
-    final results = <UserLocation>[];
-    final seen = <String>{};
+    final apiKey = _googleApiKey;
+    if (apiKey.isNotEmpty) {
+      try {
+        final uri = Uri.parse(
+          'https://maps.googleapis.com/maps/api/place/autocomplete/json?'
+          'input=${Uri.encodeComponent(clean)}'
+          '&components=country:lk'
+          '&key=$apiKey',
+        );
+        final res = await http.get(uri).timeout(const Duration(seconds: 4));
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body) as Map<String, dynamic>;
+          final predictions = data['predictions'] as List?;
+          if (predictions != null && predictions.isNotEmpty) {
+            final results = <UserLocation>[];
+            for (final p in predictions.take(limit)) {
+              final placeId = p['place_id'] as String?;
+              final formatting =
+                  p['structured_formatting'] as Map<String, dynamic>?;
+              final mainText =
+                  formatting?['main_text'] as String? ??
+                  p['description'] as String? ??
+                  clean;
+              final secondaryText =
+                  formatting?['secondary_text'] as String? ?? '';
+              final fullAddress = secondaryText.isNotEmpty
+                  ? '$mainText, $secondaryText'
+                  : mainText;
 
-    void addLocation(UserLocation loc) {
-      final key =
-          '${loc.shortName.toLowerCase()}_${loc.latitude.toStringAsFixed(3)}_${loc.longitude.toStringAsFixed(3)}';
-      if (!seen.contains(key)) {
-        seen.add(key);
+              results.add(
+                UserLocation(
+                  shortName: cleanLocationName(mainText),
+                  address: cleanLocationName(fullAddress),
+                  latitude: 0.0,
+                  longitude: 0.0,
+                  placeId: placeId,
+                ),
+              );
+            }
+            if (results.isNotEmpty) return results;
+          }
+        }
+      } catch (e) {
+        debugPrint('Google Places Autocomplete error: $e');
+      }
+    }
+
+    // Fallback 1: Native device geocoder
+    try {
+      final geocoded = await _geocoding
+          .locationFromAddress('$clean, Sri Lanka')
+          .timeout(const Duration(seconds: 3));
+      final results = <UserLocation>[];
+      for (final g in geocoded.take(limit)) {
+        final loc = await getAddressFromCoordinates(g.latitude, g.longitude);
         results.add(loc);
       }
-    }
+      if (results.isNotEmpty) return results;
+    } catch (_) {}
 
-    // 1. Instant local index filtering (0ms latency)
-    final lower = clean.toLowerCase();
-    for (final loc in popularSriLankanPlaces) {
-      if (loc.shortName.toLowerCase().contains(lower) ||
-          loc.address.toLowerCase().contains(lower)) {
-        addLocation(loc);
-      }
-    }
-
-    // 2. Fetch online places via OpenStreetMap Nominatim with timeout
+    // Fallback 2: OpenStreetMap Nominatim
     try {
       final uri = Uri.parse(
         'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(clean)}&format=json&addressdetails=1&limit=$limit',
@@ -556,6 +350,7 @@ class LocationService {
 
       if (res.statusCode == 200) {
         final List data = jsonDecode(res.body) as List;
+        final results = <UserLocation>[];
         for (final item in data) {
           final lat = double.tryParse(item['lat']?.toString() ?? '');
           final lon = double.tryParse(item['lon']?.toString() ?? '');
@@ -571,51 +366,110 @@ class LocationService {
                 item['name'] ??
                 clean;
             final full = item['display_name'] as String? ?? short.toString();
-            addLocation(
+            results.add(
               UserLocation(
-                shortName: short.toString(),
-                address: full,
+                shortName: cleanLocationName(short.toString()),
+                address: cleanLocationName(full),
                 latitude: lat,
                 longitude: lon,
               ),
             );
           }
         }
+        if (results.isNotEmpty) return results;
       }
-    } catch (e) {
-      debugPrint('Nominatim suggestions error: $e');
-    }
+    } catch (_) {}
 
-    // 3. Native geocoding fallback if few or no results
-    if (results.length < 2) {
-      try {
-        final geocoded = await _geocoding
-            .locationFromAddress(clean)
-            .timeout(const Duration(seconds: 3));
-        for (final g in geocoded.take(3)) {
-          final loc = await getAddressFromCoordinates(g.latitude, g.longitude);
-          addLocation(loc);
-        }
-      } catch (_) {}
-    }
-
-    return results.take(limit).toList();
+    return [];
   }
 
-  // Forward geocodes a search string into coordinates.
+  /// Fetches precise coordinates and address details for a Google Place ID
+  static Future<UserLocation?> getPlaceDetails(String placeId) async {
+    final apiKey = _googleApiKey;
+    if (apiKey.isEmpty || placeId.isEmpty) return null;
+
+    try {
+      final uri = Uri.parse(
+        'https://maps.googleapis.com/maps/api/place/details/json?'
+        'place_id=$placeId'
+        '&fields=geometry,name,formatted_address'
+        '&key=$apiKey',
+      );
+      final res = await http.get(uri).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        final result = data['result'] as Map<String, dynamic>?;
+        if (result != null) {
+          final geom = result['geometry'] as Map<String, dynamic>?;
+          final loc = geom?['location'] as Map<String, dynamic>?;
+          final lat = (loc?['lat'] as num?)?.toDouble();
+          final lng = (loc?['lng'] as num?)?.toDouble();
+          final name = result['name'] as String? ?? '';
+          final formatted = result['formatted_address'] as String? ?? name;
+
+          if (lat != null && lng != null) {
+            return UserLocation(
+              shortName: cleanLocationName(name.isNotEmpty ? name : formatted),
+              address: cleanLocationName(formatted),
+              latitude: lat,
+              longitude: lng,
+              placeId: placeId,
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Google Place Details error: $e');
+    }
+    return null;
+  }
+
+  // Forward geocodes a search string into coordinates via Google Geocoding API.
   static Future<UserLocation?> searchLocation(String query) async {
-    // Check popular places first
-    final clean = query.trim().toLowerCase();
-    for (final p in popularSriLankanPlaces) {
-      if (p.shortName.toLowerCase() == clean ||
-          p.shortName.toLowerCase().startsWith(clean)) {
-        return p;
+    final clean = query.trim();
+    if (clean.isEmpty) return null;
+
+    final apiKey = _googleApiKey;
+    if (apiKey.isNotEmpty) {
+      try {
+        final uri = Uri.parse(
+          'https://maps.googleapis.com/maps/api/geocode/json?'
+          'address=${Uri.encodeComponent(clean)}'
+          '&components=country:LK'
+          '&key=$apiKey',
+        );
+        final res = await http.get(uri).timeout(const Duration(seconds: 4));
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body) as Map<String, dynamic>;
+          final results = data['results'] as List?;
+          if (results != null && results.isNotEmpty) {
+            final first = results.first as Map<String, dynamic>;
+            final geom = first['geometry'] as Map<String, dynamic>?;
+            final loc = geom?['location'] as Map<String, dynamic>?;
+            final lat = (loc?['lat'] as num?)?.toDouble();
+            final lng = (loc?['lng'] as num?)?.toDouble();
+            final formatted = first['formatted_address'] as String? ?? clean;
+            final placeId = first['place_id'] as String?;
+
+            if (lat != null && lng != null) {
+              return UserLocation(
+                shortName: cleanLocationName(formatted.split(',').first.trim()),
+                address: cleanLocationName(formatted),
+                latitude: lat,
+                longitude: lng,
+                placeId: placeId,
+              );
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Google Geocode error: $e');
       }
     }
 
     try {
       final locations = await _geocoding
-          .locationFromAddress(query)
+          .locationFromAddress('$clean, Sri Lanka')
           .timeout(const Duration(seconds: 4));
       if (locations.isNotEmpty) {
         final loc = locations.first;
