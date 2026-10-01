@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using TaskBridge.Api.Data;
+using TaskBridge.Api.Common;
 
 namespace backend.Api.AI;
 
@@ -58,6 +59,12 @@ public class MatchingAgentService
             dbProviders = dbProviders.Where(p => p.User == null || p.User.FullName.Trim().ToLowerInvariant() != custName).ToList();
         }
 
+        // Resolve customer's job location coordinates (from full address or city)
+        var customerLocStr = !string.IsNullOrWhiteSpace(job.LocationAddress)
+            ? job.LocationAddress
+            : (!string.IsNullOrWhiteSpace(job.Location) ? job.Location : requestedLocation);
+        var (cLat, cLng) = GeoUtils.ResolveCoordinates(customerLocStr);
+
         var candidatePool = new List<MatchedProviderDto>();
 
         foreach (var p in dbProviders)
@@ -65,7 +72,12 @@ public class MatchingAgentService
             var user = p.User;
             var providerName = !string.IsNullOrWhiteSpace(user.FullName) ? user.FullName : "TaskBridge Specialist";
 
-            // Multi-Criteria Scoring (MCDA) with real DB provider awareness
+            // Resolve provider's actual coordinates from location/service area
+            var provLocationStr = p.ServiceAreas ?? user.ProviderServiceAreas ?? user.Location ?? user.Address ?? "Colombo";
+            var (pLat, pLng) = GeoUtils.ResolveCoordinates(provLocationStr);
+            var realDistance = GeoUtils.CalculateHaversineDistance(cLat, cLng, pLat, pLng);
+
+            // Multi-Criteria Scoring (MCDA) with real DB provider awareness and dynamic distance
             var breakdown = CalculateScores(
                 p.Category, 
                 p.Skills ?? user.ProviderSkills, 
@@ -74,6 +86,7 @@ public class MatchingAgentService
                 p.Rating, 
                 p.ReviewCount, 
                 job,
+                distanceKm: realDistance,
                 isRealDbProvider: true);
 
             var totalScore = (int)Math.Round(breakdown.SkillScore + breakdown.LocationScore + breakdown.BudgetScore + breakdown.RatingScore);
@@ -89,7 +102,7 @@ public class MatchingAgentService
                 Category = p.Category,
                 Skills = p.Skills ?? user.ProviderSkills,
                 ServiceAreas = p.ServiceAreas ?? user.ProviderServiceAreas ?? "Colombo 05",
-                DistanceKm = 2.4,
+                DistanceKm = realDistance,
                 HourlyRate = p.HourlyRate > 0 ? p.HourlyRate : 2500m,
                 Rating = p.Rating,
                 ReviewCount = p.ReviewCount,
@@ -320,6 +333,7 @@ public class MatchingAgentService
         double rating,
         int reviewCount,
         JobPlanDetails job,
+        double distanceKm = 2.4,
         bool isRealDbProvider = false)
     {
         // 1. Skill Score (Max 35)
@@ -351,14 +365,18 @@ public class MatchingAgentService
 
         skillScore = Math.Min(skillScore, 35.0);
 
-        // 2. Location Score (Max 25)
-        double locScore = 15.0;
-        var reqLoc = (job.Location ?? "Colombo").ToLowerInvariant();
-        var candAreas = (serviceAreas ?? "Colombo").ToLowerInvariant();
-        if (candAreas.Contains(reqLoc) || reqLoc.Contains("colombo") || candAreas.Contains("colombo"))
-        {
-            locScore = 24.5;
-        }
+        // 2. Location & Proximity Score (Max 25)
+        double locScore;
+        if (distanceKm <= 2.0)
+            locScore = 25.0;
+        else if (distanceKm <= 5.0)
+            locScore = 23.5;
+        else if (distanceKm <= 10.0)
+            locScore = 20.0;
+        else if (distanceKm <= 20.0)
+            locScore = 16.0;
+        else
+            locScore = Math.Max(8.0, 25.0 - (distanceKm * 0.7));
 
         // 3. Budget Fit Score (Max 20)
         double budgetScore = 20.0;

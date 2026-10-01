@@ -198,8 +198,8 @@ ALTER TABLE users ALTER COLUMN ""ProviderEarnings"" SET DEFAULT 0.00;
 UPDATE users SET ""ProviderEarnings"" = 0.00 WHERE ""ProviderEarnings"" = 54000.00;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderHourlyRate"" numeric(12,2) NULL DEFAULT 2500.00;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""Role"" text NOT NULL DEFAULT 'User';
-UPDATE users SET ""Location"" = REGEXP_REPLACE(""Location"", '([A-Za-z0-9]{2,8}\+[A-Za-z0-9]{1,4}[,\s]*)+', '', 'g') WHERE ""Location"" ~ '[A-Za-z0-9]+\+[A-Za-z0-9]+';
-UPDATE users SET ""Address"" = REGEXP_REPLACE(""Address"", '([A-Za-z0-9]{2,8}\+[A-Za-z0-9]{1,4}[,\s]*)+', '', 'g') WHERE ""Address"" ~ '[A-Za-z0-9]+\+[A-Za-z0-9]+';
+UPDATE users SET ""Location"" = REGEXP_REPLACE(""Location"", '([A-Za-z0-9]+\+[A-Za-z0-9]+[,\s]*)+', '', 'g') WHERE ""Location"" ~ '[A-Za-z0-9]+\+[A-Za-z0-9]+';
+UPDATE users SET ""Address"" = REGEXP_REPLACE(""Address"", '([A-Za-z0-9]+\+[A-Za-z0-9]+[,\s]*)+', '', 'g') WHERE ""Address"" ~ '[A-Za-z0-9]+\+[A-Za-z0-9]+';
 UPDATE users SET ""Location"" = TRIM(BOTH ', ' FROM ""Location"") WHERE ""Location"" IS NOT NULL;
 UPDATE users SET ""Address"" = TRIM(BOTH ', ' FROM ""Address"") WHERE ""Address"" IS NOT NULL;
 

@@ -756,7 +756,15 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
     required MatchedProvider provider,
     required AppPalette palette,
   }) {
-    final locationText = widget.jobPlan.location ?? 'Colombo 05';
+    final providerArea =
+        (provider.serviceAreas != null && provider.serviceAreas!.isNotEmpty)
+        ? provider.serviceAreas!
+              .replaceAll(
+                RegExp(r'\(Within\s+\d+\s+km\)', caseSensitive: false),
+                '',
+              )
+              .trim()
+        : (widget.jobPlan.location ?? 'Service Area');
 
     return Container(
       decoration: BoxDecoration(
@@ -968,7 +976,7 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
-                            'Available tomorrow · $locationText',
+                            'Available tomorrow · $providerArea',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
