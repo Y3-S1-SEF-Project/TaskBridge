@@ -20,6 +20,9 @@ public sealed class AppUser
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAt { get; set; }
 
+    // Role: "SuperAdmin", "Admin", "User"
+    public string Role { get; set; } = "User";
+
     // Provider mode profile details
     public bool IsProvider { get; set; }
     public string? ProviderCategory { get; set; }

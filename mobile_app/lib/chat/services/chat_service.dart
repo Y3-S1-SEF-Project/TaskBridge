@@ -36,6 +36,15 @@ class ChatService {
   Stream<Map<String, dynamic>> get deleteMessageStream =>
       _deleteMessageStreamController.stream;
 
+  final StreamController<void> _refreshConversationsController =
+      StreamController<void>.broadcast();
+  Stream<void> get refreshConversationsStream =>
+      _refreshConversationsController.stream;
+
+  void triggerConversationsRefresh() {
+    _refreshConversationsController.add(null);
+  }
+
   /// Resolves a working base URL from ApiConfig or candidate URLs dynamically.
   Future<String> _resolveBaseUrl() async {
     if (ApiConfig.hasWorkingBaseUrl) {
@@ -246,12 +255,13 @@ class ChatService {
     };
   }
 
-  /// Fetches all active conversations for the current user.
-  Future<List<ChatConversationModel>> fetchConversations() async {
+  /// Fetches active conversations for the current user, optionally filtered by role ('customer' or 'provider').
+  Future<List<ChatConversationModel>> fetchConversations({String? role}) async {
     try {
       final headers = await _authHeaders();
       final base = await _resolveBaseUrl();
-      final uri = Uri.parse('$base/api/chat/conversations');
+      final query = (role != null && role.isNotEmpty) ? '?role=$role' : '';
+      final uri = Uri.parse('$base/api/chat/conversations$query');
       final res = await http
           .get(uri, headers: headers)
           .timeout(const Duration(seconds: 12));
