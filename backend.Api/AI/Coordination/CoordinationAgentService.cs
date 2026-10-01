@@ -210,6 +210,29 @@ public class CoordinationAgentService
         return null;
     }
 
+    private async Task<Guid?> ResolveProviderIdAsync(string? providerId, string? providerName, CancellationToken ct)
+    {
+        if (!string.IsNullOrWhiteSpace(providerId) && Guid.TryParse(providerId, out var parsedGuid))
+        {
+            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == parsedGuid, ct);
+            if (user != null) return user.Id;
+
+            var profile = await _dbContext.Providers.FirstOrDefaultAsync(p => p.Id == parsedGuid, ct);
+            if (profile != null) return profile.UserId;
+
+            return parsedGuid;
+        }
+
+        if (!string.IsNullOrWhiteSpace(providerName))
+        {
+            var pName = providerName.Trim().ToLowerInvariant();
+            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.FullName.ToLower() == pName, ct);
+            if (user != null) return user.Id;
+        }
+
+        return null;
+    }
+
     private async Task BackfillMissingCustomerIdsAsync(CancellationToken ct)
     {
         try
@@ -273,7 +296,7 @@ public class CoordinationAgentService
             return existing;
         }
 
-        Guid? provId = Guid.TryParse(req.ProviderId, out var parsedGuid) ? parsedGuid : null;
+        Guid? provId = await ResolveProviderIdAsync(req.ProviderId, req.ProviderName, ct);
         Guid? custId = await ResolveCustomerIdAsync(req.CustomerId, req.CustomerName, ct);
 
         var entity = new BookingEntity
@@ -314,7 +337,7 @@ public class CoordinationAgentService
             : await GenerateProposalReferenceAsync(ct);
 
         Guid? custId = await ResolveCustomerIdAsync(req.CustomerId, req.CustomerName, ct);
-        Guid? provId = Guid.TryParse(req.ProviderId, out var parsedGuid) ? parsedGuid : null;
+        Guid? provId = await ResolveProviderIdAsync(req.ProviderId, req.ProviderName, ct);
 
         var existing = await _dbContext.Proposals.FirstOrDefaultAsync(p => p.ProposalReference == proposalRef, ct);
         if (existing != null)

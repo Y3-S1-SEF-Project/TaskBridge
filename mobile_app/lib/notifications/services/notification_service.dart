@@ -85,6 +85,7 @@ class NotificationService extends ChangeNotifier {
   /// Connects to the backend SignalR NotificationHub
   Future<void> connectSignalR() async {
     if (_hubConnection != null && _hubConnection!.state == HubConnectionState.Connected) {
+      await _registerChannels();
       return;
     }
     if (_isConnecting) return;

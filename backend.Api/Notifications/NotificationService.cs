@@ -42,18 +42,25 @@ public sealed class NotificationService : INotificationService
 
         var response = MapToResponse(entity);
 
-        // Dispatch via SignalR to target user only (never broadcast to all)
+        // Dispatch via SignalR to target user (multi-group deduplicated delivery)
         try
         {
+            var targetGroups = new List<string>();
+
             if (dto.UserId.HasValue && dto.UserId != Guid.Empty)
             {
-                var groupName = $"user_{dto.UserId.Value}";
-                await _hub.Clients.Group(groupName).SendAsync("ReceiveNotification", response, ct);
+                targetGroups.Add($"user_{dto.UserId.Value}");
             }
-            else if (!string.IsNullOrWhiteSpace(dto.UserName))
+
+            if (!string.IsNullOrWhiteSpace(dto.UserName))
             {
                 var clean = dto.UserName.Trim().ToLowerInvariant().Replace(" ", "_");
-                await _hub.Clients.Group($"name_{clean}").SendAsync("ReceiveNotification", response, ct);
+                targetGroups.Add($"name_{clean}");
+            }
+
+            if (targetGroups.Count > 0)
+            {
+                await _hub.Clients.Groups(targetGroups).SendAsync("ReceiveNotification", response, ct);
             }
         }
         catch (Exception ex)
