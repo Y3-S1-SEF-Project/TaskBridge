@@ -93,10 +93,12 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
 
     if (mounted) {
       setState(() {
-        _savedLocationName =
-            (loc != null && loc.trim().isNotEmpty) ? loc.trim() : null;
-        _savedAddressName =
-            (addr != null && addr.trim().isNotEmpty) ? addr.trim() : null;
+        _savedLocationName = (loc != null && loc.trim().isNotEmpty)
+            ? loc.trim()
+            : null;
+        _savedAddressName = (addr != null && addr.trim().isNotEmpty)
+            ? addr.trim()
+            : null;
       });
     }
   }
@@ -158,8 +160,9 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
           ),
           backgroundColor: AppColors.primary,
           behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -182,10 +185,8 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
     final picked = await Navigator.push<UserLocation>(
       context,
       MaterialPageRoute(
-        builder: (_) => LocationPickerPage(
-          initialLocation: initial,
-          autoGps: false,
-        ),
+        builder: (_) =>
+            LocationPickerPage(initialLocation: initial, autoGps: false),
       ),
     );
 
@@ -1203,6 +1204,7 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
       selected: isSelected,
       onSelected: (_) => onTap(),
       selectedColor: palette.primary,
+      checkmarkColor: Colors.white,
       backgroundColor: palette.soft,
       labelStyle: TextStyle(
         fontSize: 13,
@@ -1231,6 +1233,7 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
         });
       },
       selectedColor: palette.primary,
+      checkmarkColor: Colors.white,
       backgroundColor: palette.soft,
       labelStyle: TextStyle(
         fontSize: 13,

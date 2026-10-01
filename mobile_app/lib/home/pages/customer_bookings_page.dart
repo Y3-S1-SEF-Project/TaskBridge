@@ -353,6 +353,101 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
     }
   }
 
+  Future<void> _deleteServiceRequest(ServiceRequestItem req) async {
+    final ref = req.id.length >= 6
+        ? req.id.substring(0, 6).toUpperCase()
+        : req.id.toUpperCase();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        final palette = AppPalette.of(ctx);
+        return AlertDialog(
+          backgroundColor: palette.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                Icons.delete_forever_rounded,
+                color: AppColors.error,
+                size: 24,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Delete Request?',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: palette.text,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'This will permanently remove request #REQ-$ref for "${req.title.isNotEmpty ? req.title : req.category}" from the system.\n\nThis action cannot be undone.',
+            style: TextStyle(color: palette.muted, fontSize: 14, height: 1.45),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Keep It', style: TextStyle(color: palette.muted)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text(
+                'Delete Permanently',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      final success = await ServiceRequestsApi.deleteRequest(requestId: req.id);
+
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Request #REQ-$ref has been deleted.'),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+          _loadBookings();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Failed to delete request. It may be currently being processed.',
+              ),
+              backgroundColor: Colors.orange.shade800,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+        }
+      }
+    }
+  }
+
   void _showServiceRequestDetailsModal(ServiceRequestItem req) {
     final palette = AppPalette.of(context);
     final ref = req.id.length >= 6
@@ -1928,6 +2023,7 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                             onRefresh: _loadBookings,
                             onTap: _showServiceRequestDetailsModal,
                             onCancel: _cancelServiceRequest,
+                            onDelete: _deleteServiceRequest,
                             onCreateNew: () {
                               AiPromptSheet.show(
                                 context,
@@ -2423,6 +2519,7 @@ class _ServiceRequestsListView extends StatelessWidget {
   final Future<void> Function() onRefresh;
   final void Function(ServiceRequestItem) onTap;
   final void Function(ServiceRequestItem) onCancel;
+  final void Function(ServiceRequestItem) onDelete;
   final VoidCallback onCreateNew;
 
   const _ServiceRequestsListView({
@@ -2430,6 +2527,7 @@ class _ServiceRequestsListView extends StatelessWidget {
     required this.onRefresh,
     required this.onTap,
     required this.onCancel,
+    required this.onDelete,
     required this.onCreateNew,
   });
 
@@ -2556,6 +2654,7 @@ class _ServiceRequestsListView extends StatelessWidget {
             child: InkWell(
               borderRadius: BorderRadius.circular(AppRadius.r16),
               onTap: () => onTap(req),
+              onLongPress: () => onDelete(req),
               child: Container(
                 decoration: BoxDecoration(
                   color: palette.surface,
