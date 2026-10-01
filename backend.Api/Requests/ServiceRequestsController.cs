@@ -120,6 +120,7 @@ public class ServiceRequestsController : ControllerBase
     [HttpGet("my")]
     public async Task<IActionResult> GetMyRequests(
         [FromQuery] Guid? customerId,
+        [FromQuery] string? customerName,
         [FromQuery] string? status,
         [FromQuery] string? category,
         CancellationToken ct)
@@ -127,12 +128,30 @@ public class ServiceRequestsController : ControllerBase
         try
         {
             var targetCustomerId = GetCurrentUserId() ?? customerId;
-            if (!targetCustomerId.HasValue)
-            {
-                return BadRequest(new { message = "CustomerId is required to retrieve customer requests." });
-            }
 
-            var query = _db.ServiceRequests.AsNoTracking().Where(x => x.CustomerId == targetCustomerId.Value);
+            IQueryable<ServiceRequestEntity> query = _db.ServiceRequests.AsNoTracking();
+
+            if (targetCustomerId.HasValue && targetCustomerId.Value != Guid.Empty)
+            {
+                if (!string.IsNullOrWhiteSpace(customerName))
+                {
+                    var cName = customerName.Trim().ToLower();
+                    query = query.Where(x => x.CustomerId == targetCustomerId.Value || x.CustomerName.ToLower() == cName);
+                }
+                else
+                {
+                    query = query.Where(x => x.CustomerId == targetCustomerId.Value);
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(customerName))
+            {
+                var cName = customerName.Trim().ToLower();
+                query = query.Where(x => x.CustomerName.ToLower() == cName);
+            }
+            else
+            {
+                return BadRequest(new { message = "CustomerId or CustomerName is required to retrieve customer requests." });
+            }
 
             if (!string.IsNullOrWhiteSpace(status))
             {

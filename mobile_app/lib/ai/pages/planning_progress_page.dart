@@ -47,7 +47,9 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
   Future<void> _autoSaveServiceRequest() async {
     try {
       final saved = await ServiceRequestsApi.createRequest(
-        title: widget.plan.serviceTitle.isNotEmpty ? widget.plan.serviceTitle : widget.plan.category,
+        title: widget.plan.serviceTitle.isNotEmpty
+            ? widget.plan.serviceTitle
+            : widget.plan.category,
         category: widget.plan.category,
         description: widget.plan.description,
         location: widget.plan.location ?? 'Colombo 05',
@@ -524,6 +526,29 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
                                 height: 1.4,
                               ),
                             ),
+                            if (_savedRequestId != null) ...[
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.check_circle_rounded,
+                                    size: 15,
+                                    color: palette.primary,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'Request saved to My Bookings',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: palette.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ],
                         ),
                       ),

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../ai/models/coordination_models.dart';
 import '../../ai/services/bookings_sync_service.dart';
 import '../../ai/services/coordination_api.dart';
+import '../../ai/services/service_requests_api.dart';
+import '../../ai/widgets/ai_prompt_sheet.dart';
 import '../../auth/data/auth_api.dart';
 import '../../auth/data/auth_models.dart';
 import '../../core/theme/app_colors.dart';
@@ -33,13 +35,14 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   List<BookingItem> _bookings = [];
+  List<ServiceRequestItem> _serviceRequests = [];
   bool _isLoading = true;
   Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     BookingsSyncService.instance.addListener(_onSyncUpdate);
     _loadBookings();
     _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
@@ -81,10 +84,19 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
       final proposalsFuture = CoordinationApi.getProposals(
         customerName: custName,
       );
+      final requestsFuture = ServiceRequestsApi.getMyRequests(
+        customerId: currentUser?.id,
+        customerName: custName,
+      );
 
-      final results = await Future.wait([bookingsFuture, proposalsFuture]);
+      final results = await Future.wait([
+        bookingsFuture,
+        proposalsFuture,
+        requestsFuture,
+      ]);
       final list = results[0] as List<BookingItem>;
       final propList = results[1] as List<ProposalItem>;
+      final reqList = results[2] as List<ServiceRequestItem>;
 
       if (mounted) {
         final custLower = custName?.trim().toLowerCase();
@@ -129,6 +141,7 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
 
         setState(() {
           _bookings = combined;
+          _serviceRequests = reqList;
           _isLoading = false;
         });
       }
@@ -247,6 +260,522 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
     } else {
       _showCustomerProposalReviewModal(booking);
     }
+  }
+
+  String _formatRequestDate(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inDays == 0) {
+      if (diff.inHours == 0) {
+        final m = diff.inMinutes;
+        return m <= 1 ? 'Just now' : '$m mins ago';
+      }
+      return '${diff.inHours} hrs ago';
+    } else if (diff.inDays == 1) {
+      return 'Yesterday';
+    } else {
+      return '${dt.day}/${dt.month}/${dt.year}';
+    }
+  }
+
+  Future<void> _cancelServiceRequest(ServiceRequestItem req) async {
+    if (req.status.toLowerCase() == 'cancelled') return;
+
+    final ref = req.id.length >= 6
+        ? req.id.substring(0, 6).toUpperCase()
+        : req.id.toUpperCase();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        final palette = AppPalette.of(ctx);
+        return AlertDialog(
+          backgroundColor: palette.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'Cancel Service Request?',
+            style: TextStyle(fontWeight: FontWeight.w800, color: palette.text),
+          ),
+          content: Text(
+            'Are you sure you want to cancel request #REQ-$ref for "${req.title.isNotEmpty ? req.title : req.category}"?',
+            style: TextStyle(color: palette.muted, fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(
+                'Keep Request',
+                style: TextStyle(color: palette.muted),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text(
+                'Yes, Cancel',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      final success = await ServiceRequestsApi.cancelRequest(
+        requestId: req.id,
+        reason: 'Cancelled by customer',
+      );
+
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Request #REQ-$ref has been cancelled.'),
+            backgroundColor: Colors.orange.shade800,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+        _loadBookings();
+      }
+    }
+  }
+
+  void _showServiceRequestDetailsModal(ServiceRequestItem req) {
+    final palette = AppPalette.of(context);
+    final ref = req.id.length >= 6
+        ? req.id.substring(0, 6).toUpperCase()
+        : req.id.toUpperCase();
+
+    Color badgeColor;
+    String badgeText;
+    switch (req.status) {
+      case 'ReadyForMatching':
+        badgeColor = Colors.blue;
+        badgeText = 'Matching Ready';
+        break;
+      case 'Pending':
+        badgeColor = Colors.amber.shade800;
+        badgeText = 'Pending';
+        break;
+      case 'ClarificationRequired':
+        badgeColor = Colors.orange.shade800;
+        badgeText = 'Clarification Needed';
+        break;
+      case 'Assigned':
+        badgeColor = Colors.teal;
+        badgeText = 'Assigned';
+        break;
+      case 'Cancelled':
+        badgeColor = AppColors.error;
+        badgeText = 'Cancelled';
+        break;
+      case 'Completed':
+        badgeColor = Colors.green;
+        badgeText = 'Completed';
+        break;
+      default:
+        badgeColor = palette.primary;
+        badgeText = req.status;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: palette.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.88,
+            ),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.only(
+                left: AppSpacing.s20,
+                right: AppSpacing.s20,
+                top: AppSpacing.s4,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.s24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top Reference & Status Row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.assignment_outlined,
+                            size: 16,
+                            color: palette.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '#REQ-$ref',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: palette.primary,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: badgeColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(AppRadius.r12),
+                        ),
+                        child: Text(
+                          badgeText,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: badgeColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Request Title
+                  Text(
+                    req.title.isNotEmpty ? req.title : req.category,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: palette.text,
+                      height: 1.25,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Category: ${req.category} · Created ${_formatRequestDate(req.createdAt)}',
+                    style: TextStyle(fontSize: 13, color: palette.muted),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Problem Description Box
+                  Text(
+                    'PROBLEM DESCRIPTION',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                      color: palette.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: palette.soft,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: palette.border),
+                    ),
+                    child: Text(
+                      req.description.isNotEmpty
+                          ? req.description
+                          : 'No additional description provided.',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        color: palette.text,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Details Grid: Schedule, Location, Budget
+                  Text(
+                    'REQUEST DETAILS',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                      color: palette.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: palette.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: palette.border),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              AppIcons.clock,
+                              size: 16,
+                              color: palette.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                req.scheduledDate.isNotEmpty
+                                    ? '${req.scheduledDate}${req.scheduledTime.isNotEmpty ? ' at ${req.scheduledTime}' : ''}'
+                                    : 'Flexible schedule',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: palette.text,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Icon(
+                              AppIcons.location,
+                              size: 16,
+                              color: palette.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                req.locationAddress?.isNotEmpty == true
+                                    ? req.locationAddress!
+                                    : (req.location.isNotEmpty
+                                          ? req.location
+                                          : 'Location to be specified'),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: palette.text,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.payments_outlined,
+                              size: 16,
+                              color: palette.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                req.estimatedBudget != null
+                                    ? 'Estimated Budget: Rs. ${req.estimatedBudget!.toStringAsFixed(0)}'
+                                    : 'Estimated Budget: Flexible',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: palette.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // AI Acceptance Checklist Section
+                  if (req.acceptanceChecklist.isNotEmpty) ...[
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.auto_awesome_rounded,
+                          size: 14,
+                          color: palette.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'AI ACCEPTANCE CHECKLIST',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                            color: palette.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: palette.soft.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: palette.primary.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Actionable milestones generated by Planning Agent:',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: palette.muted,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          ...req.acceptanceChecklist.map(
+                            (milestone) => Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    Icons.check_circle_rounded,
+                                    size: 16,
+                                    color: palette.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      milestone,
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w500,
+                                        color: palette.text,
+                                        height: 1.3,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Cancellation Reason
+                  if (req.status == 'Cancelled' &&
+                      req.cancellationReason != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.error.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.cancel_outlined,
+                            color: AppColors.error,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Cancellation reason: ${req.cancellationReason}',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: AppColors.error,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Action Buttons
+                  Row(
+                    children: [
+                      if (req.status != 'Cancelled' &&
+                          req.status != 'Completed') ...[
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.error,
+                              side: BorderSide(
+                                color: AppColors.error.withValues(alpha: 0.5),
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.r12,
+                                ),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              _cancelServiceRequest(req);
+                            },
+                            child: const Text(
+                              'Cancel Request',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: palette.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(
+                                AppRadius.r12,
+                              ),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text(
+                            'Close',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _showCustomerProposalReviewModal(BookingItem booking) {
@@ -661,7 +1190,7 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                           );
                           _bookings.insert(0, optimisticBooking);
                         });
-                        _tabController.animateTo(1);
+                        _tabController.animateTo(2);
 
                         messenger.showSnackBar(
                           SnackBar(
@@ -1335,7 +1864,7 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
               ),
               const SizedBox(height: 16),
 
-              // ── 4 Filter Tabs: Ongoing, Upcoming, Completed, Cancelled ──
+              // ── 5 Filter Tabs: Requests, Ongoing, Upcoming, Completed, Cancelled ──
               Container(
                 decoration: BoxDecoration(
                   color: palette.surface,
@@ -1344,6 +1873,8 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                 ),
                 child: TabBar(
                   controller: _tabController,
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
                   indicatorSize: TabBarIndicatorSize.tab,
                   indicator: BoxDecoration(
                     color: palette.soft,
@@ -1352,41 +1883,22 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                   indicatorColor: Colors.transparent,
                   labelColor: palette.primary,
                   unselectedLabelColor: palette.muted,
-                  labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 14),
                   labelStyle: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w700,
                   ),
                   unselectedLabelStyle: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w600,
                   ),
                   dividerColor: Colors.transparent,
                   tabs: [
-                    Tab(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text('Ongoing (${ongoingList.length})'),
-                      ),
-                    ),
-                    Tab(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text('Upcoming (${upcomingList.length})'),
-                      ),
-                    ),
-                    Tab(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text('Completed (${completedList.length})'),
-                      ),
-                    ),
-                    Tab(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text('Cancelled (${cancelledList.length})'),
-                      ),
-                    ),
+                    Tab(child: Text('Requests (${_serviceRequests.length})')),
+                    Tab(child: Text('Ongoing (${ongoingList.length})')),
+                    Tab(child: Text('Upcoming (${upcomingList.length})')),
+                    Tab(child: Text('Completed (${completedList.length})')),
+                    Tab(child: Text('Cancelled (${cancelledList.length})')),
                   ],
                 ),
               ),
@@ -1406,6 +1918,20 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                     : TabBarView(
                         controller: _tabController,
                         children: [
+                          // 0. Requests (Customer's pre-booking AI service requests)
+                          _ServiceRequestsListView(
+                            requests: _serviceRequests,
+                            onRefresh: _loadBookings,
+                            onTap: _showServiceRequestDetailsModal,
+                            onCancel: _cancelServiceRequest,
+                            onCreateNew: () {
+                              AiPromptSheet.show(
+                                context,
+                                currentLocation: widget.user?.location,
+                                user: widget.user,
+                              );
+                            },
+                          ),
                           // 1. Ongoing (Requests & In Progress)
                           _BookingsListView(
                             bookings: ongoingList,
@@ -1874,6 +2400,375 @@ class _BookingsListView extends StatelessWidget {
                               fontSize: 13,
                             ),
                           ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ServiceRequestsListView extends StatelessWidget {
+  final List<ServiceRequestItem> requests;
+  final Future<void> Function() onRefresh;
+  final void Function(ServiceRequestItem) onTap;
+  final void Function(ServiceRequestItem) onCancel;
+  final VoidCallback onCreateNew;
+
+  const _ServiceRequestsListView({
+    required this.requests,
+    required this.onRefresh,
+    required this.onTap,
+    required this.onCancel,
+    required this.onCreateNew,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+
+    if (requests.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: onRefresh,
+        color: palette.primary,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Container(
+            height: 380,
+            alignment: Alignment.center,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: palette.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.assignment_outlined,
+                    color: palette.primary,
+                    size: 36,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No service requests yet',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: palette.text,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40),
+                  child: Text(
+                    'Requests you submit using the AI Planning Agent will be tracked here before assignment.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: palette.muted),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: palette.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                  ),
+                  icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+                  label: const Text(
+                    'Create Request with AI',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  onPressed: onCreateNew,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      color: palette.primary,
+      child: ListView.separated(
+        padding: const EdgeInsets.only(bottom: 24),
+        itemCount: requests.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final req = requests[index];
+          final ref = req.id.length >= 6
+              ? req.id.substring(0, 6).toUpperCase()
+              : req.id.toUpperCase();
+
+          Color badgeColor;
+          String badgeText;
+          switch (req.status) {
+            case 'ReadyForMatching':
+              badgeColor = Colors.blue;
+              badgeText = 'Matching Ready';
+              break;
+            case 'Pending':
+              badgeColor = Colors.amber.shade800;
+              badgeText = 'Pending';
+              break;
+            case 'ClarificationRequired':
+              badgeColor = Colors.orange.shade800;
+              badgeText = 'Clarification Needed';
+              break;
+            case 'Assigned':
+              badgeColor = Colors.teal;
+              badgeText = 'Assigned';
+              break;
+            case 'Cancelled':
+              badgeColor = AppColors.error;
+              badgeText = 'Cancelled';
+              break;
+            case 'Completed':
+              badgeColor = Colors.green;
+              badgeText = 'Completed';
+              break;
+            default:
+              badgeColor = palette.primary;
+              badgeText = req.status;
+          }
+
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(AppRadius.r16),
+              onTap: () => onTap(req),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: palette.surface,
+                  borderRadius: BorderRadius.circular(AppRadius.r16),
+                  border: Border.all(
+                    color: req.status == 'ClarificationRequired'
+                        ? Colors.orange.shade300
+                        : palette.border,
+                    width: req.status == 'ClarificationRequired' ? 1.5 : 1.0,
+                  ),
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Top Row: Reference & Status Badge ──
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.assignment_outlined,
+                              size: 16,
+                              color: palette.primary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '#REQ-$ref',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: palette.primary,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: badgeColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(AppRadius.r12),
+                          ),
+                          child: Text(
+                            badgeText,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: badgeColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // ── Service Title ──
+                    Text(
+                      req.title.isNotEmpty ? req.title : req.category,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: palette.text,
+                        height: 1.25,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // ── Category & Estimated Budget Row ──
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 12,
+                          backgroundColor: palette.soft,
+                          child: Text(
+                            req.category.isNotEmpty
+                                ? req.category.substring(0, 1).toUpperCase()
+                                : 'S',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: palette.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          req.category,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: palette.text,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          req.estimatedBudget != null
+                              ? 'Rs. ${req.estimatedBudget!.toStringAsFixed(0)}'
+                              : 'Budget Flexible',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: palette.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Divider(height: 1, color: palette.border),
+                    const SizedBox(height: 8),
+
+                    // ── Schedule & Location ──
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Icon(
+                            AppIcons.clock,
+                            size: 14,
+                            color: palette.muted,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            req.scheduledDate.isNotEmpty
+                                ? '${req.scheduledDate}${req.scheduledTime.isNotEmpty ? ' at ${req.scheduledTime}' : ''}'
+                                : 'Schedule: Flexible',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: palette.muted,
+                              height: 1.3,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Icon(
+                            AppIcons.location,
+                            size: 14,
+                            color: palette.muted,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            req.locationAddress?.isNotEmpty == true
+                                ? req.locationAddress!
+                                : (req.location.isNotEmpty
+                                      ? req.location
+                                      : 'Location to be confirmed'),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: palette.muted,
+                              height: 1.3,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // ── AI Acceptance Checklist Chip ──
+                    if (req.acceptanceChecklist.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: palette.soft,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: palette.primary.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.auto_awesome_rounded,
+                              size: 13,
+                              color: palette.primary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${req.acceptanceChecklist.length} AI Milestones',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: palette.primary,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              'Tap to inspect →',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: palette.primary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
