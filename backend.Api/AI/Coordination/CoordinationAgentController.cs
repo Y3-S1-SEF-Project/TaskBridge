@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using TaskBridge.Api.Notifications;
 
 namespace backend.Api.AI;
 
@@ -7,13 +8,16 @@ namespace backend.Api.AI;
 public class CoordinationAgentController : ControllerBase
 {
     private readonly CoordinationAgentService _coordinationService;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<CoordinationAgentController> _logger;
 
     public CoordinationAgentController(
         CoordinationAgentService coordinationService,
+        INotificationService notificationService,
         ILogger<CoordinationAgentController> logger)
     {
         _coordinationService = coordinationService;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -101,6 +105,19 @@ public class CoordinationAgentController : ControllerBase
             {
                 return NotFound(new { message = "Booking not found." });
             }
+
+            if (string.Equals(request.NewStatus, "In Progress", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(request.NewStatus, "Active", StringComparison.OrdinalIgnoreCase))
+            {
+                await _notificationService.NotifyJobStartedAsync(
+                    updated.CustomerId,
+                    updated.CustomerName,
+                    updated.ProviderName,
+                    updated.ServiceTitle,
+                    updated.BookingReference,
+                    ct);
+            }
+
             return Ok(new { success = true, booking = updated });
         }
         catch (Exception ex)
@@ -121,6 +138,17 @@ public class CoordinationAgentController : ControllerBase
         try
         {
             var proposal = await _coordinationService.CreateProposalAsync(request, ct);
+
+            // Notify Provider about the new quotation/proposal
+            await _notificationService.NotifyProposalReceivedAsync(
+                proposal.ProviderId,
+                proposal.ProviderName,
+                proposal.CustomerName,
+                proposal.ServiceTitle,
+                proposal.ProposalReference,
+                proposal.EstimatedRate,
+                ct);
+
             return Ok(new
             {
                 success = true,
@@ -173,7 +201,9 @@ public class CoordinationAgentController : ControllerBase
     }
 
     /// <summary>
-    /// Provider accepts a proposal, marking it as Accepted and creating an Upcoming booking in 'bookings' table.
+    /// <summary>
+    /// Accepts a proposal, marking it as Accepted and creating an Upcoming booking in 'bookings' table.
+    /// If accepted by Customer, notifies Provider. If accepted by Provider, notifies Customer.
     /// </summary>
     [HttpPost("proposals/accept")]
     public async Task<IActionResult> AcceptProposal(
@@ -187,6 +217,32 @@ public class CoordinationAgentController : ControllerBase
             {
                 return NotFound(new { message = "Proposal not found." });
             }
+
+            var isCustomer = string.Equals(request.AcceptedByRole, "Customer", StringComparison.OrdinalIgnoreCase);
+
+            if (isCustomer)
+            {
+                // Customer accepted provider's bid/quote -> Notify Provider
+                await _notificationService.NotifyQuoteAcceptedByCustomerAsync(
+                    booking.ProviderId,
+                    booking.ProviderName,
+                    booking.CustomerName,
+                    booking.ServiceTitle,
+                    booking.BookingReference,
+                    ct);
+            }
+            else
+            {
+                // Provider accepted customer's proposal -> Notify Customer
+                await _notificationService.NotifyProposalAcceptedAsync(
+                    booking.CustomerId,
+                    booking.CustomerName,
+                    booking.ProviderName,
+                    booking.ServiceTitle,
+                    booking.BookingReference,
+                    ct);
+            }
+
             return Ok(new { success = true, booking });
         }
         catch (Exception ex)
@@ -211,6 +267,16 @@ public class CoordinationAgentController : ControllerBase
             {
                 return NotFound(new { message = "Proposal not found." });
             }
+
+            // Notify Customer that proposal was declined
+            await _notificationService.NotifyProposalDeclinedAsync(
+                proposal.CustomerId,
+                proposal.CustomerName,
+                proposal.ProviderName,
+                proposal.ServiceTitle,
+                proposal.ProposalReference,
+                ct);
+
             return Ok(new { success = true, proposal });
         }
         catch (Exception ex)
@@ -235,6 +301,34 @@ public class CoordinationAgentController : ControllerBase
             {
                 return NotFound(new { message = "Booking request not found." });
             }
+
+            var isCustomer = string.Equals(request.Sender, "customer", StringComparison.OrdinalIgnoreCase);
+
+            if (isCustomer)
+            {
+                // Customer submitted a counter-bid / re-bid -> Notify Provider
+                await _notificationService.NotifyCustomerCounterBidAsync(
+                    updated.ProviderId,
+                    updated.ProviderName,
+                    updated.CustomerName,
+                    updated.ServiceTitle,
+                    updated.BookingReference,
+                    updated.Price,
+                    ct);
+            }
+            else
+            {
+                // Provider submitted a counter-bid / updated quote -> Notify Customer
+                await _notificationService.NotifyCounterBidAsync(
+                    updated.CustomerId,
+                    updated.CustomerName,
+                    updated.ProviderName,
+                    updated.ServiceTitle,
+                    updated.BookingReference,
+                    updated.Price,
+                    ct);
+            }
+
             return Ok(new { success = true, booking = updated });
         }
         catch (Exception ex)
@@ -259,6 +353,20 @@ public class CoordinationAgentController : ControllerBase
             {
                 return NotFound(new { message = "Booking request not found." });
             }
+
+            var isCustomerCancelling = string.Equals(request.CancelledByRole, "Customer", StringComparison.OrdinalIgnoreCase);
+            var targetUserId = isCustomerCancelling ? updated.ProviderId : updated.CustomerId;
+            var targetUserName = isCustomerCancelling ? updated.ProviderName : updated.CustomerName;
+            var actorName = isCustomerCancelling ? updated.CustomerName : updated.ProviderName;
+
+            await _notificationService.NotifyBookingCancelledAsync(
+                targetUserId,
+                targetUserName,
+                actorName,
+                updated.ServiceTitle,
+                updated.BookingReference,
+                ct);
+
             return Ok(new { success = true, booking = updated });
         }
         catch (Exception ex)

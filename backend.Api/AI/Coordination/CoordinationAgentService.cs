@@ -707,7 +707,9 @@ public class CoordinationAgentService
             {
                 Id = proposal.Id,
                 BookingReference = proposal.ProposalReference,
+                CustomerId = proposal.CustomerId,
                 CustomerName = proposal.CustomerName,
+                ProviderId = proposal.ProviderId,
                 ProviderName = proposal.ProviderName,
                 ServiceTitle = proposal.ServiceTitle,
                 Category = proposal.Category,
