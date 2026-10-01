@@ -103,7 +103,7 @@ class AuthUser {
     providerBio: json['providerBio'] as String?,
     providerEarnings: (json['providerEarnings'] is num)
         ? (json['providerEarnings'] as num).toDouble()
-        : 54000.0,
+        : 0.0,
     providerHourlyRate: (json['providerHourlyRate'] is num)
         ? (json['providerHourlyRate'] as num).toDouble()
         : 2500.0,

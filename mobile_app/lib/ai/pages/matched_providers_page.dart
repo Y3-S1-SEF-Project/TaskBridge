@@ -859,11 +859,53 @@ class _MatchedProvidersPageState extends State<MatchedProvidersPage> {
                                   color: palette.primary,
                                   size: 15,
                                 ),
+                                if (provider.reviewCount == 0) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 1.5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: palette.primary.withValues(
+                                        alpha: 0.12,
+                                      ),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: palette.primary.withValues(
+                                          alpha: 0.35,
+                                        ),
+                                        width: 0.8,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.auto_awesome_rounded,
+                                          size: 10,
+                                          color: palette.primary,
+                                        ),
+                                        const SizedBox(width: 3),
+                                        Text(
+                                          'New Provider',
+                                          style: TextStyle(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: palette.primary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                             const SizedBox(height: 3),
                             Text(
-                              '${provider.category} · ★ ${provider.rating.toStringAsFixed(1)} (${provider.reviewCount})',
+                              provider.reviewCount == 0
+                                  ? '${provider.category} · ★ 0.0 (0)'
+                                  : '${provider.category} · ★ ${provider.rating.toStringAsFixed(1)} (${provider.reviewCount})',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: palette.muted,

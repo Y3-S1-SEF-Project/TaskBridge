@@ -91,8 +91,8 @@ public class MatchingAgentService
                 ServiceAreas = p.ServiceAreas ?? user.ProviderServiceAreas ?? "Colombo 05",
                 DistanceKm = 2.4,
                 HourlyRate = p.HourlyRate > 0 ? p.HourlyRate : 2500m,
-                Rating = p.Rating > 0 ? p.Rating : 4.8,
-                ReviewCount = p.ReviewCount > 0 ? p.ReviewCount : 24,
+                Rating = p.Rating,
+                ReviewCount = p.ReviewCount,
                 MatchScore = totalScore,
                 ScoreBreakdown = breakdown,
                 AiMatchReason = "Specialized skills and strong service coverage in your area."
@@ -382,7 +382,16 @@ public class MatchingAgentService
         }
 
         // 4. Rating & Track Record Score (Max 20)
-        double ratingScore = (rating / 5.0) * 15.0 + Math.Min(reviewCount, 50) / 50.0 * 5.0;
+        double ratingScore;
+        if (reviewCount == 0)
+        {
+            // Fair baseline score for newly onboarded specialists so they can compete fairly
+            ratingScore = 14.0;
+        }
+        else
+        {
+            ratingScore = (rating / 5.0) * 15.0 + Math.Min(reviewCount, 50) / 50.0 * 5.0;
+        }
         ratingScore = Math.Min(ratingScore, 20.0);
 
         return new ScoreBreakdown

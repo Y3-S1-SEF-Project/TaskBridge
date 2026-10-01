@@ -64,8 +64,8 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
             entity.HasIndex(x => x.IsActive);
             entity.Property(x => x.Category).IsRequired();
             entity.Property(x => x.HourlyRate).HasColumnType("numeric(12,2)").HasDefaultValue(2500.00m);
-            entity.Property(x => x.Rating).HasDefaultValue(4.8);
-            entity.Property(x => x.ReviewCount).HasDefaultValue(12);
+            entity.Property(x => x.Rating).HasDefaultValue(0.0);
+            entity.Property(x => x.ReviewCount).HasDefaultValue(0);
             entity.Property(x => x.IsActive).HasDefaultValue(true);
 
             entity.HasOne(x => x.User)
@@ -180,7 +180,7 @@ CREATE TABLE IF NOT EXISTS users (
     ""ProviderServiceAreas"" text NULL,
     ""ProviderAvailability"" text NULL,
     ""ProviderBio"" text NULL,
-    ""ProviderEarnings"" numeric(12,2) NULL DEFAULT 54000.00,
+    ""ProviderEarnings"" numeric(12,2) NULL DEFAULT 0.00,
     ""ProviderHourlyRate"" numeric(12,2) NULL DEFAULT 2500.00
 );
 
@@ -193,9 +193,15 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderCertifications"" text NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderServiceAreas"" text NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderAvailability"" text NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderBio"" text NULL;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderEarnings"" numeric(12,2) NULL DEFAULT 54000.00;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderEarnings"" numeric(12,2) NULL DEFAULT 0.00;
+ALTER TABLE users ALTER COLUMN ""ProviderEarnings"" SET DEFAULT 0.00;
+UPDATE users SET ""ProviderEarnings"" = 0.00 WHERE ""ProviderEarnings"" = 54000.00;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderHourlyRate"" numeric(12,2) NULL DEFAULT 2500.00;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""Role"" text NOT NULL DEFAULT 'User';
+UPDATE users SET ""Location"" = REGEXP_REPLACE(""Location"", '([A-Za-z0-9]{2,8}\+[A-Za-z0-9]{1,4}[,\s]*)+', '', 'g') WHERE ""Location"" ~ '[A-Za-z0-9]+\+[A-Za-z0-9]+';
+UPDATE users SET ""Address"" = REGEXP_REPLACE(""Address"", '([A-Za-z0-9]{2,8}\+[A-Za-z0-9]{1,4}[,\s]*)+', '', 'g') WHERE ""Address"" ~ '[A-Za-z0-9]+\+[A-Za-z0-9]+';
+UPDATE users SET ""Location"" = TRIM(BOTH ', ' FROM ""Location"") WHERE ""Location"" IS NOT NULL;
+UPDATE users SET ""Address"" = TRIM(BOTH ', ' FROM ""Address"") WHERE ""Address"" IS NOT NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (""Email"");
 CREATE INDEX IF NOT EXISTS ix_users_phone ON users (""Phone"");
@@ -234,8 +240,8 @@ CREATE TABLE IF NOT EXISTS providers (
     ""ServiceAreas"" text NULL,
     ""Availability"" text NULL,
     ""HourlyRate"" numeric(12,2) NOT NULL DEFAULT 2500.00,
-    ""Rating"" double precision NOT NULL DEFAULT 4.8,
-    ""ReviewCount"" integer NOT NULL DEFAULT 12,
+    ""Rating"" double precision NOT NULL DEFAULT 0.0,
+    ""ReviewCount"" integer NOT NULL DEFAULT 0,
     ""IsActive"" boolean NOT NULL DEFAULT true,
     ""Bio"" text NULL,
     ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
@@ -264,6 +270,13 @@ SELECT
 FROM users u
 WHERE u.""IsProvider"" = true
   AND NOT EXISTS (SELECT 1 FROM providers p WHERE p.""UserId"" = u.""Id"");
+
+-- Automatically recalculate and sync real ratings and review counts from feedbacks table
+-- Providers with 0 real customer reviews are reset to 0 reviews and 0.0 rating
+UPDATE providers p
+SET ""ReviewCount"" = (SELECT count(*) FROM feedbacks f WHERE f.""ProviderId"" = p.""Id"" OR f.""ProviderId"" = p.""UserId""),
+    ""Rating"" = COALESCE((SELECT ROUND(AVG(f.""Rating"")::numeric, 1) FROM feedbacks f WHERE f.""ProviderId"" = p.""Id"" OR f.""ProviderId"" = p.""UserId""), 0.0)
+WHERE NOT EXISTS (SELECT 1 FROM feedbacks f WHERE (f.""ProviderId"" = p.""Id"" OR f.""ProviderId"" = p.""UserId"") AND f.""Rating"" > 0);
 
 CREATE TABLE IF NOT EXISTS bookings (
     ""Id"" uuid PRIMARY KEY,

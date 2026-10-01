@@ -26,8 +26,12 @@ class UserLocation {
   };
 
   factory UserLocation.fromJson(Map<String, dynamic> json) => UserLocation(
-    shortName: json['shortName'] as String? ?? 'Colombo',
-    address: json['address'] as String? ?? 'Colombo, Sri Lanka',
+    shortName: LocationService.cleanLocationName(
+      json['shortName'] as String? ?? 'Colombo',
+    ),
+    address: LocationService.cleanLocationName(
+      json['address'] as String? ?? 'Colombo, Sri Lanka',
+    ),
     latitude: (json['latitude'] as num?)?.toDouble() ?? 6.9271,
     longitude: (json['longitude'] as num?)?.toDouble() ?? 79.8612,
   );
@@ -61,6 +65,47 @@ class LocationService {
   static const _savedLatKey = 'taskbridge.saved_location_lat';
   static const _savedLngKey = 'taskbridge.saved_location_lng';
   static final _geocoding = Geocoding();
+
+  /// Checks whether a given string is or contains a Google Plus Code / Open Location Code
+  /// (e.g. "VW2C+CFP", "6PH57VP3+PR")
+  static bool isPlusCode(String text) {
+    final clean = text.trim();
+    if (clean.isEmpty) return false;
+    return RegExp(
+      r'\b[A-Za-z0-9]{2,8}\+[A-Za-z0-9]{1,4}\b',
+      caseSensitive: false,
+    ).hasMatch(clean);
+  }
+
+  /// Cleans navigation codes / Google Plus codes (e.g. "VW2C+CFP") from location and address strings.
+  static String cleanLocationName(String text) {
+    if (text.isEmpty) return text;
+    // Strip Google Plus Codes (e.g. VW2C+CFP, 6PH57VP3+PR)
+    String cleaned = text.replaceAll(
+      RegExp(r'\b[A-Za-z0-9]{2,8}\+[A-Za-z0-9]{1,4}\b', caseSensitive: false),
+      '',
+    );
+    // Collapse multiple commas and surrounding whitespace
+    cleaned = cleaned.replaceAll(RegExp(r'(\s*,\s*)+'), ', ');
+    cleaned = cleaned.replaceAll(RegExp(r'^[,\s]+|[,\s]+$'), '');
+    cleaned = cleaned.replaceAll(RegExp(r'\s{2,}'), ' ');
+    return cleaned.trim();
+  }
+
+  /// Combines street address and city/suburb nicely, avoiding duplicate names or plus codes.
+  static String formatDisplayAddress(String? address, String? location) {
+    final cleanAddr = cleanLocationName(address ?? '');
+    final cleanLoc = cleanLocationName(location ?? '');
+
+    if (cleanAddr.isEmpty && cleanLoc.isEmpty) return '';
+    if (cleanAddr.isEmpty) return cleanLoc;
+    if (cleanLoc.isEmpty) return cleanAddr;
+
+    if (cleanAddr.toLowerCase().contains(cleanLoc.toLowerCase())) {
+      return cleanAddr;
+    }
+    return '$cleanAddr, $cleanLoc';
+  }
 
   // Requests permission and gets the device's live GPS coordinates.
   static Future<UserLocation?> determineCurrentPosition() async {
@@ -131,54 +176,63 @@ class LocationService {
       if (placemarks.isNotEmpty) {
         final place = placemarks.first;
 
-        // Build clean short name (e.g., "Colombo 05" or "Nugegoda")
+        // Build clean short name (e.g., "Colombo 05" or "Maharagama")
+        // Always prioritize real city/suburb names and NEVER use Plus Codes
         String short = '';
-        if (place.subLocality != null && place.subLocality!.isNotEmpty) {
-          short = place.subLocality!;
-        } else if (place.locality != null && place.locality!.isNotEmpty) {
-          short = place.locality!;
-        } else if (place.subAdministrativeArea != null &&
-            place.subAdministrativeArea!.isNotEmpty) {
-          short = place.subAdministrativeArea!;
-        } else {
-          short = place.name ?? 'Location';
-        }
-
-        // Build descriptive full address
-        final parts = <String>[];
-        if (place.name != null &&
-            place.name!.isNotEmpty &&
-            place.name != short) {
-          parts.add(place.name!);
-        }
-        if (place.street != null &&
-            place.street!.isNotEmpty &&
-            !parts.contains(place.street)) {
-          parts.add(place.street!);
-        }
         if (place.subLocality != null &&
             place.subLocality!.isNotEmpty &&
-            !parts.contains(place.subLocality)) {
-          parts.add(place.subLocality!);
-        }
-        if (place.locality != null &&
+            !isPlusCode(place.subLocality!)) {
+          short = place.subLocality!;
+        } else if (place.locality != null &&
             place.locality!.isNotEmpty &&
-            !parts.contains(place.locality)) {
-          parts.add(place.locality!);
+            !isPlusCode(place.locality!)) {
+          short = place.locality!;
+        } else if (place.subAdministrativeArea != null &&
+            place.subAdministrativeArea!.isNotEmpty &&
+            !isPlusCode(place.subAdministrativeArea!)) {
+          short = place.subAdministrativeArea!;
+        } else if (place.administrativeArea != null &&
+            place.administrativeArea!.isNotEmpty &&
+            !isPlusCode(place.administrativeArea!)) {
+          short = place.administrativeArea!;
+        } else if (place.name != null &&
+            place.name!.isNotEmpty &&
+            !isPlusCode(place.name!)) {
+          short = place.name!;
+        } else {
+          short = 'Selected Area';
         }
-        if (place.administrativeArea != null &&
-            place.administrativeArea!.isNotEmpty) {
-          parts.add(place.administrativeArea!);
+
+        short = cleanLocationName(short);
+        if (short.isEmpty) short = 'Selected Area';
+
+        // Build descriptive full address without Plus Codes or duplicate parts
+        final parts = <String>[];
+        void maybeAdd(String? val) {
+          if (val == null || val.trim().isEmpty) return;
+          final cleaned = cleanLocationName(val);
+          if (cleaned.isNotEmpty &&
+              !isPlusCode(cleaned) &&
+              !parts.any((p) => p.toLowerCase() == cleaned.toLowerCase())) {
+            parts.add(cleaned);
+          }
         }
-        if (place.country != null && place.country!.isNotEmpty) {
-          parts.add(place.country!);
+
+        if (place.name != null && place.name != short) {
+          maybeAdd(place.name);
         }
+        maybeAdd(place.street);
+        maybeAdd(place.subLocality);
+        maybeAdd(place.locality);
+        maybeAdd(place.subAdministrativeArea);
+        maybeAdd(place.administrativeArea);
+        maybeAdd(place.country);
 
         final full = parts.isEmpty ? short : parts.join(', ');
 
         return UserLocation(
           shortName: short,
-          address: full,
+          address: cleanLocationName(full),
           latitude: lat,
           longitude: lng,
         );
@@ -641,7 +695,7 @@ class LocationService {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         final addr = data['address'] as Map<String, dynamic>?;
-        final short =
+        final rawShort =
             addr?['suburb'] ??
             addr?['neighbourhood'] ??
             addr?['city'] ??
@@ -649,10 +703,12 @@ class LocationService {
             addr?['village'] ??
             addr?['road'] ??
             'Selected Location';
-        final full = data['display_name'] as String? ?? short.toString();
+        final rawFull = data['display_name'] as String? ?? rawShort.toString();
+        final short = cleanLocationName(rawShort.toString());
+        final full = cleanLocationName(rawFull);
         return UserLocation(
-          shortName: short.toString(),
-          address: full,
+          shortName: short.isNotEmpty ? short : 'Selected Location',
+          address: full.isNotEmpty ? full : short,
           latitude: lat,
           longitude: lng,
         );
@@ -667,7 +723,10 @@ class LocationService {
   static Future<void> saveLocation(UserLocation loc) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_savedLocationKey, loc.shortName);
+      await prefs.setString(
+        _savedLocationKey,
+        cleanLocationName(loc.shortName),
+      );
       await prefs.setDouble(_savedLatKey, loc.latitude);
       await prefs.setDouble(_savedLngKey, loc.longitude);
     } catch (_) {}
@@ -682,9 +741,10 @@ class LocationService {
       final lng = prefs.getDouble(_savedLngKey);
 
       if (name != null && lat != null && lng != null) {
+        final clean = cleanLocationName(name);
         return UserLocation(
-          shortName: name,
-          address: name,
+          shortName: clean.isNotEmpty ? clean : 'Colombo',
+          address: clean.isNotEmpty ? clean : 'Colombo',
           latitude: lat,
           longitude: lng,
         );

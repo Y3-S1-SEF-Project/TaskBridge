@@ -37,7 +37,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
   Timer? _pollingTimer;
 
   String get _ratingText {
-    if (_feedbacks.isEmpty) return '5.0 ★';
+    if (_feedbacks.isEmpty) return '0.0 ★';
     final avg =
         _feedbacks.fold<double>(0.0, (acc, f) => acc + f.rating.toDouble()) /
         _feedbacks.length;
@@ -757,12 +757,8 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
         .where((b) => b.status.toLowerCase() == 'completed')
         .toList();
 
-    double totalEarnings = completedJobs.fold(0.0, (sum, b) => sum + b.price);
-    if (totalEarnings == 0 &&
-        widget.user.providerEarnings != null &&
-        widget.user.providerEarnings! > 0) {
-      totalEarnings = widget.user.providerEarnings!;
-    }
+    final double totalEarnings =
+        completedJobs.fold(0.0, (sum, b) => sum + b.price);
 
     final activePendingText = activeJobs.isNotEmpty
         ? '${activeJobs.length} Active'

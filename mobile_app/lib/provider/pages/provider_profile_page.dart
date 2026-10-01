@@ -53,7 +53,7 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
   }
 
   double get _averageRating {
-    if (_feedbacks.isEmpty) return 5.0;
+    if (_feedbacks.isEmpty) return 0.0;
     final sum = _feedbacks.fold<double>(
       0.0,
       (acc, f) => acc + f.rating.toDouble(),
@@ -142,7 +142,7 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Rs. ${(_currentUser.providerEarnings ?? 54000).toStringAsFixed(0)}',
+                      'Rs. ${(_currentUser.providerEarnings ?? 0).toStringAsFixed(0)}',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w800,
@@ -737,7 +737,7 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                     icon: Iconsax.wallet_2,
                     title: 'Earnings overview',
                     subtitle:
-                        'Rs. ${(_currentUser.providerEarnings ?? 54000).toStringAsFixed(0)} this month',
+                        'Rs. ${(_currentUser.providerEarnings ?? 0).toStringAsFixed(0)} this month',
                     iconBgColor: const Color(0xFFF3E8FF),
                     iconColor: const Color(0xFF9333EA),
                     showDivider: false,

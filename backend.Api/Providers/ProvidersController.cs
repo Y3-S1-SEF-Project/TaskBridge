@@ -120,6 +120,12 @@ public class ProvidersController : ControllerBase
                 customerCoords = ResolveCoordinates(location);
             }
 
+            var pIds = providers.Select(p => p.Id).ToList();
+            var uIds = providers.Select(p => p.UserId).ToList();
+            var feedbacks = await _db.Feedbacks.AsNoTracking()
+                .Where(f => (f.ProviderId.HasValue && (pIds.Contains(f.ProviderId.Value) || uIds.Contains(f.ProviderId.Value))))
+                .ToListAsync(ct);
+
             var resultList = providers.Select(p =>
             {
                 var user = p.User;
@@ -133,6 +139,11 @@ public class ProvidersController : ControllerBase
 
                 // Calculate real mathematical geodesic distance using Haversine formula
                 var realDistance = CalculateHaversineDistance(customerCoords.cLat, customerCoords.cLng, pLat, pLng);
+
+                // Derive exact live reviews from database feedbacks
+                var pFeedbacks = feedbacks.Where(f => f.ProviderId == p.Id || f.ProviderId == p.UserId).ToList();
+                var realCount = pFeedbacks.Count;
+                var realRating = realCount > 0 ? Math.Round(pFeedbacks.Average(f => f.Rating), 1) : 0.0;
 
                 return new ProviderDto
                 {
@@ -148,8 +159,8 @@ public class ProvidersController : ControllerBase
                     Certifications = p.Certifications ?? user.ProviderCertifications,
                     ServiceAreas = p.ServiceAreas ?? user.ProviderServiceAreas ?? user.Location ?? "Colombo",
                     HourlyRate = p.HourlyRate > 0 ? p.HourlyRate : (user.ProviderHourlyRate ?? 2500m),
-                    Rating = p.Rating > 0 ? p.Rating : 4.8,
-                    ReviewCount = p.ReviewCount > 0 ? p.ReviewCount : 18,
+                    Rating = realRating,
+                    ReviewCount = realCount,
                     DistanceKm = realDistance,
                     Latitude = pLat,
                     Longitude = pLng,
@@ -195,6 +206,12 @@ public class ProvidersController : ControllerBase
         var providerLocationStr = p.ServiceAreas ?? user.ProviderServiceAreas ?? user.Location ?? "Colombo";
         var (pLat, pLng) = ResolveCoordinates(providerLocationStr);
 
+        var pFeedbacks = await _db.Feedbacks.AsNoTracking()
+            .Where(f => f.ProviderId == p.Id || f.ProviderId == p.UserId)
+            .ToListAsync(ct);
+        var realCount = pFeedbacks.Count;
+        var realRating = realCount > 0 ? Math.Round(pFeedbacks.Average(f => f.Rating), 1) : 0.0;
+
         return Ok(new ProviderDto
         {
             Id = p.Id,
@@ -209,8 +226,8 @@ public class ProvidersController : ControllerBase
             Certifications = p.Certifications ?? user.ProviderCertifications,
             ServiceAreas = p.ServiceAreas ?? user.ProviderServiceAreas ?? user.Location ?? "Colombo",
             HourlyRate = p.HourlyRate > 0 ? p.HourlyRate : (user.ProviderHourlyRate ?? 2500m),
-            Rating = p.Rating > 0 ? p.Rating : 4.8,
-            ReviewCount = p.ReviewCount > 0 ? p.ReviewCount : 18,
+            Rating = realRating,
+            ReviewCount = realCount,
             DistanceKm = 2.4,
             Latitude = pLat,
             Longitude = pLng,
