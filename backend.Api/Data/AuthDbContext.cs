@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TaskBridge.Api.Admin;
 using TaskBridge.Api.Auth;
+using TaskBridge.Api.Notifications;
 using backend.Api.AI;
 
 namespace TaskBridge.Api.Data;
@@ -18,6 +19,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
     public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<ChatAuditLog> ChatAuditLogs => Set<ChatAuditLog>();
+    public DbSet<NotificationEntity> Notifications => Set<NotificationEntity>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -121,6 +123,18 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
             entity.HasIndex(x => x.BookingReference);
             entity.HasIndex(x => x.ProviderId);
             entity.HasIndex(x => x.CustomerId);
+        });
+
+        model.Entity<NotificationEntity>(entity =>
+        {
+            entity.ToTable("notifications");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.UserId);
+            entity.HasIndex(x => x.UserName);
+            entity.HasIndex(x => x.IsRead);
+            entity.HasIndex(x => x.CreatedAt);
+            entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Type).HasMaxLength(50).IsRequired();
         });
     }
 
@@ -413,6 +427,25 @@ CREATE TABLE IF NOT EXISTS service_requests (
 CREATE INDEX IF NOT EXISTS ix_service_requests_customer ON service_requests (""CustomerId"");
 CREATE INDEX IF NOT EXISTS ix_service_requests_status ON service_requests (""Status"");
 CREATE INDEX IF NOT EXISTS ix_service_requests_category ON service_requests (""Category"");
+
+CREATE TABLE IF NOT EXISTS notifications (
+    ""Id"" uuid PRIMARY KEY,
+    ""UserId"" uuid NULL,
+    ""UserName"" varchar(150) NULL,
+    ""Title"" varchar(200) NOT NULL,
+    ""Message"" text NOT NULL,
+    ""Type"" varchar(50) NOT NULL DEFAULT 'General',
+    ""ReferenceId"" varchar(100) NULL,
+    ""ReferenceType"" varchar(50) NULL,
+    ""MetadataJson"" text NULL,
+    ""IsRead"" boolean NOT NULL DEFAULT false,
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_notifications_user_id ON notifications (""UserId"");
+CREATE INDEX IF NOT EXISTS ix_notifications_user_name ON notifications (""UserName"");
+CREATE INDEX IF NOT EXISTS ix_notifications_is_read ON notifications (""IsRead"");
+CREATE INDEX IF NOT EXISTS ix_notifications_created_at ON notifications (""CreatedAt"");
 ";
         await Database.ExecuteSqlRawAsync(sql, ct);
     }
