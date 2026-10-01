@@ -12,6 +12,8 @@ import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../home/widgets/booking_card_widget.dart';
+import '../../notifications/services/notification_service.dart';
+import '../../notifications/widgets/notification_bell_button.dart';
 import 'provider_job_details_page.dart';
 
 class ProviderDashboardPage extends StatefulWidget {
@@ -47,6 +49,11 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
     super.initState();
     BookingsSyncService.instance.addListener(_onSyncUpdate);
     _loadBookings();
+    NotificationService().initialize(
+      user: widget.user,
+      role: 'provider',
+      requestPermissions: true,
+    );
     _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (mounted) {
         _loadBookings(silent: true);
@@ -126,7 +133,8 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
           combined.add(p);
         }
         for (final b in filteredBookings) {
-          if (b.bookingReference.startsWith('PR-') && bookingRefs.contains(b.bookingReference)) {
+          if (b.bookingReference.startsWith('PR-') &&
+              bookingRefs.contains(b.bookingReference)) {
             continue;
           }
           combined.add(b);
@@ -152,6 +160,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
             proposalReference: booking.bookingReference,
             price: booking.price,
             schedule: booking.schedule,
+            acceptedByRole: 'Provider',
           )
         : await CoordinationApi.updateBookingStatus(
             bookingReference: booking.bookingReference,
@@ -807,27 +816,34 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
                         ),
                       ],
                     ),
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: palette.primary,
-                        side: BorderSide(color: palette.primary),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        NotificationBellButton(user: widget.user),
+                        const SizedBox(width: 4),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: palette.primary,
+                            side: BorderSide(color: palette.primary),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                          ),
+                          onPressed: widget.onSwitchToCustomer,
+                          icon: const Icon(AppIcons.switchMode, size: 18),
+                          label: const Text(
+                            'Customer',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                      ),
-                      onPressed: widget.onSwitchToCustomer,
-                      icon: const Icon(AppIcons.switchMode, size: 18),
-                      label: const Text(
-                        'Customer',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                      ],
                     ),
                   ],
                 ),

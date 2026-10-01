@@ -691,6 +691,7 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
                                   schedule: confSchedule,
                                   price: parsedPrice,
                                   rateType: rateType,
+                                  acceptedByRole: 'Provider',
                                 );
 
                             if (success && mounted) {
