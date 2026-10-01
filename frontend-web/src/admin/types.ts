@@ -3,7 +3,8 @@ export interface AdminUser {
   fullName: string;
   email: string;
   role: 'SuperAdmin' | 'Admin' | string;
-  isEmailVerified: boolean;
+  isEmailVerified?: boolean;
+  isActive: boolean;
   createdAt: string;
 }
 

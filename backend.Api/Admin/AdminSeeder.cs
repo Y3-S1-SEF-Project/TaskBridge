@@ -1,55 +1,64 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using TaskBridge.Api.Auth;
 using TaskBridge.Api.Data;
 
 namespace TaskBridge.Api.Admin;
 
 public static class AdminSeeder
 {
-    public static async Task SeedSuperAdminAsync(AuthDbContext db, IPasswordHasher<AppUser> hasher)
+    public static async Task SeedSuperAdminAsync(AuthDbContext db, IPasswordHasher<AdminUser> hasher)
     {
         try
         {
-            var adminUser = await db.Users.SingleOrDefaultAsync(u =>
-                u.Email == "admin1@taskbridge.com" ||
-                u.Email == "admin1" ||
-                u.Phone == "admin1");
+            // 1. Clean up any admin record that previously existed in the regular users table
+            var leftoverUsers = await db.Users
+                .Where(u => u.Email == "admin1@taskbridge.com" || u.Phone == "admin1")
+                .ToListAsync();
 
-            if (adminUser is null)
+            if (leftoverUsers.Count > 0)
             {
-                adminUser = new AppUser
+                db.Users.RemoveRange(leftoverUsers);
+                await db.SaveChangesAsync();
+            }
+
+            // 2. Ensure Super Admin exists in the separate dedicated 'admins' table
+            var superAdmin = await db.Admins.SingleOrDefaultAsync(a =>
+                a.Username == "admin1" || a.Email == "admin1@taskbridge.com");
+
+            if (superAdmin is null)
+            {
+                superAdmin = new AdminUser
                 {
                     Id = Guid.NewGuid(),
+                    Username = "admin1",
                     FullName = "Kavindu (Super Admin)",
                     Email = "admin1@taskbridge.com",
-                    Phone = "admin1",
                     Role = "SuperAdmin",
-                    IsEmailVerified = true,
+                    IsActive = true,
                     CreatedAt = DateTimeOffset.UtcNow
                 };
 
-                adminUser.PasswordHash = hasher.HashPassword(adminUser, "admin1");
-                db.Users.Add(adminUser);
+                superAdmin.PasswordHash = hasher.HashPassword(superAdmin, "admin1");
+                db.Admins.Add(superAdmin);
                 await db.SaveChangesAsync();
             }
             else
             {
                 bool changed = false;
-                if (adminUser.Role != "SuperAdmin")
+                if (superAdmin.Role != "SuperAdmin")
                 {
-                    adminUser.Role = "SuperAdmin";
+                    superAdmin.Role = "SuperAdmin";
                     changed = true;
                 }
-                if (!adminUser.IsEmailVerified)
+                if (!superAdmin.IsActive)
                 {
-                    adminUser.IsEmailVerified = true;
+                    superAdmin.IsActive = true;
                     changed = true;
                 }
-                var verifyResult = hasher.VerifyHashedPassword(adminUser, adminUser.PasswordHash, "admin1");
+                var verifyResult = hasher.VerifyHashedPassword(superAdmin, superAdmin.PasswordHash, "admin1");
                 if (verifyResult == PasswordVerificationResult.Failed)
                 {
-                    adminUser.PasswordHash = hasher.HashPassword(adminUser, "admin1");
+                    superAdmin.PasswordHash = hasher.HashPassword(superAdmin, "admin1");
                     changed = true;
                 }
                 if (changed)

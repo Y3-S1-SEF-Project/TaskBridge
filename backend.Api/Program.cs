@@ -18,6 +18,7 @@ builder.Services.AddExceptionHandler<AuthErrorHandler>();
 builder.Services.AddDbContext<AuthDbContext>(options => options.UseNpgsql(
     builder.Configuration.GetConnectionString("TaskBridge") ?? "Host=localhost;Database=taskbridge;Username=postgres"));
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
+builder.Services.AddScoped<IPasswordHasher<AdminUser>, PasswordHasher<AdminUser>>();
 builder.Services.Configure<PasswordHasherOptions>(options => options.IterationCount = 210_000);
 builder.Services.AddScoped<AuthCrypto>();
 builder.Services.AddSingleton<ChatCrypto>();
@@ -62,7 +63,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
     await db.EnsureSchemaAsync();
-    var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<AppUser>>();
+    var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<AdminUser>>();
     await AdminSeeder.SeedSuperAdminAsync(db, hasher);
 }
 

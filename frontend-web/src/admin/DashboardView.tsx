@@ -119,24 +119,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats }) => {
           <h3 className="admin-chart-title">Service requests & bookings</h3>
           <p className="admin-chart-range">Last 7 days</p>
 
-          <div className="admin-bar-chart">
-            {stats.serviceRequestsChart.map((col, idx) => {
-              const heightPct = Math.round((col.requests / maxReq) * 85) + 15;
-              const isHighlight = idx === stats.serviceRequestsChart.length - 1; // Sun
-              return (
-                <div key={col.day} className="admin-chart-column">
-                  <div className="admin-bar-wrapper">
-                    <div
-                      className={`admin-bar ${isHighlight ? 'highlight' : ''}`}
-                      style={{ height: `${heightPct}%` }}
-                      title={`${col.day}: ${col.requests} requests, ${col.bookings} bookings`}
-                    />
+          {stats.serviceRequestsChart.length > 0 ? (
+            <div className="admin-bar-chart">
+              {stats.serviceRequestsChart.map((col, idx) => {
+                const heightPct = Math.round((col.requests / maxReq) * 85) + 15;
+                const isHighlight = idx === stats.serviceRequestsChart.length - 1;
+                return (
+                  <div key={col.day} className="admin-chart-column">
+                    <div className="admin-bar-wrapper">
+                      <div
+                        className={`admin-bar ${isHighlight ? 'highlight' : ''}`}
+                        style={{ height: `${heightPct}%` }}
+                        title={`${col.day}: ${col.requests} requests, ${col.bookings} bookings`}
+                      />
+                    </div>
+                    <span className="admin-chart-day">{col.day}</span>
                   </div>
-                  <span className="admin-chart-day">{col.day}</span>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ height: '140px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#8a9990', gap: '8px' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <line x1="18" y1="20" x2="18" y2="10" />
+                <line x1="12" y1="20" x2="12" y2="4" />
+                <line x1="6" y1="20" x2="6" y2="14" />
+              </svg>
+              <span style={{ fontSize: '12.5px' }}>No request telemetry recorded yet</span>
+            </div>
+          )}
         </div>
 
         {/* Provider activity */}
@@ -144,24 +155,34 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats }) => {
           <h3 className="admin-chart-title">Provider activity</h3>
           <p className="admin-chart-range">Last 7 days</p>
 
-          <div className="admin-bar-chart">
-            {stats.providerActivityChart.map((col, idx) => {
-              const heightPct = Math.round((col.providerActive / maxProv) * 85) + 15;
-              const isHighlight = idx === stats.providerActivityChart.length - 1; // Sun
-              return (
-                <div key={col.day} className="admin-chart-column">
-                  <div className="admin-bar-wrapper">
-                    <div
-                      className={`admin-bar ${isHighlight ? 'highlight' : ''}`}
-                      style={{ height: `${heightPct}%` }}
-                      title={`${col.day}: ${col.providerActive} active providers`}
-                    />
+          {stats.providerActivityChart.length > 0 ? (
+            <div className="admin-bar-chart">
+              {stats.providerActivityChart.map((col, idx) => {
+                const heightPct = Math.round((col.providerActive / maxProv) * 85) + 15;
+                const isHighlight = idx === stats.providerActivityChart.length - 1;
+                return (
+                  <div key={col.day} className="admin-chart-column">
+                    <div className="admin-bar-wrapper">
+                      <div
+                        className={`admin-bar ${isHighlight ? 'highlight' : ''}`}
+                        style={{ height: `${heightPct}%` }}
+                        title={`${col.day}: ${col.providerActive} active providers`}
+                      />
+                    </div>
+                    <span className="admin-chart-day">{col.day}</span>
                   </div>
-                  <span className="admin-chart-day">{col.day}</span>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ height: '140px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#8a9990', gap: '8px' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="8.5" cy="7" r="4" />
+              </svg>
+              <span style={{ fontSize: '12.5px' }}>No provider telemetry recorded yet</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -181,32 +202,40 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats }) => {
               </tr>
             </thead>
             <tbody>
-              {stats.recentInquiries.map((inq) => (
-                <tr key={inq.inquiryNumber}>
-                  <td>
-                    <span className="admin-inquiry-code">{inq.inquiryNumber}</span>
-                  </td>
-                  <td>{inq.customer}</td>
-                  <td>{inq.issue}</td>
-                  <td>{inq.provider}</td>
-                  <td>
-                    <span className={`admin-badge ${getPriorityClass(inq.priority)}`}>
-                      {inq.priority}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`admin-badge ${getStatusClass(inq.status)}`}>
-                      {inq.status}
-                    </span>
+              {stats.recentInquiries.length > 0 ? (
+                stats.recentInquiries.map((inq) => (
+                  <tr key={inq.inquiryNumber}>
+                    <td>
+                      <span className="admin-inquiry-code">{inq.inquiryNumber}</span>
+                    </td>
+                    <td>{inq.customer}</td>
+                    <td>{inq.issue}</td>
+                    <td>{inq.provider}</td>
+                    <td>
+                      <span className={`admin-badge ${getPriorityClass(inq.priority)}`}>
+                        {inq.priority}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`admin-badge ${getStatusClass(inq.status)}`}>
+                        {inq.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '40px 20px', color: '#8a9990', fontSize: '13.5px' }}>
+                    No recent inquiries or dispute records found.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
 
         <div className="admin-table-footer">
-          <div>Showing {stats.recentInquiries.length} of 128 results</div>
+          <div>Showing {stats.recentInquiries.length} of {stats.recentInquiries.length} results</div>
           <div className="admin-pagination">
             <span
               className="admin-page-link"

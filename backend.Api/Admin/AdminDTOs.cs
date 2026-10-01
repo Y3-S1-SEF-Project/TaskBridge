@@ -20,12 +20,18 @@ public sealed record CreateAdminRequest(
     [Required, StringLength(128, MinimumLength = 4)] string Password,
     string Role = "Admin");
 
+public sealed record UpdateAdminRequest(
+    [Required, StringLength(100)] string FullName,
+    [Required] string Role,
+    bool IsActive = true,
+    string? NewPassword = null);
+
 public sealed record AdminUserDto(
     Guid Id,
     string FullName,
     string Email,
     string Role,
-    bool IsEmailVerified,
+    bool IsActive,
     DateTimeOffset CreatedAt);
 
 public sealed record InquiryItemDto(
