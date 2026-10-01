@@ -324,6 +324,7 @@ class CoordinationApi {
   static Future<bool> cancelBooking({
     required String bookingReference,
     String? reason,
+    String cancelledByRole = 'Customer',
   }) async {
     final altRef = bookingReference.startsWith('TB-')
         ? bookingReference.replaceFirst('TB-', 'PR-')
@@ -351,6 +352,7 @@ class CoordinationApi {
     final payload = jsonEncode({
       'bookingReference': bookingReference,
       'reason': reason,
+      'cancelledByRole': cancelledByRole,
     });
 
     for (final candidate in _candidateUrls) {

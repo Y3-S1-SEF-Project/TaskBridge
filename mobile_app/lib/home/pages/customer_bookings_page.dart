@@ -215,6 +215,7 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
       final success = await CoordinationApi.cancelBooking(
         bookingReference: booking.bookingReference,
         reason: 'Cancelled by customer',
+        cancelledByRole: 'Customer',
       );
 
       if (success && mounted) {

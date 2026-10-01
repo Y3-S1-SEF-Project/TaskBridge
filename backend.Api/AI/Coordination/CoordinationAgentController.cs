@@ -354,7 +354,24 @@ public class CoordinationAgentController : ControllerBase
                 return NotFound(new { message = "Booking request not found." });
             }
 
-            var isCustomerCancelling = string.Equals(request.CancelledByRole, "Customer", StringComparison.OrdinalIgnoreCase);
+            // Accurately determine who cancelled (Customer vs Provider)
+            bool isCustomerCancelling;
+            if (!string.IsNullOrWhiteSpace(request.CancelledByRole))
+            {
+                isCustomerCancelling = string.Equals(request.CancelledByRole, "Customer", StringComparison.OrdinalIgnoreCase);
+            }
+            else if (!string.IsNullOrWhiteSpace(request.Reason))
+            {
+                // Check if reason indicates who cancelled
+                isCustomerCancelling = !request.Reason.Contains("provider", StringComparison.OrdinalIgnoreCase);
+            }
+            else
+            {
+                // Customer is the primary canceller on TaskBridge
+                isCustomerCancelling = true;
+            }
+
+            // Send notification to the OTHER party stating who cancelled it
             var targetUserId = isCustomerCancelling ? updated.ProviderId : updated.CustomerId;
             var targetUserName = isCustomerCancelling ? updated.ProviderName : updated.CustomerName;
             var actorName = isCustomerCancelling ? updated.CustomerName : updated.ProviderName;

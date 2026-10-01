@@ -196,6 +196,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
         : await CoordinationApi.cancelBooking(
             bookingReference: booking.bookingReference,
             reason: 'Declined by provider',
+            cancelledByRole: 'Provider',
           );
 
     if (success && mounted) {
