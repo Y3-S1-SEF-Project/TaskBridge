@@ -68,66 +68,34 @@ public sealed class AdminController(
     [HttpGet("stats")]
     public async Task<ActionResult<DashboardStatsDto>> GetStats(CancellationToken ct)
     {
-        // Live data counts
+        // Live data counts directly from database
         var totalBookings = await db.Bookings.CountAsync(ct);
         var totalProposals = await db.Proposals.CountAsync(ct);
-        var activeJobsCount = await db.Bookings.CountAsync(b => b.Status == "Upcoming" || b.Status == "Started" || b.Status == "InProgress", ct);
-        var completedJobsCount = await db.JobCompletions.CountAsync(ct);
+        var activeJobs = await db.Bookings.CountAsync(b => b.Status == "Upcoming" || b.Status == "Started" || b.Status == "InProgress", ct);
+        var completedJobs = await db.JobCompletions.CountAsync(ct);
 
-        // Calculate baseline figures blended with real database records
-        var totalRequests = Math.Max(1284, 1200 + totalBookings + totalProposals);
-        var activeJobs = Math.Max(86, activeJobsCount > 0 ? activeJobsCount : 86);
-        var completedJobs = Math.Max(1042, completedJobsCount > 0 ? completedJobsCount : 1042);
-        var openInquiries = 18;
-
-        var serviceRequestsChart = new List<DayActivityDto>
-        {
-            new("Mon", 38, 22, 14),
-            new("Tue", 52, 35, 22),
-            new("Wed", 48, 28, 19),
-            new("Thu", 64, 40, 31),
-            new("Fri", 58, 38, 27),
-            new("Sat", 82, 59, 45),
-            new("Sun", 96, 72, 58)
-        };
-
-        var providerActivityChart = new List<DayActivityDto>
-        {
-            new("Mon", 24, 18, 16),
-            new("Tue", 32, 22, 21),
-            new("Wed", 29, 21, 20),
-            new("Thu", 45, 33, 30),
-            new("Fri", 42, 31, 29),
-            new("Sat", 68, 50, 48),
-            new("Sun", 84, 65, 62)
-        };
-
-        var inquiries = new List<InquiryItemDto>
-        {
-            new("INQ-208", "Kavindu Alwis", "Tap still leaking", "Kamal Perera", "High", "Open", DateTimeOffset.UtcNow.AddMinutes(-25)),
-            new("INQ-207", "Dilini Silva", "Arrival delay", "Nimal Fernando", "Normal", "In Progress", DateTimeOffset.UtcNow.AddHours(-2)),
-            new("INQ-206", "Amal Jay", "Missing receipt", "Sunil Dias", "Low", "Waiting for Provider", DateTimeOffset.UtcNow.AddHours(-5)),
-            new("INQ-205", "Saman Kumara", "Incorrect wiring quote", "Rohan Silva", "High", "Under Review", DateTimeOffset.UtcNow.AddHours(-9)),
-            new("INQ-204", "Rashmi Fonseka", "AC water dripping after service", "Mahesh Dissanayake", "Normal", "Open", DateTimeOffset.UtcNow.AddHours(-14))
-        };
+        var totalRequests = totalBookings + totalProposals;
+        var completionRate = totalBookings > 0 
+            ? $"{Math.Round((double)completedJobs / totalBookings * 100, 1)}% completion" 
+            : "0% completion";
 
         var stats = new DashboardStatsDto(
             totalRequests,
-            "+12.4% this month",
+            totalRequests > 0 ? "+0% this month" : "0%",
             activeJobs,
-            24,
+            0,
             completedJobs,
-            "98.2% completion",
-            openInquiries,
-            6,
-            964,
-            "98.1% success",
-            7,
-            3,
-            9,
-            serviceRequestsChart,
-            providerActivityChart,
-            inquiries);
+            completionRate,
+            0,
+            0,
+            0,
+            "0%",
+            0,
+            0,
+            0,
+            new List<DayActivityDto>(),
+            new List<DayActivityDto>(),
+            new List<InquiryItemDto>());
 
         return Ok(stats);
     }
@@ -136,18 +104,7 @@ public sealed class AdminController(
     [HttpGet("inquiries")]
     public ActionResult<List<InquiryItemDto>> GetInquiries()
     {
-        var inquiries = new List<InquiryItemDto>
-        {
-            new("INQ-208", "Kavindu Alwis", "Tap still leaking", "Kamal Perera", "High", "Open", DateTimeOffset.UtcNow.AddMinutes(-25)),
-            new("INQ-207", "Dilini Silva", "Arrival delay", "Nimal Fernando", "Normal", "In Progress", DateTimeOffset.UtcNow.AddHours(-2)),
-            new("INQ-206", "Amal Jay", "Missing receipt", "Sunil Dias", "Low", "Waiting for Provider", DateTimeOffset.UtcNow.AddHours(-5)),
-            new("INQ-205", "Saman Kumara", "Incorrect wiring quote", "Rohan Silva", "High", "Under Review", DateTimeOffset.UtcNow.AddHours(-9)),
-            new("INQ-204", "Rashmi Fonseka", "AC water dripping after service", "Mahesh Dissanayake", "Normal", "Open", DateTimeOffset.UtcNow.AddHours(-14)),
-            new("INQ-203", "Buddhika Perera", "Provider requested extra cash", "Kasun Wickrama", "High", "Resolved", DateTimeOffset.UtcNow.AddDays(-1)),
-            new("INQ-202", "Nimanthi De Silva", "Job rescheduled without notice", "Chathura Dias", "Normal", "Resolved", DateTimeOffset.UtcNow.AddDays(-2))
-        };
-
-        return Ok(inquiries);
+        return Ok(new List<InquiryItemDto>());
     }
 
     // List all administrators from the dedicated 'admins' table
