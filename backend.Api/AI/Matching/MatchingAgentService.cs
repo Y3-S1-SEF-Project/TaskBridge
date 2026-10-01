@@ -194,6 +194,90 @@ public class MatchingAgentService
 
         sw.Stop();
 
+        // 4. DATABASE PERSISTENCE (Option 1 & Option 2)
+        Guid? customerGuid = null;
+        if (!string.IsNullOrWhiteSpace(request.CustomerUserId) && Guid.TryParse(request.CustomerUserId, out var parsedCustGuid))
+        {
+            customerGuid = parsedCustGuid;
+        }
+
+        Guid? srvReqGuid = null;
+        if (!string.IsNullOrWhiteSpace(request.ServiceRequestId) && Guid.TryParse(request.ServiceRequestId, out var parsedReqGuid))
+        {
+            srvReqGuid = parsedReqGuid;
+        }
+
+        // Option 2: Find originating ServiceRequest and update its status to "Matched" with MatchedProvidersJson
+        ServiceRequestEntity? originatingRequest = null;
+        try
+        {
+            if (srvReqGuid.HasValue)
+            {
+                originatingRequest = await _dbContext.ServiceRequests
+                    .FirstOrDefaultAsync(r => r.Id == srvReqGuid.Value, ct);
+            }
+            else if (customerGuid.HasValue)
+            {
+                originatingRequest = await _dbContext.ServiceRequests
+                    .Where(r => r.CustomerId == customerGuid.Value && (r.Status == "Pending" || r.Status == "ClarificationRequired" || r.Status == "ReadyForMatching"))
+                    .OrderByDescending(r => r.CreatedAt)
+                    .FirstOrDefaultAsync(ct);
+            }
+
+            if (originatingRequest != null)
+            {
+                originatingRequest.MatchedProvidersJson = JsonSerializer.Serialize(ranked);
+                originatingRequest.Status = "Matched";
+                originatingRequest.UpdatedAt = DateTimeOffset.UtcNow;
+                srvReqGuid ??= originatingRequest.Id;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to update ServiceRequest status during matching");
+        }
+
+        // Option 1: Persist full AI Matching Audit Trail into 'job_matches' table
+        var topMatched = ranked.FirstOrDefault();
+        var matchAudit = new JobMatchEntity
+        {
+            Id = Guid.NewGuid(),
+            ServiceRequestId = srvReqGuid,
+            CustomerUserId = customerGuid,
+            CustomerName = !string.IsNullOrWhiteSpace(request.CustomerName) ? request.CustomerName : "Customer",
+            Category = requestedCategory,
+            ServiceTitle = job.ServiceTitle ?? requestedCategory,
+            Location = requestedLocation,
+            CandidatePoolCount = candidatePool.Count,
+            TopMatchedProviderId = topMatched?.ProviderId,
+            TopMatchedProviderName = topMatched?.FullName ?? string.Empty,
+            TopMatchScore = topMatched?.MatchScore ?? 0,
+            TopAiReason = topMatched?.AiMatchReason ?? string.Empty,
+            MatchesJson = JsonSerializer.Serialize(ranked),
+            LatencyMs = sw.ElapsedMilliseconds,
+            TokensUsed = tokensUsed,
+            Model = model,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        try
+        {
+            _dbContext.JobMatches.Add(matchAudit);
+            await _dbContext.SaveChangesAsync(ct);
+
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($"[💾 DB PERSISTENCE: AGENT 2] Saved Match Audit #{matchAudit.Id} in 'job_matches' table");
+            if (originatingRequest != null)
+            {
+                Console.WriteLine($"[💾 DB PERSISTENCE: AGENT 2] Updated ServiceRequest #{originatingRequest.Id} status -> 'Matched'");
+            }
+            Console.ResetColor();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to persist match audit to database");
+        }
+
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine($"[✅ TASKBRIDGE AI: AGENT 2] Successfully Ranked {ranked.Count} Providers (Pool: {candidatePool.Count})");
         for (int i = 0; i < ranked.Count; i++)
@@ -211,10 +295,21 @@ public class MatchingAgentService
             JobPlan = job,
             MatchedProviders = ranked,
             CandidatePoolCount = candidatePool.Count,
+            MatchAuditId = matchAudit.Id,
             LatencyMs = sw.ElapsedMilliseconds,
             TokensUsed = tokensUsed,
             Model = model
         };
+    }
+
+    public async Task<List<JobMatchEntity>> GetMatchHistoryAsync(string? customerUserId = null, CancellationToken ct = default)
+    {
+        var query = _dbContext.JobMatches.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrWhiteSpace(customerUserId) && Guid.TryParse(customerUserId, out var custGuid))
+        {
+            query = query.Where(m => m.CustomerUserId == custGuid);
+        }
+        return await query.OrderByDescending(m => m.CreatedAt).Take(50).ToListAsync(ct);
     }
 
     private static ScoreBreakdown CalculateScores(

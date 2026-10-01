@@ -73,6 +73,7 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
     setState(() => _isMatchingLoading = true);
     try {
       final response = await MatchingApi.matchProviders(
+        serviceRequestId: _savedRequestId,
         jobPlan: widget.plan,
         customerUserId: widget.user?.id,
         customerName: widget.user?.fullName,

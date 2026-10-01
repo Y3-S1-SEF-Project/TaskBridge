@@ -16,6 +16,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
     public DbSet<JobCompletionEntity> JobCompletions => Set<JobCompletionEntity>();
     public DbSet<FeedbackEntity> Feedbacks => Set<FeedbackEntity>();
     public DbSet<ServiceRequestEntity> ServiceRequests => Set<ServiceRequestEntity>();
+    public DbSet<JobMatchEntity> JobMatches => Set<JobMatchEntity>();
     public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<ChatAuditLog> ChatAuditLogs => Set<ChatAuditLog>();
@@ -135,6 +136,17 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
             entity.HasIndex(x => x.CreatedAt);
             entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
             entity.Property(x => x.Type).HasMaxLength(50).IsRequired();
+        });
+
+        model.Entity<JobMatchEntity>(entity =>
+        {
+            entity.ToTable("job_matches");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.CustomerUserId);
+            entity.HasIndex(x => x.ServiceRequestId);
+            entity.HasIndex(x => x.Category);
+            entity.Property(x => x.ServiceTitle).HasMaxLength(200);
+            entity.Property(x => x.Category).HasMaxLength(100);
         });
     }
 
@@ -446,6 +458,32 @@ CREATE INDEX IF NOT EXISTS ix_notifications_user_id ON notifications (""UserId""
 CREATE INDEX IF NOT EXISTS ix_notifications_user_name ON notifications (""UserName"");
 CREATE INDEX IF NOT EXISTS ix_notifications_is_read ON notifications (""IsRead"");
 CREATE INDEX IF NOT EXISTS ix_notifications_created_at ON notifications (""CreatedAt"");
+
+CREATE TABLE IF NOT EXISTS job_matches (
+    ""Id"" uuid PRIMARY KEY,
+    ""ServiceRequestId"" uuid NULL,
+    ""CustomerUserId"" uuid NULL,
+    ""CustomerName"" varchar(150) NOT NULL DEFAULT 'Customer',
+    ""Category"" varchar(100) NOT NULL DEFAULT '',
+    ""ServiceTitle"" varchar(200) NOT NULL DEFAULT '',
+    ""Location"" text NOT NULL DEFAULT '',
+    ""CandidatePoolCount"" integer NOT NULL DEFAULT 0,
+    ""TopMatchedProviderId"" uuid NULL,
+    ""TopMatchedProviderName"" varchar(150) NOT NULL DEFAULT '',
+    ""TopMatchScore"" integer NOT NULL DEFAULT 0,
+    ""TopAiReason"" text NOT NULL DEFAULT '',
+    ""MatchesJson"" text NOT NULL DEFAULT '[]',
+    ""LatencyMs"" bigint NOT NULL DEFAULT 0,
+    ""TokensUsed"" integer NOT NULL DEFAULT 0,
+    ""Model"" varchar(50) NOT NULL DEFAULT 'gpt-4o-mini',
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_job_matches_customer ON job_matches (""CustomerUserId"");
+CREATE INDEX IF NOT EXISTS ix_job_matches_service_req ON job_matches (""ServiceRequestId"");
+CREATE INDEX IF NOT EXISTS ix_job_matches_category ON job_matches (""Category"");
+
+ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS ""MatchedProvidersJson"" text NULL;
 ";
         await Database.ExecuteSqlRawAsync(sql, ct);
     }
