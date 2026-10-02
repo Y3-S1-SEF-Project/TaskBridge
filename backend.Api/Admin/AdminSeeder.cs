@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using TaskBridge.Api.Auth;
 using TaskBridge.Api.Data;
+using backend.Api.AI;
 
 namespace TaskBridge.Api.Admin;
 
@@ -73,3 +75,4 @@ public static class AdminSeeder
         }
     }
 }
+

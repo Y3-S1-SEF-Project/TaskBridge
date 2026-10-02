@@ -1,4 +1,13 @@
-import type { AdminUser, CreatedAdminCredentials, DashboardStats, InquiryItem, ServiceRequestsSummary } from './types';
+import type {
+  AdminUser,
+  CreatedAdminCredentials,
+  DashboardStats,
+  InquiryItem,
+  ServiceRequestsSummary,
+  ProvidersSummary,
+  CustomersSummary,
+  ReviewsSummary,
+} from './types';
 
 const API_BASE = '/api/admin';
 
@@ -224,5 +233,94 @@ export async function fetchServiceRequests(params?: {
 
   const err = await res.json().catch(() => ({}));
   throw new Error(err.message || 'Failed to fetch service requests.');
+}
+
+export async function fetchProviders(params?: {
+  search?: string;
+  category?: string;
+  status?: string;
+}): Promise<ProvidersSummary> {
+  const token = getStoredToken();
+  const searchParams = new URLSearchParams();
+  if (params?.search) searchParams.set('search', params.search);
+  if (params?.category && params.category !== 'All') searchParams.set('category', params.category);
+  if (params?.status && params.status !== 'All') searchParams.set('status', params.status);
+
+  const qs = searchParams.toString();
+  const res = await fetch(`${API_BASE}/providers${qs ? `?${qs}` : ''}`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+
+  if (res.ok) return await res.json();
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to fetch providers.');
+}
+
+export async function toggleProviderStatus(id: string): Promise<{ id: string; isActive: boolean }> {
+  const token = getStoredToken();
+  const res = await fetch(`${API_BASE}/providers/${id}/status`, {
+    method: 'PATCH',
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  if (res.ok) return await res.json();
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to toggle provider status.');
+}
+
+export async function fetchCustomers(params?: {
+  search?: string;
+  status?: string;
+}): Promise<CustomersSummary> {
+  const token = getStoredToken();
+  const searchParams = new URLSearchParams();
+  if (params?.search) searchParams.set('search', params.search);
+  if (params?.status && params.status !== 'All') searchParams.set('status', params.status);
+
+  const qs = searchParams.toString();
+  const res = await fetch(`${API_BASE}/customers${qs ? `?${qs}` : ''}`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+
+  if (res.ok) return await res.json();
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to fetch customers.');
+}
+
+export async function fetchReviews(params?: {
+  search?: string;
+  status?: string;
+}): Promise<ReviewsSummary> {
+  const token = getStoredToken();
+  const searchParams = new URLSearchParams();
+  if (params?.search) searchParams.set('search', params.search);
+  if (params?.status && params.status !== 'All') searchParams.set('status', params.status);
+
+  const qs = searchParams.toString();
+  const res = await fetch(`${API_BASE}/reviews${qs ? `?${qs}` : ''}`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+
+  if (res.ok) return await res.json();
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to fetch reviews.');
+}
+
+export async function updateReviewStatus(
+  id: string,
+  status: string
+): Promise<{ id: string; status: string }> {
+  const token = getStoredToken();
+  const res = await fetch(`${API_BASE}/reviews/${id}/status`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ status }),
+  });
+
+  if (res.ok) return await res.json();
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to update review status.');
 }
 

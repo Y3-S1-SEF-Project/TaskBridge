@@ -95,3 +95,70 @@ public sealed record ServiceRequestsSummaryDto(
     List<string> AvailableCategories,
     List<ServiceRequestItemDto> Items);
 
+public sealed record ProviderItemDto(
+    string Id,
+    Guid UserId,
+    string Name,
+    string Category,
+    string Phone,
+    string Location,
+    double Rating,
+    int CompletedJobs,
+    string KycStatus,
+    string AccountStatus,
+    string? Bio,
+    decimal HourlyRate,
+    string? Skills,
+    string? Services,
+    DateTimeOffset JoinedDate);
+
+public sealed record ProvidersSummaryDto(
+    int TotalProviders,
+    int VerifiedCount,
+    int PendingKycCount,
+    double AverageRating,
+    List<string> AvailableCategories,
+    List<ProviderItemDto> Items);
+
+public sealed record CustomerItemDto(
+    string Id,
+    Guid UserId,
+    string Name,
+    string Email,
+    string Phone,
+    string District,
+    int BookingsCount,
+    decimal TotalSpent,
+    string Status,
+    DateTimeOffset JoinedDate);
+
+public sealed record CustomersSummaryDto(
+    int TotalCustomers,
+    string ActiveRepeatRate,
+    string AvgLifetimeValue,
+    string AccountHealth,
+    List<CustomerItemDto> Items);
+
+public sealed record ReviewItemDto(
+    string Id,
+    Guid ReviewGuid,
+    string BookingReference,
+    string CustomerName,
+    string ProviderName,
+    string Service,
+    int Rating,
+    string Comment,
+    string Sentiment,
+    string Status,
+    DateTimeOffset CreatedAt);
+
+public sealed record ReviewsSummaryDto(
+    int TotalReviews,
+    double OverallRating,
+    int FlaggedCount,
+    string PositiveSentimentRate,
+    List<ReviewItemDto> Items);
+
+public sealed record UpdateReviewStatusRequest(
+    [Required] string Status);
+

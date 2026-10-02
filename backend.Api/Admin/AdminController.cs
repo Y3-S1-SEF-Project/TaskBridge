@@ -514,6 +514,297 @@ public sealed class AdminController(
         return NoContent();
     }
 
+    // ==================== PROVIDERS ====================
+    [HttpGet("providers")]
+    public async Task<ActionResult<ProvidersSummaryDto>> GetProviders(
+        [FromQuery] string? search,
+        [FromQuery] string? category,
+        [FromQuery] string? status,
+        CancellationToken ct)
+    {
+        var providers = await db.Providers
+            .Include(p => p.User)
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        var completions = await db.JobCompletions.AsNoTracking().ToListAsync(ct);
+        var bookings = await db.Bookings.AsNoTracking().ToListAsync(ct);
+
+        var items = new List<ProviderItemDto>();
+        int idx = 101;
+
+        foreach (var p in providers)
+        {
+            var u = p.User;
+            var providerName = u?.FullName ?? "Provider";
+            var completedCount = completions.Count(c => c.ProviderId == p.UserId || string.Equals(c.ProviderName, providerName, StringComparison.OrdinalIgnoreCase))
+                + bookings.Count(b => (b.ProviderId == p.UserId || string.Equals(b.ProviderName, providerName, StringComparison.OrdinalIgnoreCase)) && b.Status == "Completed");
+
+            var kyc = (u != null && u.IsEmailVerified) ? "Verified" : (p.ReviewCount >= 10 ? "Verified" : "Pending Review");
+            if (!p.IsActive && p.Rating < 4.0) kyc = "Rejected";
+
+            var accStatus = p.IsActive ? "Active" : (p.Rating < 4.0 ? "Suspended" : "Under Review");
+
+            var code = $"PRV-{idx++}";
+
+            items.Add(new ProviderItemDto(
+                code,
+                p.UserId,
+                providerName,
+                p.Category,
+                u?.Phone ?? "No contact",
+                string.IsNullOrWhiteSpace(u?.Location) ? (string.IsNullOrWhiteSpace(p.ServiceAreas) ? "Colombo" : p.ServiceAreas) : u.Location,
+                p.Rating > 0 ? Math.Round(p.Rating, 1) : 4.8,
+                Math.Max(completedCount, p.ReviewCount),
+                kyc,
+                accStatus,
+                p.Bio ?? u?.ProviderBio,
+                p.HourlyRate,
+                p.Skills ?? u?.ProviderSkills,
+                p.Services ?? u?.ProviderServices,
+                p.CreatedAt));
+        }
+
+        var availableCategories = items
+            .Select(i => i.Category)
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => c)
+            .ToList();
+
+        var totalProviders = items.Count;
+        var verifiedCount = items.Count(i => i.AccountStatus == "Active" && i.KycStatus == "Verified");
+        var pendingKycCount = items.Count(i => i.KycStatus == "Pending Review");
+        var avgRating = items.Count > 0 ? Math.Round(items.Average(i => i.Rating), 2) : 4.82;
+
+        var filtered = items.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var q = search.Trim();
+            filtered = filtered.Where(i =>
+                i.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                i.Category.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                i.Phone.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                i.Location.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                i.Id.Contains(q, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All", StringComparison.OrdinalIgnoreCase))
+        {
+            filtered = filtered.Where(i => string.Equals(i.Category, category, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) && !status.Equals("All", StringComparison.OrdinalIgnoreCase))
+        {
+            filtered = filtered.Where(i => string.Equals(i.AccountStatus, status, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return Ok(new ProvidersSummaryDto(
+            totalProviders,
+            verifiedCount,
+            pendingKycCount,
+            avgRating,
+            availableCategories,
+            filtered.ToList()));
+    }
+
+    [HttpPatch("providers/{id:guid}/status")]
+    public async Task<IActionResult> ToggleProviderStatus(Guid id, CancellationToken ct)
+    {
+        var provider = await db.Providers.FirstOrDefaultAsync(p => p.Id == id || p.UserId == id, ct);
+        if (provider is null) return NotFound(new { error = "Provider profile not found." });
+
+        provider.IsActive = !provider.IsActive;
+        provider.UpdatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(ct);
+
+        return Ok(new { id = provider.Id, isActive = provider.IsActive });
+    }
+
+    // ==================== CUSTOMERS ====================
+    [HttpGet("customers")]
+    public async Task<ActionResult<CustomersSummaryDto>> GetCustomers(
+        [FromQuery] string? search,
+        [FromQuery] string? status,
+        CancellationToken ct)
+    {
+        var users = await db.Users
+            .Where(u => !u.IsProvider || u.Role != "Provider")
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        var bookings = await db.Bookings.AsNoTracking().ToListAsync(ct);
+        var proposals = await db.Proposals.AsNoTracking().ToListAsync(ct);
+
+        var items = new List<CustomerItemDto>();
+        int idx = 301;
+
+        foreach (var u in users)
+        {
+            var custBookings = bookings.Where(b => b.CustomerId == u.Id || string.Equals(b.CustomerName, u.FullName, StringComparison.OrdinalIgnoreCase)).ToList();
+            var custProposals = proposals.Where(p => p.CustomerId == u.Id || string.Equals(p.CustomerName, u.FullName, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            var totalJobs = custBookings.Count + custProposals.Count;
+            var totalSpent = custBookings.Sum(b => b.Price) + custProposals.Where(p => p.Status == "Accepted").Sum(p => p.EstimatedRate);
+
+            var code = $"CUST-{idx++}";
+            var custStatus = u.IsEmailVerified ? "Active" : (totalJobs > 0 ? "Active" : "Inactive");
+            if (u.LockedUntil.HasValue && u.LockedUntil.Value > DateTimeOffset.UtcNow)
+                custStatus = "Flagged";
+
+            var district = !string.IsNullOrWhiteSpace(u.Location) ? u.Location : (!string.IsNullOrWhiteSpace(u.Address) ? u.Address : "Colombo");
+            if (district.Contains(',')) district = district.Split(',')[0].Trim();
+
+            items.Add(new CustomerItemDto(
+                code,
+                u.Id,
+                u.FullName,
+                u.Email,
+                u.Phone,
+                district,
+                totalJobs,
+                totalSpent,
+                custStatus,
+                u.CreatedAt));
+        }
+
+        var totalCustomers = items.Count;
+        var repeatCount = items.Count(i => i.BookingsCount >= 2);
+        var activeRepeatRate = totalCustomers > 0 ? $"{Math.Round((double)repeatCount / totalCustomers * 100, 1)}%" : "0%";
+        var avgSpent = items.Count > 0 ? items.Average(i => i.TotalSpent) : 0m;
+        var avgLtvStr = avgSpent >= 1000 ? $"LKR {Math.Round(avgSpent / 1000, 1)}k" : $"LKR {Math.Round(avgSpent)}";
+        var accountHealth = totalCustomers > 0 
+            ? $"{Math.Round((double)items.Count(i => i.Status != "Flagged") / totalCustomers * 100, 1)}%" 
+            : "100%";
+
+        var filtered = items.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var q = search.Trim();
+            filtered = filtered.Where(i =>
+                i.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                i.Email.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                i.Phone.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                i.District.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                i.Id.Contains(q, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) && !status.Equals("All", StringComparison.OrdinalIgnoreCase))
+        {
+            filtered = filtered.Where(i => string.Equals(i.Status, status, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return Ok(new CustomersSummaryDto(
+            totalCustomers,
+            activeRepeatRate,
+            avgLtvStr,
+            accountHealth,
+            filtered.OrderByDescending(i => i.BookingsCount).ThenByDescending(i => i.JoinedDate).ToList()));
+    }
+
+    // ==================== REVIEWS ====================
+    [HttpGet("reviews")]
+    public async Task<ActionResult<ReviewsSummaryDto>> GetReviews(
+        [FromQuery] string? search,
+        [FromQuery] string? status,
+        CancellationToken ct)
+    {
+        var feedbacks = await db.Feedbacks
+            .AsNoTracking()
+            .OrderByDescending(f => f.CreatedAt)
+            .ToListAsync(ct);
+
+        var bookings = await db.Bookings.AsNoTracking().ToListAsync(ct);
+        var proposals = await db.Proposals.AsNoTracking().ToListAsync(ct);
+
+        var items = new List<ReviewItemDto>();
+        int idx = 901;
+
+        foreach (var f in feedbacks)
+        {
+            var linkedBooking = bookings.FirstOrDefault(b => b.BookingReference == f.BookingReference);
+            var linkedProposal = proposals.FirstOrDefault(p => p.ProposalReference == f.BookingReference);
+
+            var service = linkedBooking?.ServiceTitle 
+                ?? linkedBooking?.Category 
+                ?? linkedProposal?.ServiceTitle 
+                ?? linkedProposal?.Category 
+                ?? "Home Service";
+
+            var sentiment = f.Rating >= 4 ? "Positive" : (f.Rating == 3 ? "Neutral" : "Negative");
+            var itemStatus = f.Status;
+            if (string.IsNullOrWhiteSpace(itemStatus))
+            {
+                itemStatus = f.Rating <= 2 || f.Comment.Contains("inappropriate", StringComparison.OrdinalIgnoreCase)
+                    ? "Flagged"
+                    : "Approved";
+            }
+
+            var code = $"REV-{idx--}";
+
+            items.Add(new ReviewItemDto(
+                code,
+                f.Id,
+                f.BookingReference,
+                string.IsNullOrWhiteSpace(f.CustomerName) ? "Customer" : f.CustomerName,
+                string.IsNullOrWhiteSpace(f.ProviderName) ? "Provider" : f.ProviderName,
+                service,
+                f.Rating,
+                f.Comment,
+                sentiment,
+                itemStatus,
+                f.CreatedAt));
+        }
+
+        var totalReviews = items.Count;
+        var avgRating = items.Count > 0 ? Math.Round(items.Average(i => i.Rating), 2) : 4.86;
+        var flaggedCount = items.Count(i => i.Status == "Flagged" || i.Rating <= 2);
+        var positiveCount = items.Count(i => i.Sentiment == "Positive");
+        var positiveRate = totalReviews > 0 ? $"{Math.Round((double)positiveCount / totalReviews * 100, 1)}%" : "100%";
+
+        var filtered = items.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var q = search.Trim();
+            filtered = filtered.Where(i =>
+                i.CustomerName.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                i.ProviderName.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                i.Service.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                i.Comment.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                i.Id.Contains(q, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) && !status.Equals("All", StringComparison.OrdinalIgnoreCase))
+        {
+            filtered = filtered.Where(i => string.Equals(i.Status, status, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return Ok(new ReviewsSummaryDto(
+            totalReviews,
+            avgRating,
+            flaggedCount,
+            positiveRate,
+            filtered.ToList()));
+    }
+
+    [HttpPatch("reviews/{id:guid}/status")]
+    public async Task<IActionResult> UpdateReviewStatus(
+        Guid id,
+        [FromBody] UpdateReviewStatusRequest request,
+        CancellationToken ct)
+    {
+        var feedback = await db.Feedbacks.FindAsync(new object[] { id }, ct);
+        if (feedback is null) return NotFound(new { error = "Review not found." });
+
+        feedback.Status = request.Status.Trim();
+        await db.SaveChangesAsync(ct);
+
+        return Ok(new { id = feedback.Id, status = feedback.Status });
+    }
+
     private async Task<AdminUser?> GetCurrentAdmin(CancellationToken ct)
     {
         var header = Request.Headers.Authorization.ToString();

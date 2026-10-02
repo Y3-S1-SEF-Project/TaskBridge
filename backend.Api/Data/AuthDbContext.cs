@@ -323,8 +323,11 @@ CREATE TABLE IF NOT EXISTS feedbacks (
     ""ProviderName"" text NOT NULL DEFAULT '',
     ""Rating"" integer NOT NULL DEFAULT 5,
     ""Comment"" text NOT NULL DEFAULT '',
+    ""Status"" text NOT NULL DEFAULT 'Approved',
     ""CreatedAt"" timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE feedbacks ADD COLUMN IF NOT EXISTS ""Status"" text NOT NULL DEFAULT 'Approved';
 
 CREATE INDEX IF NOT EXISTS ix_feedbacks_booking_ref ON feedbacks (""BookingReference"");
 CREATE INDEX IF NOT EXISTS ix_feedbacks_provider_id ON feedbacks (""ProviderId"");
