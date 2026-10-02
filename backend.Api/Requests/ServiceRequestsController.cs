@@ -120,6 +120,7 @@ public class ServiceRequestsController : ControllerBase
     [HttpGet("my")]
     public async Task<IActionResult> GetMyRequests(
         [FromQuery] Guid? customerId,
+        [FromQuery] string? customerName,
         [FromQuery] string? status,
         [FromQuery] string? category,
         CancellationToken ct)
@@ -127,12 +128,30 @@ public class ServiceRequestsController : ControllerBase
         try
         {
             var targetCustomerId = GetCurrentUserId() ?? customerId;
-            if (!targetCustomerId.HasValue)
-            {
-                return BadRequest(new { message = "CustomerId is required to retrieve customer requests." });
-            }
 
-            var query = _db.ServiceRequests.AsNoTracking().Where(x => x.CustomerId == targetCustomerId.Value);
+            IQueryable<ServiceRequestEntity> query = _db.ServiceRequests.AsNoTracking();
+
+            if (targetCustomerId.HasValue && targetCustomerId.Value != Guid.Empty)
+            {
+                if (!string.IsNullOrWhiteSpace(customerName))
+                {
+                    var cName = customerName.Trim().ToLower();
+                    query = query.Where(x => x.CustomerId == targetCustomerId.Value || x.CustomerName.ToLower() == cName);
+                }
+                else
+                {
+                    query = query.Where(x => x.CustomerId == targetCustomerId.Value);
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(customerName))
+            {
+                var cName = customerName.Trim().ToLower();
+                query = query.Where(x => x.CustomerName.ToLower() == cName);
+            }
+            else
+            {
+                return BadRequest(new { message = "CustomerId or CustomerName is required to retrieve customer requests." });
+            }
 
             if (!string.IsNullOrWhiteSpace(status))
             {
@@ -370,6 +389,41 @@ public class ServiceRequestsController : ControllerBase
             CreatedAt = entity.CreatedAt,
             UpdatedAt = entity.UpdatedAt
         };
+    }
+
+    /// <summary>
+    /// Permanently deletes a service request from the database.
+    /// Only the owning customer can delete their own requests.
+    /// </summary>
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> DeleteRequest(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var entity = await _db.ServiceRequests.FirstOrDefaultAsync(r => r.Id == id, ct);
+            if (entity == null)
+            {
+                return NotFound(new { message = "Service request not found." });
+            }
+
+            // Prevent deleting requests that are actively assigned or in progress
+            if (string.Equals(entity.Status, "Assigned", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(entity.Status, "Matching", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new { message = "Cannot delete a request that is currently being processed. Cancel it first." });
+            }
+
+            _db.ServiceRequests.Remove(entity);
+            await _db.SaveChangesAsync(ct);
+
+            _logger.LogInformation("Service request {Id} deleted permanently", id);
+            return Ok(new { success = true, message = "Service request deleted successfully." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting service request {Id}", id);
+            return StatusCode(500, new { message = "An error occurred while deleting the service request." });
+        }
     }
 
     private Guid? GetCurrentUserId()
