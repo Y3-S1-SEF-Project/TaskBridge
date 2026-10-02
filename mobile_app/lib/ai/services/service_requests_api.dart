@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
+import '../../../auth/data/auth_api.dart';
 import '../../../core/config/api_config.dart';
 import '../models/planning_models.dart';
 
@@ -110,6 +111,14 @@ class ServiceRequestsApi {
     return ApiConfig.candidateUrls;
   }
 
+  static Future<Map<String, String>> _authHeaders() async {
+    final token = await AuthApi.getCachedToken();
+    return {
+      'Content-Type': 'application/json',
+      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+    };
+  }
+
   /// Creates a new service request, triggers Planning Agent AI, and saves to PostgreSQL
   static Future<ServiceRequestItem?> createRequest({
     required String description,
@@ -125,6 +134,7 @@ class ServiceRequestsApi {
     String? customerName,
     String? customerPhone,
   }) async {
+    final headers = await _authHeaders();
     final payload = jsonEncode({
       'title': title,
       'category': category,
@@ -147,7 +157,7 @@ class ServiceRequestsApi {
       try {
         final res = await http.post(
           uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: headers,
           body: payload,
         ).timeout(const Duration(seconds: 30));
 
@@ -163,5 +173,73 @@ class ServiceRequestsApi {
       }
     }
     return null;
+  }
+
+  /// Fetches all service requests submitted by the customer
+  static Future<List<ServiceRequestItem>> getMyRequests({
+    String? customerId,
+    String? customerName,
+    String? status,
+  }) async {
+    final headers = await _authHeaders();
+    final queryParams = <String, String>{};
+    if (customerId != null && customerId.isNotEmpty && customerId.contains('-')) {
+      queryParams['customerId'] = customerId;
+    }
+    if (customerName != null && customerName.isNotEmpty) {
+      queryParams['customerName'] = customerName;
+    }
+    if (status != null && status.isNotEmpty) {
+      queryParams['status'] = status;
+    }
+
+    final query = queryParams.isNotEmpty
+        ? '?${Uri(queryParameters: queryParams).query}'
+        : '';
+
+    for (final candidate in _candidateUrls) {
+      final uri = Uri.parse('$candidate/api/requests/my$query');
+      try {
+        final res = await http.get(uri, headers: headers).timeout(const Duration(seconds: 12));
+        if (res.statusCode == 200) {
+          _workingBaseUrl = candidate;
+          final List list = jsonDecode(res.body);
+          return list
+              .map((item) => ServiceRequestItem.fromJson(item as Map<String, dynamic>))
+              .toList();
+        }
+      } catch (e) {
+        developer.log('⚠️ [ServiceRequestsApi] getMyRequests failed on $candidate: $e');
+      }
+    }
+    return [];
+  }
+
+  /// Cancels an open service request
+  static Future<bool> cancelRequest({
+    required String requestId,
+    required String reason,
+  }) async {
+    final headers = await _authHeaders();
+    final payload = jsonEncode({'reason': reason});
+
+    for (final candidate in _candidateUrls) {
+      final uri = Uri.parse('$candidate/api/requests/$requestId/cancel');
+      try {
+        final res = await http.put(
+          uri,
+          headers: headers,
+          body: payload,
+        ).timeout(const Duration(seconds: 12));
+
+        if (res.statusCode == 200) {
+          _workingBaseUrl = candidate;
+          return true;
+        }
+      } catch (e) {
+        developer.log('⚠️ [ServiceRequestsApi] cancelRequest failed on $candidate: $e');
+      }
+    }
+    return false;
   }
 }
