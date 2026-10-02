@@ -2196,7 +2196,7 @@ class _BookingsListView extends StatelessWidget {
             badgeColor = Colors.teal;
             badgeText = 'Upcoming (Confirmed)';
           } else if (b.isCompleted) {
-            badgeColor = Colors.blue.shade700;
+            badgeColor = const Color(0xFF2E7D32);
             badgeText = 'Completed';
           } else {
             badgeColor = AppColors.error;
@@ -2213,11 +2213,24 @@ class _BookingsListView extends StatelessWidget {
                   color: palette.surface,
                   borderRadius: BorderRadius.circular(AppRadius.r16),
                   border: Border.all(
-                    color: b.isProviderCountered
-                        ? palette.primary.withValues(alpha: 0.4)
-                        : palette.border,
-                    width: b.isProviderCountered ? 1.5 : 1.0,
+                    color: b.isCompleted
+                        ? const Color(0xFF81C784).withValues(alpha: 0.5)
+                        : (b.isProviderCountered
+                              ? palette.primary.withValues(alpha: 0.4)
+                              : palette.border),
+                    width: (b.isCompleted || b.isProviderCountered) ? 1.5 : 1.0,
                   ),
+                  boxShadow: b.isCompleted
+                      ? [
+                          BoxShadow(
+                            color: const Color(
+                              0xFF2E7D32,
+                            ).withValues(alpha: 0.06),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : null,
                 ),
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -2252,20 +2265,102 @@ class _BookingsListView extends StatelessWidget {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: badgeColor.withValues(alpha: 0.12),
+                            color: b.isCompleted
+                                ? const Color(0xFFE8F5E9)
+                                : badgeColor.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(AppRadius.r12),
+                            border: b.isCompleted
+                                ? Border.all(
+                                    color: const Color(0xFFA5D6A7),
+                                    width: 0.8,
+                                  )
+                                : null,
                           ),
-                          child: Text(
-                            badgeText,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: badgeColor,
-                            ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (b.isCompleted) ...[
+                                const Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 12,
+                                  color: Color(0xFF2E7D32),
+                                ),
+                                const SizedBox(width: 4),
+                              ],
+                              Text(
+                                badgeText,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: b.isCompleted
+                                      ? const Color(0xFF1B5E20)
+                                      : badgeColor,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
+
+                    // ── Completed Quality Verified Banner ──
+                    if (b.isCompleted) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F8E9),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: const Color(0xFFC8E6C9),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.verified,
+                              size: 14,
+                              color: Color(0xFF2E7D32),
+                            ),
+                            const SizedBox(width: 6),
+                            const Expanded(
+                              child: Text(
+                                'Job Completed & AI Quality Inspected',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF2E7D32),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'Signed Off ✓',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF388E3C),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 10),
 
                     // ── Service Title ──
@@ -2309,13 +2404,27 @@ class _BookingsListView extends StatelessWidget {
                           ),
                         ),
                         const Spacer(),
-                        Text(
-                          b.priceFormatted,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: palette.primary,
-                          ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              b.priceFormatted,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: palette.primary,
+                              ),
+                            ),
+                            if (b.isCompleted)
+                              Text(
+                                'Paid in Full',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.green.shade700,
+                                ),
+                              ),
+                          ],
                         ),
                       ],
                     ),
@@ -2461,16 +2570,13 @@ class _BookingsListView extends StatelessWidget {
                       ),
                     ],
                     if (b.status == 'PendingCustomerSignOff' ||
-                        b.status == 'RevisionRequested' ||
-                        b.isCompleted) ...[
+                        b.status == 'RevisionRequested') ...[
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: b.isCompleted
-                                ? Colors.green.shade700
-                                : Colors.purple.shade700,
+                            backgroundColor: Colors.purple.shade700,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -2487,15 +2593,10 @@ class _BookingsListView extends StatelessWidget {
                             );
                             await onRefresh();
                           },
-                          icon: Icon(
-                            b.isCompleted ? AppIcons.eye : AppIcons.verify,
-                            size: 18,
-                          ),
-                          label: Text(
-                            b.isCompleted
-                                ? 'View Job'
-                                : 'Review Proof & Sign-Off',
-                            style: const TextStyle(
+                          icon: const Icon(AppIcons.verify, size: 18),
+                          label: const Text(
+                            'Review Proof & Sign-Off',
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
                             ),
