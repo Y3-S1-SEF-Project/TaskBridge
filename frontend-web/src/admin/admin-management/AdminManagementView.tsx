@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import type { AdminUser, CreatedAdminCredentials } from './types';
-import { fetchAdmins, createAdminAccount, deleteAdminAccount, updateAdminAccount, toggleAdminStatus } from './api';
+import type { AdminUser, CreatedAdminCredentials } from '../types';
+import { fetchAdmins, createAdminAccount, deleteAdminAccount, updateAdminAccount, toggleAdminStatus } from '../api';
 
 interface AdminManagementViewProps {
   currentUser: AdminUser;
