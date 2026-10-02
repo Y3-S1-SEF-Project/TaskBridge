@@ -66,3 +66,32 @@ public sealed record DashboardStatsDto(
     List<DayActivityDto> ServiceRequestsChart,
     List<DayActivityDto> ProviderActivityChart,
     List<InquiryItemDto> RecentInquiries);
+
+public sealed record ServiceRequestItemDto(
+    Guid Id,
+    string Reference,
+    string CustomerName,
+    Guid? CustomerId,
+    string ProviderName,
+    Guid? ProviderId,
+    string ServiceTitle,
+    string Category,
+    string Location,
+    string PreferredSchedule,
+    decimal Price,
+    string RateType,
+    string Status,
+    string Urgency,
+    string? Notes,
+    DateTimeOffset CreatedAt,
+    string? LinkedBookingReference);
+
+public sealed record ServiceRequestsSummaryDto(
+    int TotalRequests,
+    int PendingCount,
+    int AcceptedCount,
+    int CompletedCount,
+    int CancelledCount,
+    List<string> AvailableCategories,
+    List<ServiceRequestItemDto> Items);
+

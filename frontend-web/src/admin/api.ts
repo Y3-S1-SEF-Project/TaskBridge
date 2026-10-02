@@ -1,4 +1,4 @@
-import type { AdminUser, CreatedAdminCredentials, DashboardStats, InquiryItem } from './types';
+import type { AdminUser, CreatedAdminCredentials, DashboardStats, InquiryItem, ServiceRequestsSummary } from './types';
 
 const API_BASE = '/api/admin';
 
@@ -193,3 +193,36 @@ export async function toggleAdminStatus(adminId: string): Promise<{ id: string; 
   const err = await res.json().catch(() => ({}));
   throw new Error(err.error || 'Failed to toggle administrator status.');
 }
+
+export async function fetchServiceRequests(params?: {
+  search?: string;
+  searchBy?: string;
+  category?: string;
+  status?: string;
+  urgency?: string;
+}): Promise<ServiceRequestsSummary> {
+  const token = getStoredToken();
+  const searchParams = new URLSearchParams();
+  if (params?.search) searchParams.set('search', params.search);
+  if (params?.searchBy) searchParams.set('searchBy', params.searchBy);
+  if (params?.category && params.category !== 'All') searchParams.set('category', params.category);
+  if (params?.status && params.status !== 'All') searchParams.set('status', params.status);
+  if (params?.urgency && params.urgency !== 'All') searchParams.set('urgency', params.urgency);
+
+  const qs = searchParams.toString();
+  const url = `${API_BASE}/service-requests${qs ? `?${qs}` : ''}`;
+
+  const res = await fetch(url, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (res.ok) {
+    return await res.json();
+  }
+
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to fetch service requests.');
+}
+

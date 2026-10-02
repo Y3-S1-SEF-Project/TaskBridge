@@ -53,3 +53,34 @@ export interface CreatedAdminCredentials {
   loginUrl: string;
   message: string;
 }
+
+export interface ServiceRequestItem {
+  id: string;
+  reference: string;
+  customerName: string;
+  customerId?: string | null;
+  providerName: string;
+  providerId?: string | null;
+  serviceTitle: string;
+  category: string;
+  location: string;
+  preferredSchedule: string;
+  price: number;
+  rateType: string;
+  status: string;
+  urgency: 'Immediate' | 'Scheduled' | 'Flexible' | string;
+  notes?: string | null;
+  createdAt: string;
+  linkedBookingReference?: string | null;
+}
+
+export interface ServiceRequestsSummary {
+  totalRequests: number;
+  pendingCount: number;
+  acceptedCount: number;
+  completedCount: number;
+  cancelledCount: number;
+  availableCategories: string[];
+  items: ServiceRequestItem[];
+}
+
