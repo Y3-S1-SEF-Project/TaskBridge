@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { DashboardStats } from './types';
+import type { DashboardStats } from '../types';
 
 interface DashboardViewProps {
   stats: DashboardStats;

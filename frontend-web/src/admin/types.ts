@@ -53,3 +53,104 @@ export interface CreatedAdminCredentials {
   loginUrl: string;
   message: string;
 }
+
+export interface ServiceRequestItem {
+  id: string;
+  reference: string;
+  customerName: string;
+  customerId?: string | null;
+  providerName: string;
+  providerId?: string | null;
+  serviceTitle: string;
+  category: string;
+  location: string;
+  preferredSchedule: string;
+  price: number;
+  rateType: string;
+  status: string;
+  urgency: 'Immediate' | 'Scheduled' | 'Flexible' | string;
+  notes?: string | null;
+  createdAt: string;
+  linkedBookingReference?: string | null;
+}
+
+export interface ServiceRequestsSummary {
+  totalRequests: number;
+  pendingCount: number;
+  acceptedCount: number;
+  completedCount: number;
+  cancelledCount: number;
+  availableCategories: string[];
+  items: ServiceRequestItem[];
+}
+
+export interface ProviderItem {
+  id: string;
+  userId: string;
+  name: string;
+  category: string;
+  phone: string;
+  location: string;
+  rating: number;
+  completedJobs: number;
+  kycStatus: 'Verified' | 'Pending Review' | 'Rejected' | string;
+  accountStatus: 'Active' | 'Under Review' | 'Suspended' | string;
+  bio?: string | null;
+  hourlyRate: number;
+  skills?: string | null;
+  services?: string | null;
+  joinedDate: string;
+}
+
+export interface ProvidersSummary {
+  totalProviders: number;
+  verifiedCount: number;
+  pendingKycCount: number;
+  averageRating: number;
+  availableCategories: string[];
+  items: ProviderItem[];
+}
+
+export interface CustomerItem {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  phone: string;
+  district: string;
+  bookingsCount: number;
+  totalSpent: number;
+  status: 'Active' | 'Inactive' | 'Flagged' | string;
+  joinedDate: string;
+}
+
+export interface CustomersSummary {
+  totalCustomers: number;
+  activeRepeatRate: string;
+  avgLifetimeValue: string;
+  accountHealth: string;
+  items: CustomerItem[];
+}
+
+export interface ReviewItem {
+  id: string;
+  reviewGuid: string;
+  bookingReference: string;
+  customerName: string;
+  providerName: string;
+  service: string;
+  rating: number;
+  comment: string;
+  sentiment: 'Positive' | 'Neutral' | 'Negative' | string;
+  status: 'Approved' | 'Flagged' | 'Pending Review' | string;
+  createdAt: string;
+}
+
+export interface ReviewsSummary {
+  totalReviews: number;
+  overallRating: number;
+  flaggedCount: number;
+  positiveSentimentRate: string;
+  items: ReviewItem[];
+}
+
