@@ -78,3 +78,19 @@ dist/
 **/macos/Flutter/ephemeral/
 **/windows/flutter/ephemeral/
 **/linux/flutter/ephemeral/
+
+# .NET Build Artifacts
+**/bin/
+**/obj/
+**/backend.Api/obj/
+**/backend.Api/bin/
+*.nuget.dgspec.json
+*.nuget.g.props
+*.nuget.g.targets
+project.assets.json
+project.nuget.cache
+
+# Gradle & Build Reports
+**/problems-report.html
+**/replay_pid*.log
+**/build/

@@ -8,6 +8,7 @@ import '../../auth/data/auth_api.dart';
 import '../../auth/data/auth_models.dart';
 import '../../auth/pages/login_page.dart';
 import 'personal_details_page.dart';
+import '../../core/services/location_service.dart';
 import '../../core/services/theme_service.dart';
 import '../../core/services/user_mode_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -147,19 +148,53 @@ class _ProfilePageState extends State<ProfilePage> {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          _currentUser?.address != null &&
-                                  _currentUser!.address!.isNotEmpty
-                              ? '${_currentUser!.address}, ${_currentUser!.location ?? "Colombo"}'
-                              : '754, Baseline Road, Colombo 05',
-                          style: TextStyle(fontSize: 14, color: palette.muted),
+                        Builder(
+                          builder: (context) {
+                            final displayAddr =
+                                LocationService.formatDisplayAddress(
+                                  _currentUser?.address,
+                                  _currentUser?.location,
+                                );
+                            return Text(
+                              displayAddr.isNotEmpty
+                                  ? displayAddr
+                                  : 'No saved address yet',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: palette.muted,
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: palette.primary,
+                    side: BorderSide(color: palette.primary),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _openEditProfile();
+                  },
+                  icon: const Icon(Icons.edit_location_alt_outlined, size: 18),
+                  label: const Text(
+                    'Edit Address & Locate on Map',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
             ],
           ),
         ),
@@ -736,11 +771,15 @@ class _ProfilePageState extends State<ProfilePage> {
                   _SleekMenuTile(
                     icon: Iconsax.location,
                     title: 'Saved addresses',
-                    subtitle:
-                        _currentUser?.address != null &&
-                            _currentUser!.address!.isNotEmpty
-                        ? _currentUser!.address!
-                        : 'Delivery and service locations',
+                    subtitle: () {
+                      final displayAddr = LocationService.formatDisplayAddress(
+                        _currentUser?.address,
+                        _currentUser?.location,
+                      );
+                      return displayAddr.isNotEmpty
+                          ? displayAddr
+                          : 'Delivery and service locations';
+                    }(),
                     iconBgColor: const Color(0xFFEBF3FF),
                     iconColor: const Color(0xFF2563EB),
                     onTap: _openSavedAddresses,

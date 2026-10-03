@@ -252,6 +252,9 @@ public class CancelBookingRequest
 
     [JsonPropertyName("reason")]
     public string? Reason { get; set; }
+
+    [JsonPropertyName("cancelledByRole")]
+    public string? CancelledByRole { get; set; }
 }
 
 public class ProposalDto
@@ -315,6 +318,9 @@ public class AcceptProposalRequest
 
     [JsonPropertyName("rateType")]
     public string? RateType { get; set; }
+
+    [JsonPropertyName("acceptedByRole")]
+    public string? AcceptedByRole { get; set; }
 }
 
 public class DeclineProposalRequest

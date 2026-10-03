@@ -43,12 +43,16 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
   bool _hasDateError = false;
   bool _hasTimeError = false;
 
+  String? _savedLocationName;
+  String? _savedAddressName;
+
   @override
   void initState() {
     super.initState();
     _plan = widget.initialPlan;
     _selectedLocation = _plan.location;
     _selectedAddress = _plan.locationAddress;
+    _loadUserSavedLocation();
 
     // Only pre-fill date/time if it was explicitly parsed and NOT "Flexible" or empty
     if (_plan.scheduledDate.isNotEmpty &&
@@ -75,46 +79,114 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
     }
   }
 
+  Future<void> _loadUserSavedLocation() async {
+    String? loc = widget.user?.location;
+    String? addr = widget.user?.address;
+
+    if (loc == null || loc.trim().isEmpty) {
+      final cached = await LocationService.getSavedLocation();
+      if (cached != null) {
+        loc = cached.shortName;
+        addr ??= cached.address;
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _savedLocationName = (loc != null && loc.trim().isNotEmpty)
+            ? loc.trim()
+            : null;
+        _savedAddressName = (addr != null && addr.trim().isNotEmpty)
+            ? addr.trim()
+            : null;
+      });
+    }
+  }
+
+  String get _savedLocationButtonLabel {
+    if (_savedLocationName != null && _savedLocationName!.isNotEmpty) {
+      return 'Use saved location ($_savedLocationName)';
+    } else if (_savedAddressName != null && _savedAddressName!.isNotEmpty) {
+      return 'Use saved address ($_savedAddressName)';
+    }
+    return 'Use current GPS location';
+  }
+
   @override
   void dispose() {
     _customBudgetController.dispose();
     super.dispose();
   }
 
-  void _useSavedHomeAddress() {
-    setState(() {
-      _selectedLocation = 'Colombo 05';
-      _selectedAddress = '24 Park Road';
-      _hasLocationError = false;
-      _plan = _plan.copyWith(
-        location: 'Colombo 05',
-        locationAddress: '24 Park Road',
-      );
-    });
+  Future<void> _useSavedHomeAddress() async {
+    String? loc = _savedLocationName;
+    String? addr = _savedAddressName;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Home address applied: Colombo 05 (24 Park Road)'),
-        backgroundColor: AppColors.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    if (loc == null || loc.isEmpty) {
+      try {
+        final currentPos = await LocationService.determineCurrentPosition();
+        if (currentPos != null) {
+          loc = currentPos.shortName;
+          addr = currentPos.address;
+          if (mounted) {
+            setState(() {
+              _savedLocationName = loc;
+              _savedAddressName = addr;
+            });
+          }
+        }
+      } catch (e) {
+        _pickLocation();
+        return;
+      }
+    }
+
+    if (loc != null && loc.isNotEmpty) {
+      setState(() {
+        _selectedLocation = loc;
+        _selectedAddress = (addr != null && addr.isNotEmpty) ? addr : loc;
+        _hasLocationError = false;
+        _plan = _plan.copyWith(
+          location: loc,
+          locationAddress: (addr != null && addr.isNotEmpty) ? addr : loc,
+        );
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Location applied: $loc${addr != null && addr.isNotEmpty && addr != loc ? " ($addr)" : ""}',
+          ),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   Future<void> _pickLocation() async {
+    final cached = await LocationService.getSavedLocation();
+    final initial = _selectedLocation != null
+        ? UserLocation(
+            shortName: _selectedLocation!,
+            address: _selectedAddress ?? _selectedLocation!,
+            latitude: cached?.latitude ?? UserLocation.defaultLocation.latitude,
+            longitude:
+                cached?.longitude ?? UserLocation.defaultLocation.longitude,
+          )
+        : (cached ?? UserLocation.defaultLocation);
+
+    if (!mounted) return;
     final picked = await Navigator.push<UserLocation>(
       context,
       MaterialPageRoute(
-        builder: (_) => LocationPickerPage(
-          initialLocation: UserLocation(
-            shortName: _selectedLocation ?? 'Colombo 05',
-            address: _selectedAddress ?? '24 Park Road',
-            latitude: 6.8928,
-            longitude: 79.8732,
-          ),
-        ),
+        builder: (_) =>
+            LocationPickerPage(initialLocation: initial, autoGps: false),
       ),
     );
 
@@ -128,6 +200,7 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
           locationAddress: picked.address,
         );
       });
+      await LocationService.saveLocation(picked);
     }
   }
 
@@ -538,13 +611,30 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
                           ),
                         ),
                         onPressed: _useSavedHomeAddress,
-                        child: Text(
-                          'Use saved home address (Colombo 05)',
-                          style: TextStyle(
-                            color: palette.primary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              _savedLocationName != null
+                                  ? Icons.home_outlined
+                                  : Icons.my_location_rounded,
+                              size: 16,
+                              color: palette.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                _savedLocationButtonLabel,
+                                style: TextStyle(
+                                  color: palette.primary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -1114,6 +1204,7 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
       selected: isSelected,
       onSelected: (_) => onTap(),
       selectedColor: palette.primary,
+      checkmarkColor: Colors.white,
       backgroundColor: palette.soft,
       labelStyle: TextStyle(
         fontSize: 13,
@@ -1142,6 +1233,7 @@ class _PlanningMissingInfoPageState extends State<PlanningMissingInfoPage> {
         });
       },
       selectedColor: palette.primary,
+      checkmarkColor: Colors.white,
       backgroundColor: palette.soft,
       labelStyle: TextStyle(
         fontSize: 13,

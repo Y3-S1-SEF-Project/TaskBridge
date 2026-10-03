@@ -194,9 +194,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 36px;
+  padding: 16px clamp(20px, 2.5vw, 48px);
   border-bottom: 1px solid var(--admin-border-light);
   background: var(--admin-card-bg);
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 
 .admin-breadcrumb {
@@ -265,13 +268,14 @@
 
 /* Page Content Container */
 .admin-content {
-  padding: 32px 36px 48px;
+  padding: clamp(24px, 2.2vw, 36px) clamp(20px, 2.5vw, 48px) 60px;
   display: flex;
   flex-direction: column;
   gap: 28px;
-  max-width: 1400px;
   width: 100%;
+  max-width: 100%;
   box-sizing: border-box;
+  flex: 1;
 }
 
 /* Title & Actions Row */
@@ -785,3 +789,218 @@
   margin-bottom: 18px;
   border: 1px solid #fecaca;
 }
+
+/* Common Responsive Filter & Toolbar */
+.admin-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.admin-search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #ffffff;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  padding: 8px 14px;
+  flex: 1;
+  min-width: 240px;
+  max-width: 480px;
+}
+
+.admin-search-box input {
+  border: none;
+  outline: none;
+  font-size: 13.5px;
+  color: var(--admin-text-main);
+  background: transparent;
+  width: 100%;
+}
+
+.admin-filter-select {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--admin-border);
+  background: #ffffff;
+  color: var(--admin-text-main);
+  font-size: 13.5px;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+}
+
+.admin-filter-select:focus {
+  border-color: var(--admin-primary);
+}
+
+/* Responsive Table Column Helpers */
+.admin-table th.right,
+.admin-table td.right {
+  text-align: right;
+}
+
+.admin-table th.center,
+.admin-table td.center {
+  text-align: center;
+}
+
+.admin-table th.actions-col,
+.admin-table td.actions-col {
+  text-align: right;
+  white-space: nowrap;
+  width: 1%;
+}
+
+/* Large Display Enhancements (1600px+) */
+@media (min-width: 1600px) {
+  .admin-content {
+    gap: 32px;
+    padding: 36px 48px 72px;
+  }
+
+  .admin-topbar {
+    padding: 18px 48px;
+  }
+
+  .admin-page-title {
+    font-size: 28px;
+  }
+
+  .admin-page-subtitle {
+    font-size: 14.5px;
+  }
+
+  .admin-metrics-grid {
+    gap: 20px;
+  }
+
+  .admin-metric-card {
+    padding: 22px 24px;
+    min-height: 120px;
+  }
+
+  .admin-metric-value {
+    font-size: 36px;
+  }
+
+  .admin-charts-grid {
+    gap: 24px;
+  }
+
+  .admin-bar-chart {
+    height: 170px;
+  }
+
+  .admin-bar-wrapper {
+    max-width: 60px;
+  }
+
+  .admin-table th {
+    padding: 14px 28px;
+    font-size: 12.5px;
+  }
+
+  .admin-table td {
+    padding: 18px 28px;
+    font-size: 14px;
+  }
+
+  .admin-table-title {
+    font-size: 18px;
+    margin: 26px 28px 18px;
+  }
+
+  .admin-table-footer {
+    padding: 18px 28px;
+    font-size: 13px;
+  }
+}
+
+/* Ultra-Wide Displays (2200px+ / 4K) */
+@media (min-width: 2200px) {
+  .admin-sidebar {
+    width: 280px;
+    min-width: 280px;
+    padding: 28px 20px;
+  }
+
+  .admin-nav-item {
+    font-size: 14.5px;
+    padding: 11px 14px;
+  }
+
+  .admin-content {
+    gap: 36px;
+    padding: 40px 64px 80px;
+  }
+
+  .admin-topbar {
+    padding: 22px 64px;
+  }
+
+  .admin-page-title {
+    font-size: 32px;
+  }
+
+  .admin-page-subtitle {
+    font-size: 15.5px;
+  }
+
+  .admin-metrics-grid {
+    gap: 24px;
+  }
+
+  .admin-metric-card {
+    padding: 26px 28px;
+    min-height: 135px;
+  }
+
+  .admin-metric-value {
+    font-size: 42px;
+  }
+
+  .admin-metric-label {
+    font-size: 14.5px;
+  }
+
+  .admin-metric-note {
+    font-size: 13.5px;
+  }
+
+  .admin-bar-chart {
+    height: 200px;
+  }
+
+  .admin-bar-wrapper {
+    max-width: 72px;
+  }
+
+  .admin-chart-day {
+    font-size: 13px;
+  }
+
+  .admin-table th {
+    padding: 16px 36px;
+    font-size: 13.5px;
+  }
+
+  .admin-table td {
+    padding: 20px 36px;
+    font-size: 15px;
+  }
+
+  .admin-table-title {
+    font-size: 20px;
+    margin: 30px 36px 20px;
+  }
+
+  .admin-table-footer {
+    padding: 20px 36px;
+    font-size: 14px;
+  }
+}
+

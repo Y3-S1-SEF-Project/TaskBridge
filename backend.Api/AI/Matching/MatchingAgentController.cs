@@ -31,4 +31,19 @@ public class MatchingAgentController : ControllerBase
             return StatusCode(500, new { message = "An error occurred while matching providers." });
         }
     }
+
+    [HttpGet("history")]
+    public async Task<IActionResult> GetMatchHistory([FromQuery] string? customerUserId, CancellationToken ct)
+    {
+        try
+        {
+            var history = await _matchingService.GetMatchHistoryAsync(customerUserId, ct);
+            return Ok(history);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred retrieving matching history");
+            return StatusCode(500, new { message = "An error occurred while retrieving matching history." });
+        }
+    }
 }

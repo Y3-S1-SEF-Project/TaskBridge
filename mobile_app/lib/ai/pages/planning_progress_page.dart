@@ -6,6 +6,7 @@ import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_spacing.dart';
 import '../models/planning_models.dart';
 import '../services/matching_api.dart';
+import '../services/service_requests_api.dart';
 import 'matched_providers_page.dart';
 
 /// Screen C18: "Finding the right help"
@@ -34,11 +35,45 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
   bool _isAllComplete = false;
   bool _isMatchingLoading = false;
   Timer? _timer;
+  String? _savedRequestId;
+
+  @override
+  void initState() {
+    super.initState();
+    _startSequentialAnimation();
+    _autoSaveServiceRequest();
+  }
+
+  Future<void> _autoSaveServiceRequest() async {
+    try {
+      final saved = await ServiceRequestsApi.createRequest(
+        title: widget.plan.serviceTitle.isNotEmpty
+            ? widget.plan.serviceTitle
+            : widget.plan.category,
+        category: widget.plan.category,
+        description: widget.plan.description,
+        location: widget.plan.location ?? widget.user?.location ?? 'Colombo',
+        locationAddress: widget.plan.locationAddress,
+        estimatedBudget: widget.plan.budget,
+        scheduledDate: widget.plan.scheduledDate,
+        scheduledTime: widget.plan.scheduledTime,
+        customerId: widget.user?.id,
+        customerName: widget.user?.fullName,
+        customerPhone: widget.user?.phone,
+      );
+      if (saved != null && mounted) {
+        setState(() {
+          _savedRequestId = saved.id;
+        });
+      }
+    } catch (_) {}
+  }
 
   Future<void> _navigateToMatching() async {
     setState(() => _isMatchingLoading = true);
     try {
       final response = await MatchingApi.matchProviders(
+        serviceRequestId: _savedRequestId,
         jobPlan: widget.plan,
         customerUserId: widget.user?.id,
         customerName: widget.user?.fullName,
@@ -65,12 +100,6 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
         ),
       );
     }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _startSequentialAnimation();
   }
 
   @override
@@ -246,7 +275,7 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
                       '• Service: ${widget.plan.serviceTitle}\n'
                       '• Category: ${widget.plan.category}\n'
                       '• Description: ${widget.plan.description}\n'
-                      '• Location: ${widget.plan.location ?? "Colombo 05"} (${widget.plan.locationAddress ?? "24 Park Road"})\n'
+                      '• Location: ${widget.plan.location ?? widget.user?.location ?? "Not specified"}${widget.plan.locationAddress != null && widget.plan.locationAddress!.isNotEmpty ? " (${widget.plan.locationAddress})" : ""}\n'
                       '• Schedule: ${widget.plan.scheduledDate} ${widget.plan.scheduledTime}\n'
                       '• Budget: ${widget.plan.budgetDisplay}',
                       style: TextStyle(
@@ -498,6 +527,29 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
                                 height: 1.4,
                               ),
                             ),
+                            if (_savedRequestId != null) ...[
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.check_circle_rounded,
+                                    size: 15,
+                                    color: palette.primary,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'Request saved to My Bookings',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: palette.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ],
                         ),
                       ),

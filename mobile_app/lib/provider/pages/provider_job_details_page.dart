@@ -154,18 +154,8 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
       }
     } catch (_) {}
 
-    // 3. Fallback: match against popular Sri Lankan hubs index
+    // 3. Default to Boralesgamuwa/Colombo coordinates if mentioned
     final lower = locationText.toLowerCase();
-    for (final p in LocationService.popularSriLankanPlaces) {
-      if (lower.contains(p.shortName.toLowerCase())) {
-        if (mounted) {
-          setState(() => _bookingLatLng = LatLng(p.latitude, p.longitude));
-        }
-        return;
-      }
-    }
-
-    // 4. Default to Boralesgamuwa/Colombo coordinates if mentioned
     if (lower.contains('boralesgamuwa')) {
       if (mounted) {
         setState(() => _bookingLatLng = const LatLng(6.8480, 79.9015));

@@ -10,6 +10,15 @@ public class PlanningAnalyzeRequest
     [JsonPropertyName("userLocation")]
     public string? UserLocation { get; set; }
 
+    [JsonPropertyName("scheduledDate")]
+    public string? ScheduledDate { get; set; }
+
+    [JsonPropertyName("scheduledTime")]
+    public string? ScheduledTime { get; set; }
+
+    [JsonPropertyName("budget")]
+    public decimal? Budget { get; set; }
+
     [JsonPropertyName("userId")]
     public int? UserId { get; set; }
 }

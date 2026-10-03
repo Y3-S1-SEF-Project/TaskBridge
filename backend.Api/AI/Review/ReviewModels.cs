@@ -59,6 +59,7 @@ public sealed class FeedbackEntity
     public string ProviderName { get; set; } = string.Empty;
     public int Rating { get; set; } = 5; // 1 to 5
     public string Comment { get; set; } = string.Empty;
+    public string Status { get; set; } = "Approved"; // Approved, Flagged, Pending Review
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 

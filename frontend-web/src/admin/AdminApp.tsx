@@ -4,9 +4,25 @@ import { getStoredAdminUser, clearAdminSession, fetchDashboardStats } from './ap
 import { AdminLogin } from './AdminLogin';
 import { AdminSidebar } from './AdminSidebar';
 import { AdminHeader } from './AdminHeader';
-import { DashboardView } from './DashboardView';
-import { AdminManagementView } from './AdminManagementView';
-import { AdminPlaceholderView } from './AdminPlaceholderView';
+
+// Dedicated views from each navbar item's own separate folder
+import { DashboardView } from './dashboard';
+import { ServiceRequestsView } from './service-requests';
+import { BookingsView } from './bookings';
+import { InquiriesView } from './inquiries';
+import { ComplaintsView } from './complaints';
+import { ProvidersView } from './providers';
+import { CustomersView } from './customers';
+import { ReviewsView } from './reviews';
+import { AiWorkflowsView } from './ai-workflows';
+import { AiMonitoringView } from './ai-monitoring';
+import { HumanReviewsView } from './human-reviews';
+import { ChatsView } from './chats';
+import { ReportsView } from './reports';
+import { AdminManagementView } from './admin-management';
+import { AuditLogsView } from './audit-logs';
+import { SettingsView } from './settings';
+
 import './admin.css';
 
 export const AdminApp: React.FC = () => {
@@ -51,107 +67,62 @@ export const AdminApp: React.FC = () => {
           </div>
         );
 
+      case 'service-requests':
+        return <ServiceRequestsView />;
+
+      case 'bookings':
+        return <BookingsView />;
+
+      case 'inquiries':
+        return <InquiriesView />;
+
+      case 'complaints':
+        return <ComplaintsView />;
+
+      case 'providers':
+        return <ProvidersView />;
+
+      case 'customers':
+        return <CustomersView />;
+
+      case 'reviews':
+        return <ReviewsView />;
+
+      case 'ai-workflows':
+        return <AiWorkflowsView />;
+
+      case 'ai-monitoring':
+        return <AiMonitoringView />;
+
+      case 'human-reviews':
+        return <HumanReviewsView />;
+
+      case 'chats':
+        return <ChatsView />;
+
+      case 'reports':
+        return <ReportsView />;
+
       case 'admin-management':
         if (currentUser.role !== 'SuperAdmin') {
           return (
-            <AdminPlaceholderView
-              title="Access Restricted"
-              subtitle="Only Super Administrators are authorized to access administrator directory and permissions."
-            />
+            <div className="admin-content">
+              <div className="admin-table-card" style={{ padding: '60px 24px', textAlign: 'center' }}>
+                <h3 style={{ color: '#c81e1e', margin: '0 0 8px 0' }}>Access Restricted</h3>
+                <p style={{ color: '#64736a', margin: 0 }}>
+                  Only Super Administrators are authorized to access administrator directory and permissions.
+                </p>
+              </div>
+            </div>
           );
         }
         return <AdminManagementView currentUser={currentUser} />;
 
-      case 'service-requests':
-        return (
-          <AdminPlaceholderView
-            title="Service Requests"
-            subtitle="Customer work requests, quotes, and active provider bids."
-          />
-        );
-
-      case 'bookings':
-        return (
-          <AdminPlaceholderView
-            title="Bookings & Jobs"
-            subtitle="Scheduled, active, and completed marketplace jobs."
-          />
-        );
-
-      case 'inquiries':
-      case 'complaints':
-        return (
-          <AdminPlaceholderView
-            title={currentTab === 'inquiries' ? 'Dispute Inquiries' : 'Customer Complaints'}
-            subtitle="Escalations and dispute resolution records requiring administrative action."
-          />
-        );
-
-      case 'providers':
-        return (
-          <AdminPlaceholderView
-            title="Verified Providers"
-            subtitle="Service provider credentials, certifications, and active verification status."
-          />
-        );
-
-      case 'customers':
-        return (
-          <AdminPlaceholderView
-            title="Marketplace Customers"
-            subtitle="Registered customer accounts, activity histories, and preferences."
-          />
-        );
-
-      case 'reviews':
-        return (
-          <AdminPlaceholderView
-            title="Feedback & Reviews"
-            subtitle="Moderation of customer reviews and provider ratings."
-          />
-        );
-
-      case 'ai-workflows':
-      case 'ai-monitoring':
-      case 'human-reviews':
-        return (
-          <AdminPlaceholderView
-            title="AI Orchestration & Monitoring"
-            subtitle="Real-time multi-agent workflows (Planning, Matching, Coordination, Review)."
-          />
-        );
-
-      case 'chats':
-        return (
-          <AdminPlaceholderView
-            title="Audited Communications"
-            subtitle="Admin inquiry access for customer/provider dispute resolution."
-          />
-        );
-
-      case 'reports':
-        return (
-          <AdminPlaceholderView
-            title="Financial & Operational Reports"
-            subtitle="Revenue, provider payouts, completed hours, and platform analytics."
-          />
-        );
-
       case 'audit-logs':
-        return (
-          <AdminPlaceholderView
-            title="Security & System Audit Logs"
-            subtitle="Tamper-evident logs of all administrative inquiries and permission actions."
-          />
-        );
+        return <AuditLogsView />;
 
       case 'settings':
-        return (
-          <AdminPlaceholderView
-            title="System Settings"
-            subtitle="Platform operational parameters, commission rates, and AI model configurations."
-          />
-        );
+        return <SettingsView />;
 
       default:
         return stats ? <DashboardView stats={stats} /> : null;
