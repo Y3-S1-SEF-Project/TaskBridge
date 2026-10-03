@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using TaskBridge.Api.Admin;
 using TaskBridge.Api.Auth;
 using TaskBridge.Api.Data;
+using TaskBridge.Api.Notifications;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,6 +27,7 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<IEmailOtpSender, EmailOtpSender>();
 builder.Services.AddSingleton<IProfileImageService, R2ImageService>();
 builder.Services.AddSignalR();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddHttpClient<IOtpSender, NotifySmsSender>(client => client.Timeout = TimeSpan.FromSeconds(10));
 builder.Services.AddHttpClient<backend.Api.AI.PlanningAgentService>(client => client.Timeout = TimeSpan.FromSeconds(25));
 builder.Services.AddHttpClient<backend.Api.AI.MatchingAgentService>(client => client.Timeout = TimeSpan.FromSeconds(25));
@@ -87,6 +89,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<TaskBridge.Api.Chat.ChatHub>("/hubs/chat");
+app.MapHub<TaskBridge.Api.Notifications.NotificationHub>("/hubs/notifications");
 
 var summaries = new[]
 {

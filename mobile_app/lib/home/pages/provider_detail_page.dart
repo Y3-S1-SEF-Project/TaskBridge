@@ -257,10 +257,7 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
           ? 'Cannot chat with your own profile. Try testing with another specialist!'
           : 'Could not open chat with ${provider.fullName}. Please try again.';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          behavior: SnackBarBehavior.floating,
-        ),
+        SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
       );
     }
   }
@@ -514,30 +511,90 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
                     ),
                   ],
                   const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.star_rounded,
-                        color: Color(0xFFF59E0B),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _displayRating.toStringAsFixed(1),
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: palette.text,
+                  if (_displayReviewCount == 0)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.star_outline_rounded,
+                          color: Color(0xFFF59E0B),
+                          size: 20,
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '($_displayReviewCount customer ${_displayReviewCount == 1 ? 'review' : 'reviews'})',
-                        style: TextStyle(fontSize: 13, color: palette.muted),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '0.0',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: palette.text,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '(0 reviews)',
+                          style: TextStyle(fontSize: 13, color: palette.muted),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: palette.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: palette.primary.withValues(alpha: 0.35),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.auto_awesome_rounded,
+                                size: 12,
+                                color: palette.primary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'New Provider',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: palette.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.star_rounded,
+                          color: Color(0xFFF59E0B),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _displayRating.toStringAsFixed(1),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: palette.text,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '($_displayReviewCount customer ${_displayReviewCount == 1 ? 'review' : 'reviews'})',
+                          style: TextStyle(fontSize: 13, color: palette.muted),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using TaskBridge.Api.Notifications;
 
 namespace backend.Api.AI;
 
@@ -7,10 +8,14 @@ namespace backend.Api.AI;
 public class ReviewAgentController : ControllerBase
 {
     private readonly ReviewAgentService _reviewService;
+    private readonly INotificationService _notificationService;
 
-    public ReviewAgentController(ReviewAgentService reviewService)
+    public ReviewAgentController(
+        ReviewAgentService reviewService,
+        INotificationService notificationService)
     {
         _reviewService = reviewService;
+        _notificationService = notificationService;
     }
 
     [HttpPost("start")]
@@ -40,6 +45,26 @@ public class ReviewAgentController : ControllerBase
             return BadRequest(new { error = "Booking reference is required." });
 
         var success = await _reviewService.SubmitToCustomerAsync(request, ct);
+        if (success)
+        {
+            try
+            {
+                var comp = await _reviewService.GetCompletionDetailsAsync(request.BookingReference, ct);
+                if (comp != null)
+                {
+                    await _notificationService.NotifyJobCompletedAsync(
+                        comp.CustomerId,
+                        comp.CustomerName,
+                        comp.ProviderName,
+                        comp.ServiceTitle,
+                        comp.BookingReference,
+                        comp.CalculatedPrice,
+                        ct);
+                }
+            }
+            catch { }
+        }
+
         return Ok(new { success, bookingReference = request.BookingReference, status = "PendingCustomerSignOff" });
     }
 
@@ -63,6 +88,27 @@ public class ReviewAgentController : ControllerBase
             return BadRequest(new { error = "Booking reference is required." });
 
         var res = await _reviewService.CustomerApproveAsync(request, ct);
+
+        try
+        {
+            var comp = await _reviewService.GetCompletionDetailsAsync(request.BookingReference, ct);
+            if (comp != null)
+            {
+                await _notificationService.SendNotificationAsync(new CreateNotificationDto
+                {
+                    UserId = comp.ProviderId,
+                    UserName = comp.ProviderName,
+                    Title = "Job Approved & Completed!",
+                    Message = $"{comp.CustomerName} approved completion of #{comp.BookingReference} ({comp.ServiceTitle}).",
+                    Type = "PaymentReceived",
+                    ReferenceId = comp.BookingReference,
+                    ReferenceType = "Booking",
+                    Metadata = new { comp.BookingReference, comp.CustomerName, comp.CalculatedPrice }
+                }, ct);
+            }
+        }
+        catch { }
+
         return Ok(res);
     }
 
@@ -73,6 +119,27 @@ public class ReviewAgentController : ControllerBase
             return BadRequest(new { error = "Booking reference is required." });
 
         var res = await _reviewService.RequestRevisionAsync(request, ct);
+
+        try
+        {
+            var comp = await _reviewService.GetCompletionDetailsAsync(request.BookingReference, ct);
+            if (comp != null)
+            {
+                await _notificationService.SendNotificationAsync(new CreateNotificationDto
+                {
+                    UserId = comp.ProviderId,
+                    UserName = comp.ProviderName,
+                    Title = "Revision Requested",
+                    Message = $"{comp.CustomerName} requested a revision on #{comp.BookingReference}: {request.Reason}",
+                    Type = "JobRevision",
+                    ReferenceId = comp.BookingReference,
+                    ReferenceType = "Booking",
+                    Metadata = new { comp.BookingReference, comp.CustomerName, request.Reason }
+                }, ct);
+            }
+        }
+        catch { }
+
         return Ok(res);
     }
 

@@ -1206,7 +1206,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
 
   Widget _buildAiEvaluationCard(AppPalette palette) {
     final res = _aiResult!;
-    final isPassed = res.verificationPassed;
+    final isPassed = res.verificationPassed && res.confidenceScore >= 80;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1239,7 +1239,11 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    isPassed ? 'AI: Quality Passed' : 'AI: Revision Advised',
+                    isPassed
+                        ? 'AI: Quality Passed'
+                        : (res.confidenceScore <= 40
+                              ? 'AI: Photo Mismatch'
+                              : 'AI: Revision Advised'),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -1262,7 +1266,7 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                 child: Text(
                   isPassed
                       ? '${res.confidenceScore}% Confidence'
-                      : 'Mismatch (${res.confidenceScore}% Certainty)',
+                      : '${res.confidenceScore}% Confidence (Failed)',
                   style: GoogleFonts.plusJakartaSans(
                     color: Colors.white,
                     fontSize: 11,
@@ -1662,19 +1666,26 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
       );
     }
 
+    final verificationPassed = _aiResult?.verificationPassed == true;
     final confidence = _aiResult?.confidenceScore ?? 0;
-    final isConfidencePassed = confidence >= 80;
+    final isAllowedToSubmit = verificationPassed && confidence >= 80;
 
-    if (!isConfidencePassed) {
+    if (!isAllowedToSubmit) {
+      final isMismatch = !verificationPassed || confidence < 50;
       return Column(
         children: [
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.orange.shade50,
+              color: isMismatch ? Colors.red.shade50 : Colors.orange.shade50,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.orange.shade300, width: 1.2),
+              border: Border.all(
+                color: isMismatch
+                    ? Colors.red.shade300
+                    : Colors.orange.shade300,
+                width: 1.2,
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1682,18 +1693,26 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                 Row(
                   children: [
                     Icon(
-                      Icons.warning_amber_rounded,
-                      color: Colors.orange.shade800,
+                      isMismatch
+                          ? Icons.error_outline_rounded
+                          : Icons.warning_amber_rounded,
+                      color: isMismatch
+                          ? Colors.red.shade800
+                          : Colors.orange.shade800,
                       size: 22,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'AI Confidence: $confidence% (80%+ Required)',
+                        !verificationPassed
+                            ? 'Verification Failed: Proof Photos Do Not Match'
+                            : 'AI Confidence: $confidence% (80%+ Required)',
                         style: GoogleFonts.plusJakartaSans(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
-                          color: Colors.orange.shade900,
+                          color: isMismatch
+                              ? Colors.red.shade900
+                              : Colors.orange.shade900,
                         ),
                       ),
                     ),
@@ -1701,10 +1720,18 @@ class _JobCompletionProofPageState extends State<JobCompletionProofPage> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'The AI review confidence is below the 80% threshold required to send this job to the customer. Please upload clearer Before & After photos or add more detailed work notes, then re-evaluate.',
+                  !verificationPassed
+                      ? (_aiResult?.comparisonAnalysis.isNotEmpty == true
+                            ? _aiResult!.comparisonAnalysis
+                            : 'The AI detected that the Before and After photos do not match the same work location or service. Please upload matching photos of the actual completed service, then re-evaluate.')
+                      : 'The AI review confidence is below the 80% threshold required to send this job to the customer. Please upload clearer Before & After photos or add more detailed work notes, then re-evaluate.',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12.5,
-                    color: Colors.orange.shade900.withValues(alpha: 0.85),
+                    color:
+                        (isMismatch
+                                ? Colors.red.shade900
+                                : Colors.orange.shade900)
+                            .withValues(alpha: 0.85),
                     height: 1.35,
                   ),
                 ),

@@ -1,0 +1,1 @@
+export { ComplaintsView } from './ComplaintsView';

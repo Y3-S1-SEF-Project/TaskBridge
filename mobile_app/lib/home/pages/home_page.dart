@@ -24,6 +24,8 @@ import '../widgets/provider_card.dart';
 import '../../ai/widgets/ai_prompt_sheet.dart';
 import '../../ai/services/bookings_sync_service.dart';
 import '../../chat/services/chat_service.dart';
+import '../../notifications/services/notification_service.dart';
+import '../../notifications/widgets/notification_bell_button.dart';
 
 class HomePage extends StatefulWidget {
   final AuthUser? user;
@@ -48,6 +50,11 @@ class _HomePageState extends State<HomePage> {
     UserModeService.setMode(UserMode.customer);
     _initializeLocation();
     _loadNearbyProviders();
+    NotificationService().initialize(
+      user: widget.user,
+      role: 'customer',
+      requestPermissions: true,
+    );
   }
 
   Future<void> _loadNearbyProviders() async {
@@ -269,14 +276,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ),
-                IconButton(
-                  icon: Icon(
-                    AppIcons.notification,
-                    color: palette.text,
-                    size: 26,
-                  ),
-                  onPressed: () {},
-                ),
+                NotificationBellButton(user: widget.user),
               ],
             ),
             const SizedBox(height: AppSpacing.s12),
