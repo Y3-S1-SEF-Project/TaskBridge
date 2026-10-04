@@ -1019,443 +1019,6 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                                   height: 1.3,
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  )
-                else if (booking.isCustomerCountered)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.orange.shade300,
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.schedule_send_rounded,
-                          size: 20,
-                          color: Colors.orange.shade800,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Your Re-Bid is Under Review',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.orange.shade900,
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                'You proposed ${booking.priceFormatted} for ${booking.schedule}. Waiting for ${booking.providerName} to review.',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.orange.shade800,
-                                  height: 1.3,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: palette.soft,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: palette.border, width: 1),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.hourglass_top_rounded,
-                          size: 20,
-                          color: palette.primary,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Awaiting Provider Confirmation',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: palette.text,
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                'Proposal sent to ${booking.providerName}. They will review your requested time and confirm the quotation.',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: palette.muted,
-                                  height: 1.3,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                const SizedBox(height: 16),
-
-                // Current Offer Breakdown Card
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: palette.surface,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: palette.border),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Actionable milestones generated by Planning Agent:',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: palette.muted,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          ...req.acceptanceChecklist.map(
-                            (milestone) => Padding(
-                              padding: const EdgeInsets.only(bottom: 6),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(
-                                    Icons.check_circle_rounded,
-                                    size: 16,
-                                    color: palette.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      milestone,
-                                      style: TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w500,
-                                        color: palette.text,
-                                        height: 1.3,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Cancellation Reason
-                  if (req.status == 'Cancelled' &&
-                      req.cancellationReason != null) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.error.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppColors.error.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.cancel_outlined,
-                            color: AppColors.error,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Cancellation reason: ${req.cancellationReason}',
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                color: AppColors.error,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Action Buttons
-                  Row(
-                    children: [
-                      if (req.status != 'Cancelled' &&
-                          req.status != 'Completed') ...[
-                        Expanded(
-                          child: OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.error,
-                              side: BorderSide(
-                                color: AppColors.error.withValues(alpha: 0.5),
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.r12,
-                                ),
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            onPressed: () {
-                              Navigator.pop(ctx);
-                              _cancelServiceRequest(req);
-                            },
-                            child: const Text(
-                              'Cancel Request',
-                              style: TextStyle(fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                        ),
-                      ),
-                      onPressed: () async {
-                        final messenger = ScaffoldMessenger.of(context);
-                        Navigator.pop(ctx);
-
-                        // Super-fast reflective state update: immediately convert to upcoming
-                        final optimisticBooking = BookingItem(
-                          id: 'opt-${DateTime.now().millisecondsSinceEpoch}',
-                          bookingReference:
-                              booking.bookingReference.startsWith('PR-')
-                              ? booking.bookingReference.replaceFirst(
-                                  'PR-',
-                                  'TB-',
-                                )
-                              : booking.bookingReference,
-                          serviceTitle: booking.serviceTitle,
-                          category: booking.category,
-                          providerName: booking.providerName,
-                          providerId: booking.providerId,
-                          providerPhone: booking.providerPhone,
-                          customerName: booking.customerName,
-                          customerPhone: booking.customerPhone,
-                          location: booking.location,
-                          schedule: booking.schedule,
-                          price: booking.price,
-                          rateType: booking.rateType,
-                          status: 'Upcoming',
-                          createdAt: DateTime.now(),
-                        );
-                        setState(() {
-                          _bookings.removeWhere(
-                            (b) =>
-                                b.bookingReference == booking.bookingReference,
-                          );
-                          _bookings.insert(0, optimisticBooking);
-                        });
-                        _tabController.animateTo(2);
-
-                        messenger.showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '🎉 Booking confirmed with ${booking.providerName}! Scheduled in Upcoming.',
-                            ),
-                            backgroundColor: AppColors.primary,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                AppRadius.r12,
-                              ),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text(
-                            'Close',
-                            style: TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showCustomerProposalReviewModal(BookingItem booking) {
-    if (booking.isActive ||
-        booking.status.toLowerCase() == 'in progress' ||
-        booking.isUpcoming) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => CustomerJobDetailsPage(
-            booking: booking,
-            onSwitchTab: widget.onSwitchTab,
-            onCancelBooking: _cancelBooking,
-          ),
-        ),
-      ).then((_) => _loadBookings(silent: true));
-      return;
-    }
-
-    final palette = AppPalette.of(context);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      backgroundColor: palette.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.only(
-              left: AppSpacing.s20,
-              right: AppSpacing.s20,
-              top: AppSpacing.s8,
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.s24,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Top Tag & Reference
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: booking.isProviderCountered
-                            ? Colors.green.shade100
-                            : (booking.isCustomerCountered
-                                  ? Colors.orange.shade100
-                                  : Colors.amber.shade100),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        booking.isProviderCountered
-                            ? 'PROVIDER REVISED QUOTE'
-                            : (booking.isCustomerCountered
-                                  ? 'YOUR RE-BID SENT'
-                                  : 'QUOTATION REQUESTED'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: booking.isProviderCountered
-                              ? Colors.green.shade900
-                              : (booking.isCustomerCountered
-                                    ? Colors.orange.shade900
-                                    : Colors.amber.shade900),
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      '#${booking.bookingReference}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: palette.muted,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                Text(
-                  booking.serviceTitle,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: palette.text,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Provider: ${booking.providerName} · Location: ${booking.location}',
-                  style: TextStyle(fontSize: 13, color: palette.muted),
-                ),
-                const SizedBox(height: 14),
-
-                // Status Banner
-                if (booking.isProviderCountered)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: palette.soft,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: palette.primary.withValues(alpha: 0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.local_offer_rounded,
-                          size: 20,
-                          color: palette.primary,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Provider's Counter-Offer",
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: palette.text,
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                '${booking.providerName} updated the quotation to ${booking.priceFormatted}. You can accept to complete the booking immediately or propose a counter-offer.',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: palette.muted,
-                                  height: 1.3,
-                                ),
-                              ),
                             ],
                           ),
                         ),
@@ -1763,86 +1326,55 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                   const SizedBox(height: 10),
                 ],
 
-    return Scaffold(
-      backgroundColor: palette.background,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.only(
-            left: AppSpacing.s20,
-            right: AppSpacing.s20,
-            top: AppSpacing.s16,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // ── Top Header with Quick Role Switcher ──
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'YOUR RESERVATIONS',
-                        style: TextStyle(
-                          color: palette.primary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.1,
-                        ),
+                // Button 2: Counter-Offer / Re-Bid
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: palette.primary,
+                      side: BorderSide(color: palette.primary, width: 1.2),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'My Bookings',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: palette.text,
-                          letterSpacing: -0.5,
-                        ),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _showCustomerCounterBidModal(booking);
+                    },
+                    icon: const Icon(Icons.edit_note_rounded, size: 18),
+                    label: Text(
+                      booking.isCustomerCountered
+                          ? 'Modify / Update Re-Bid'
+                          : (booking.isProviderCountered
+                                ? 'Counter-Offer / Re-Bid'
+                                : 'Modify Terms / Re-Bid'),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
                       ),
-                    ],
+                    ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // ── 5 Filter Tabs: Requests, Ongoing, Upcoming, Completed, Cancelled ──
-              Container(
-                decoration: BoxDecoration(
-                  color: palette.surface,
-                  borderRadius: BorderRadius.circular(AppRadius.r12),
-                  border: Border.all(color: palette.border),
                 ),
-                child: TabBar(
-                  controller: _tabController,
-                  isScrollable: true,
-                  tabAlignment: TabAlignment.start,
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  indicator: BoxDecoration(
-                    color: palette.soft,
-                    borderRadius: BorderRadius.circular(AppRadius.r8),
+
+                const SizedBox(height: 10),
+
+                // Button 3: Cancel Request
+                Center(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _cancelBooking(booking);
+                    },
+                    child: Text(
+                      'Cancel Request',
+                      style: TextStyle(
+                        color: AppColors.error,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
-                  indicatorColor: Colors.transparent,
-                  labelColor: palette.primary,
-                  unselectedLabelColor: palette.muted,
-                  labelPadding: const EdgeInsets.symmetric(horizontal: 14),
-                  labelStyle: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  unselectedLabelStyle: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  dividerColor: Colors.transparent,
-                  tabs: [
-                    Tab(child: Text('Requests (${_serviceRequests.length})')),
-                    Tab(child: Text('Ongoing (${ongoingList.length})')),
-                    Tab(child: Text('Upcoming (${upcomingList.length})')),
-                    Tab(child: Text('Completed (${completedList.length})')),
-                    Tab(child: Text('Cancelled (${cancelledList.length})')),
-                  ],
                 ),
               ],
             ),
@@ -1931,30 +1463,6 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // 0. Requests (Customer's pre-booking AI service requests)
-                          _ServiceRequestsListView(
-                            requests: _serviceRequests,
-                            onRefresh: _loadBookings,
-                            onTap: _showServiceRequestDetailsModal,
-                            onCancel: _cancelServiceRequest,
-                            onCreateNew: () {
-                              AiPromptSheet.show(
-                                context,
-                                currentLocation: widget.user?.location,
-                                user: widget.user,
-                              );
-                            },
-                          ),
-                          // 1. Ongoing (Requests & In Progress)
-                          _BookingsListView(
-                            bookings: ongoingList,
-                            emptyMessage: 'No ongoing job requests right now.',
-                            emptySub:
-                                'Requests you initiate via TaskBridge AI will appear here.',
-                            onRefresh: _loadBookings,
-                            onAction: _handleBookingTap,
-                            onCancel: _cancelBooking,
-                            isOngoingTab: true,
                           Icon(
                             Icons.schedule_rounded,
                             size: 18,
@@ -2688,7 +2196,7 @@ class _BookingsListView extends StatelessWidget {
             badgeColor = Colors.teal;
             badgeText = 'Upcoming (Confirmed)';
           } else if (b.isCompleted) {
-            badgeColor = Colors.blue.shade700;
+            badgeColor = const Color(0xFF2E7D32);
             badgeText = 'Completed';
           } else {
             badgeColor = AppColors.error;
@@ -2705,11 +2213,6 @@ class _BookingsListView extends StatelessWidget {
                   color: palette.surface,
                   borderRadius: BorderRadius.circular(AppRadius.r16),
                   border: Border.all(
-                    color: b.isProviderCountered
-                        ? palette.primary.withValues(alpha: 0.4)
-                        : palette.border,
-                    width: b.isProviderCountered ? 1.5 : 1.0,
-                  ),
                     color: b.isCompleted
                         ? const Color(0xFF81C784).withValues(alpha: 0.5)
                         : (b.isProviderCountered
@@ -2762,20 +2265,6 @@ class _BookingsListView extends StatelessWidget {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: badgeColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(AppRadius.r12),
-                          ),
-                          child: Text(
-                            badgeText,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: badgeColor,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                             color: b.isCompleted
                                 ? const Color(0xFFE8F5E9)
                                 : badgeColor.withValues(alpha: 0.12),
@@ -2915,13 +2404,6 @@ class _BookingsListView extends StatelessWidget {
                           ),
                         ),
                         const Spacer(),
-                        Text(
-                          b.priceFormatted,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: palette.primary,
-                          ),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
@@ -3088,43 +2570,18 @@ class _BookingsListView extends StatelessWidget {
                       ),
                     ],
                     if (b.status == 'PendingCustomerSignOff' ||
-                        b.status == 'RevisionRequested' ||
-                        b.isCompleted) ...[
                         b.status == 'RevisionRequested') ...[
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: b.isCompleted
-                                ? Colors.green.shade700
-                                : Colors.purple.shade700,
                             backgroundColor: Colors.purple.shade700,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
                             padding: const EdgeInsets.symmetric(vertical: 10),
-                          ),
-                          onPressed: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    CustomerCompletionReviewPage(booking: b),
-                              ),
-                            );
-                            await onRefresh();
-                          },
-                          icon: Icon(
-                            b.isCompleted ? AppIcons.eye : AppIcons.verify,
-                            size: 18,
-                          ),
-                          label: Text(
-                            b.isCompleted
-                                ? 'View Job'
-                                : 'Review Proof & Sign-Off',
-                            style: const TextStyle(
                           ),
                           onPressed: () async {
                             await Navigator.push(
