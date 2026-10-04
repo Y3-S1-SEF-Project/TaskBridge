@@ -20,6 +20,9 @@ public sealed class AppUser
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAt { get; set; }
 
+    // Role: "SuperAdmin", "Admin", "User"
+    public string Role { get; set; } = "User";
+
     // Provider mode profile details
     public bool IsProvider { get; set; }
     public string? ProviderCategory { get; set; }
@@ -30,7 +33,7 @@ public sealed class AppUser
     public string? ProviderServiceAreas { get; set; }
     public string? ProviderAvailability { get; set; }
     public string? ProviderBio { get; set; }
-    public decimal? ProviderEarnings { get; set; } = 54000m;
+    public decimal? ProviderEarnings { get; set; } = 0m;
     public decimal? ProviderHourlyRate { get; set; } = 2500m;
 
     public ProviderProfile? ProviderProfile { get; set; }

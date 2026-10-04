@@ -463,7 +463,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
     }
   }
 
-  @override
+   @override
   void dispose() {
     _miniMapController?.dispose();
     _skillsController.dispose();
@@ -2932,3 +2932,4 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
     );
   }
 }
+

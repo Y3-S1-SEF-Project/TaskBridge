@@ -19,4 +19,5 @@ public sealed record UserResponse(
     string? ProviderAvailability = null,
     string? ProviderBio = null,
     decimal? ProviderEarnings = null,
-    decimal? ProviderHourlyRate = null);
+    decimal? ProviderHourlyRate = null,
+    string Role = "User");

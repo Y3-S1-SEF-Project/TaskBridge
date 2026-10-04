@@ -12,11 +12,31 @@ import '../models/provider_item.dart';
 import '../widgets/provider_card.dart';
 
 enum ProviderSortOption {
-  distance('Nearest First', Icons.near_me_rounded, 'Sort by closest distance from you'),
-  rating('Highest Rated', Icons.star_rounded, 'Sort by highest customer review rating'),
-  priceLowToHigh('Price: Low to High', Icons.arrow_upward_rounded, 'Sort by lowest hourly rate first'),
-  priceHighToLow('Price: High to Low', Icons.arrow_downward_rounded, 'Sort by highest hourly rate first'),
-  reviews('Most Reviewed', Icons.rate_review_rounded, 'Sort by number of customer reviews');
+  distance(
+    'Nearest First',
+    Icons.near_me_rounded,
+    'Sort by closest distance from you',
+  ),
+  rating(
+    'Highest Rated',
+    Icons.star_rounded,
+    'Sort by highest customer review rating',
+  ),
+  priceLowToHigh(
+    'Price: Low to High',
+    Icons.arrow_upward_rounded,
+    'Sort by lowest hourly rate first',
+  ),
+  priceHighToLow(
+    'Price: High to Low',
+    Icons.arrow_downward_rounded,
+    'Sort by highest hourly rate first',
+  ),
+  reviews(
+    'Most Reviewed',
+    Icons.rate_review_rounded,
+    'Sort by number of customer reviews',
+  );
 
   final String label;
   final IconData icon;
@@ -118,7 +138,8 @@ class _ProviderSearchPageState extends State<ProviderSearchPage> {
         final currentUserName = widget.user?.fullName.trim().toLowerCase();
 
         _providers = results.where((p) {
-          if (currentUserId != null && p.userId.toLowerCase() == currentUserId) {
+          if (currentUserId != null &&
+              p.userId.toLowerCase() == currentUserId) {
             return false;
           }
           if (currentUserName != null &&
@@ -163,7 +184,10 @@ class _ProviderSearchPageState extends State<ProviderSearchPage> {
       final cLng = _customerLocation!.longitude;
 
       _providers = _providers.map((p) {
-        if (p.latitude != null && p.longitude != null && p.latitude != 0 && p.longitude != 0) {
+        if (p.latitude != null &&
+            p.longitude != null &&
+            p.latitude != 0 &&
+            p.longitude != 0) {
           final meters = Geolocator.distanceBetween(
             cLat,
             cLng,
@@ -302,7 +326,9 @@ class _ProviderSearchPageState extends State<ProviderSearchPage> {
                         color: isSelected ? palette.soft : Colors.transparent,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: isSelected ? palette.primary : Colors.transparent,
+                          color: isSelected
+                              ? palette.primary
+                              : Colors.transparent,
                           width: 1,
                         ),
                       ),
@@ -322,8 +348,12 @@ class _ProviderSearchPageState extends State<ProviderSearchPage> {
                                   option.label,
                                   style: TextStyle(
                                     fontSize: 14,
-                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                                    color: isSelected ? palette.primary : palette.text,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w600,
+                                    color: isSelected
+                                        ? palette.primary
+                                        : palette.text,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -362,7 +392,8 @@ class _ProviderSearchPageState extends State<ProviderSearchPage> {
     final palette = AppPalette.of(context);
     final isFilteringCategory =
         _selectedCategory != 'All' && _selectedCategory.isNotEmpty;
-    final currentLocName = _customerLocation?.shortName ?? widget.location ?? 'Colombo';
+    final currentLocName =
+        _customerLocation?.shortName ?? widget.location ?? 'Colombo';
 
     return Scaffold(
       backgroundColor: palette.background,
@@ -404,18 +435,12 @@ class _ProviderSearchPageState extends State<ProviderSearchPage> {
                   controller: _searchController,
                   onChanged: _onSearchChanged,
                   autofocus: widget.initialQuery != null,
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: palette.text,
-                  ),
+                  style: TextStyle(fontSize: 15, color: palette.text),
                   decoration: InputDecoration(
                     hintText: isFilteringCategory
                         ? 'Search within $_selectedCategory…'
                         : 'Search specialists, skills, or services…',
-                    hintStyle: TextStyle(
-                      color: palette.muted,
-                      fontSize: 14,
-                    ),
+                    hintStyle: TextStyle(color: palette.muted, fontSize: 14),
                     prefixIcon: Icon(
                       Icons.search_rounded,
                       color: palette.muted,
@@ -448,15 +473,14 @@ class _ProviderSearchPageState extends State<ProviderSearchPage> {
             SizedBox(
               height: 44,
               child: ListView.separated(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.s20,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s20),
                 scrollDirection: Axis.horizontal,
                 itemCount: _categories.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final cat = _categories[index];
-                  final isSelected = _selectedCategory.toLowerCase() == cat.toLowerCase();
+                  final isSelected =
+                      _selectedCategory.toLowerCase() == cat.toLowerCase();
 
                   return ChoiceChip(
                     label: Text(cat),
@@ -466,7 +490,9 @@ class _ProviderSearchPageState extends State<ProviderSearchPage> {
                     backgroundColor: palette.surface,
                     labelStyle: TextStyle(
                       fontSize: 13,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                       color: isSelected ? palette.onPrimary : palette.text,
                     ),
                     shape: RoundedRectangleBorder(
@@ -507,7 +533,11 @@ class _ProviderSearchPageState extends State<ProviderSearchPage> {
                         const SizedBox(height: 2),
                         Row(
                           children: [
-                            Icon(AppIcons.location, size: 12, color: palette.primary),
+                            Icon(
+                              AppIcons.location,
+                              size: 12,
+                              color: palette.primary,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               currentLocName,
@@ -570,9 +600,7 @@ class _ProviderSearchPageState extends State<ProviderSearchPage> {
             const Divider(height: 16),
 
             // ── Provider Results List ──
-            Expanded(
-              child: _buildContent(palette, currentLocName),
-            ),
+            Expanded(child: _buildContent(palette, currentLocName)),
           ],
         ),
       ),
@@ -581,9 +609,7 @@ class _ProviderSearchPageState extends State<ProviderSearchPage> {
 
   Widget _buildContent(AppPalette palette, String locName) {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_providers.isEmpty) {
@@ -651,10 +677,7 @@ class _ProviderSearchPageState extends State<ProviderSearchPage> {
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
                 onPressed: () {
-                  AiPromptSheet.show(
-                    context,
-                    currentLocation: locName,
-                  );
+                  AiPromptSheet.show(context, currentLocation: locName);
                 },
               ),
             ],

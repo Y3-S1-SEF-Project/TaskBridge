@@ -324,6 +324,7 @@ class CoordinationApi {
   static Future<bool> cancelBooking({
     required String bookingReference,
     String? reason,
+    String cancelledByRole = 'Customer',
   }) async {
     final altRef = bookingReference.startsWith('TB-')
         ? bookingReference.replaceFirst('TB-', 'PR-')
@@ -351,6 +352,7 @@ class CoordinationApi {
     final payload = jsonEncode({
       'bookingReference': bookingReference,
       'reason': reason,
+      'cancelledByRole': cancelledByRole,
     });
 
     for (final candidate in _candidateUrls) {
@@ -486,15 +488,28 @@ class CoordinationApi {
               .map((b) => BookingItem.fromJson(b as Map<String, dynamic>))
               .toList();
 
-          // Merge with local newly created bookings
+          // Merge with local newly created bookings using baseKey deduplication
           final mergedMap = <String, BookingItem>{};
           for (final b in _localBookings) {
-            mergedMap[b.bookingReference] = b;
+            final baseKey = b.bookingReference
+                .replaceFirst('TB-', '')
+                .replaceFirst('PR-', '');
+            mergedMap[baseKey] = b;
           }
           for (final b in remoteBookings) {
-            mergedMap[b.bookingReference] = b;
+            final baseKey = b.bookingReference
+                .replaceFirst('TB-', '')
+                .replaceFirst('PR-', '');
+            // Authoritative remote booking overrides local entry
+            mergedMap[baseKey] = b;
+
             final idx = _localBookings.indexWhere(
-              (x) => x.bookingReference == b.bookingReference,
+              (x) =>
+                  x.bookingReference == b.bookingReference ||
+                  x.bookingReference
+                          .replaceFirst('TB-', '')
+                          .replaceFirst('PR-', '') ==
+                      baseKey,
             );
             if (idx != -1) {
               _localBookings[idx] = b;
@@ -717,6 +732,7 @@ class CoordinationApi {
     required String schedule,
     required double price,
     String? rateType,
+    String? acceptedByRole,
   }) async {
     // Update local proposal
     final idx = _localProposals.indexWhere(
@@ -763,10 +779,15 @@ class CoordinationApi {
         status: 'Upcoming',
         createdAt: DateTime.now(),
       );
+      final propBase = proposalReference
+          .replaceFirst('TB-', '')
+          .replaceFirst('PR-', '');
       _localBookings.removeWhere(
         (b) =>
-            b.bookingReference == optimisticBooking.bookingReference ||
-            b.bookingReference == proposalReference,
+            b.bookingReference
+                .replaceFirst('TB-', '')
+                .replaceFirst('PR-', '') ==
+            propBase,
       );
       _localBookings.insert(0, optimisticBooking);
     }
@@ -778,6 +799,7 @@ class CoordinationApi {
       'confirmedSchedule': schedule,
       'confirmedPrice': price,
       'rateType': rateType,
+      'acceptedByRole': acceptedByRole,
     });
 
     for (final candidate in candidates) {
@@ -800,10 +822,15 @@ class CoordinationApi {
                 ? json['booking'] as Map<String, dynamic>
                 : json;
             final serverBooking = BookingItem.fromJson(bookingData);
+            final srvBase = serverBooking.bookingReference
+                .replaceFirst('TB-', '')
+                .replaceFirst('PR-', '');
             _localBookings.removeWhere(
               (b) =>
-                  b.bookingReference == serverBooking.bookingReference ||
-                  b.bookingReference == proposalReference,
+                  b.bookingReference
+                      .replaceFirst('TB-', '')
+                      .replaceFirst('PR-', '') ==
+                  srvBase,
             );
             _localBookings.insert(0, serverBooking);
           } catch (_) {}

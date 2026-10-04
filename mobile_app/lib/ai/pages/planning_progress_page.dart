@@ -52,7 +52,7 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
             : widget.plan.category,
         category: widget.plan.category,
         description: widget.plan.description,
-        location: widget.plan.location ?? 'Colombo 05',
+        location: widget.plan.location ?? widget.user?.location ?? 'Colombo',
         locationAddress: widget.plan.locationAddress,
         estimatedBudget: widget.plan.budget,
         scheduledDate: widget.plan.scheduledDate,
@@ -73,6 +73,7 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
     setState(() => _isMatchingLoading = true);
     try {
       final response = await MatchingApi.matchProviders(
+        serviceRequestId: _savedRequestId,
         jobPlan: widget.plan,
         customerUserId: widget.user?.id,
         customerName: widget.user?.fullName,
@@ -274,7 +275,7 @@ class _PlanningProgressPageState extends State<PlanningProgressPage>
                       '• Service: ${widget.plan.serviceTitle}\n'
                       '• Category: ${widget.plan.category}\n'
                       '• Description: ${widget.plan.description}\n'
-                      '• Location: ${widget.plan.location ?? "Colombo 05"} (${widget.plan.locationAddress ?? "24 Park Road"})\n'
+                      '• Location: ${widget.plan.location ?? widget.user?.location ?? "Not specified"}${widget.plan.locationAddress != null && widget.plan.locationAddress!.isNotEmpty ? " (${widget.plan.locationAddress})" : ""}\n'
                       '• Schedule: ${widget.plan.scheduledDate} ${widget.plan.scheduledTime}\n'
                       '• Budget: ${widget.plan.budgetDisplay}',
                       style: TextStyle(

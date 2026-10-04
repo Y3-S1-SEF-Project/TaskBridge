@@ -197,9 +197,9 @@ public sealed class AuthService(
         if (user is null) throw new AuthProblem(404, "User not found.");
 
         if (!string.IsNullOrWhiteSpace(request.FullName)) user.FullName = request.FullName.Trim();
-        if (!string.IsNullOrWhiteSpace(request.Address)) user.Address = request.Address.Trim();
-        if (!string.IsNullOrWhiteSpace(request.Location)) user.Location = request.Location.Trim();
-        if (!string.IsNullOrWhiteSpace(request.Preferences)) user.Preferences = request.Preferences.Trim();
+        if (request.Address is not null) user.Address = CleanLocationString(request.Address);
+        if (request.Location is not null) user.Location = CleanLocationString(request.Location);
+        if (request.Preferences is not null) user.Preferences = string.IsNullOrWhiteSpace(request.Preferences) ? null : request.Preferences.Trim();
         if (!string.IsNullOrWhiteSpace(request.ProfilePhotoUrl)) user.ProfilePhotoUrl = request.ProfilePhotoUrl.Trim();
 
         user.UpdatedAt = DateTimeOffset.UtcNow;
@@ -316,13 +316,26 @@ public sealed class AuthService(
         return MapUser(user);
     }
 
+    public static string? CleanLocationString(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return null;
+        var cleaned = System.Text.RegularExpressions.Regex.Replace(
+            input,
+            @"\b[A-Za-z0-9]{2,8}\+[A-Za-z0-9]{1,4}\b",
+            "",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"(\s*,\s*)+", ", ");
+        cleaned = cleaned.Trim(' ', ',');
+        return string.IsNullOrWhiteSpace(cleaned) ? null : cleaned;
+    }
+
     public static UserResponse MapUser(AppUser u) => new(
         u.Id,
         u.FullName,
         u.Email,
         u.Phone,
-        u.Address,
-        u.Location,
+        CleanLocationString(u.Address),
+        CleanLocationString(u.Location),
         u.Preferences,
         u.ProfilePhotoUrl,
         u.IsProvider,
@@ -335,5 +348,6 @@ public sealed class AuthService(
         u.ProviderAvailability,
         u.ProviderBio,
         u.ProviderEarnings,
-        u.ProviderHourlyRate ?? 2500m);
+        u.ProviderHourlyRate ?? 2500m,
+        u.Role ?? "User");
 }

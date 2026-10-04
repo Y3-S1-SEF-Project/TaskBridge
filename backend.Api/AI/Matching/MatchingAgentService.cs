@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using TaskBridge.Api.Data;
+using TaskBridge.Api.Common;
 
 namespace backend.Api.AI;
 
@@ -58,6 +59,12 @@ public class MatchingAgentService
             dbProviders = dbProviders.Where(p => p.User == null || p.User.FullName.Trim().ToLowerInvariant() != custName).ToList();
         }
 
+        // Resolve customer's job location coordinates (from full address or city)
+        var customerLocStr = !string.IsNullOrWhiteSpace(job.LocationAddress)
+            ? job.LocationAddress
+            : (!string.IsNullOrWhiteSpace(job.Location) ? job.Location : requestedLocation);
+        var (cLat, cLng) = GeoUtils.ResolveCoordinates(customerLocStr);
+
         var candidatePool = new List<MatchedProviderDto>();
 
         foreach (var p in dbProviders)
@@ -65,7 +72,12 @@ public class MatchingAgentService
             var user = p.User;
             var providerName = !string.IsNullOrWhiteSpace(user.FullName) ? user.FullName : "TaskBridge Specialist";
 
-            // Multi-Criteria Scoring (MCDA) with real DB provider awareness
+            // Resolve provider's actual coordinates from location/service area
+            var provLocationStr = p.ServiceAreas ?? user.ProviderServiceAreas ?? user.Location ?? user.Address ?? "Colombo";
+            var (pLat, pLng) = GeoUtils.ResolveCoordinates(provLocationStr);
+            var realDistance = GeoUtils.CalculateHaversineDistance(cLat, cLng, pLat, pLng);
+
+            // Multi-Criteria Scoring (MCDA) with real DB provider awareness and dynamic distance
             var breakdown = CalculateScores(
                 p.Category, 
                 p.Skills ?? user.ProviderSkills, 
@@ -74,6 +86,7 @@ public class MatchingAgentService
                 p.Rating, 
                 p.ReviewCount, 
                 job,
+                distanceKm: realDistance,
                 isRealDbProvider: true);
 
             var totalScore = (int)Math.Round(breakdown.SkillScore + breakdown.LocationScore + breakdown.BudgetScore + breakdown.RatingScore);
@@ -89,10 +102,10 @@ public class MatchingAgentService
                 Category = p.Category,
                 Skills = p.Skills ?? user.ProviderSkills,
                 ServiceAreas = p.ServiceAreas ?? user.ProviderServiceAreas ?? "Colombo 05",
-                DistanceKm = 2.4,
+                DistanceKm = realDistance,
                 HourlyRate = p.HourlyRate > 0 ? p.HourlyRate : 2500m,
-                Rating = p.Rating > 0 ? p.Rating : 4.8,
-                ReviewCount = p.ReviewCount > 0 ? p.ReviewCount : 24,
+                Rating = p.Rating,
+                ReviewCount = p.ReviewCount,
                 MatchScore = totalScore,
                 ScoreBreakdown = breakdown,
                 AiMatchReason = "Specialized skills and strong service coverage in your area."
@@ -194,6 +207,90 @@ public class MatchingAgentService
 
         sw.Stop();
 
+        // 4. DATABASE PERSISTENCE (Option 1 & Option 2)
+        Guid? customerGuid = null;
+        if (!string.IsNullOrWhiteSpace(request.CustomerUserId) && Guid.TryParse(request.CustomerUserId, out var parsedCustGuid))
+        {
+            customerGuid = parsedCustGuid;
+        }
+
+        Guid? srvReqGuid = null;
+        if (!string.IsNullOrWhiteSpace(request.ServiceRequestId) && Guid.TryParse(request.ServiceRequestId, out var parsedReqGuid))
+        {
+            srvReqGuid = parsedReqGuid;
+        }
+
+        // Option 2: Find originating ServiceRequest and update its status to "Matched" with MatchedProvidersJson
+        ServiceRequestEntity? originatingRequest = null;
+        try
+        {
+            if (srvReqGuid.HasValue)
+            {
+                originatingRequest = await _dbContext.ServiceRequests
+                    .FirstOrDefaultAsync(r => r.Id == srvReqGuid.Value, ct);
+            }
+            else if (customerGuid.HasValue)
+            {
+                originatingRequest = await _dbContext.ServiceRequests
+                    .Where(r => r.CustomerId == customerGuid.Value && (r.Status == "Pending" || r.Status == "ClarificationRequired" || r.Status == "ReadyForMatching"))
+                    .OrderByDescending(r => r.CreatedAt)
+                    .FirstOrDefaultAsync(ct);
+            }
+
+            if (originatingRequest != null)
+            {
+                originatingRequest.MatchedProvidersJson = JsonSerializer.Serialize(ranked);
+                originatingRequest.Status = "Matched";
+                originatingRequest.UpdatedAt = DateTimeOffset.UtcNow;
+                srvReqGuid ??= originatingRequest.Id;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to update ServiceRequest status during matching");
+        }
+
+        // Option 1: Persist full AI Matching Audit Trail into 'job_matches' table
+        var topMatched = ranked.FirstOrDefault();
+        var matchAudit = new JobMatchEntity
+        {
+            Id = Guid.NewGuid(),
+            ServiceRequestId = srvReqGuid,
+            CustomerUserId = customerGuid,
+            CustomerName = !string.IsNullOrWhiteSpace(request.CustomerName) ? request.CustomerName : "Customer",
+            Category = requestedCategory,
+            ServiceTitle = job.ServiceTitle ?? requestedCategory,
+            Location = requestedLocation,
+            CandidatePoolCount = candidatePool.Count,
+            TopMatchedProviderId = topMatched?.ProviderId,
+            TopMatchedProviderName = topMatched?.FullName ?? string.Empty,
+            TopMatchScore = topMatched?.MatchScore ?? 0,
+            TopAiReason = topMatched?.AiMatchReason ?? string.Empty,
+            MatchesJson = JsonSerializer.Serialize(ranked),
+            LatencyMs = sw.ElapsedMilliseconds,
+            TokensUsed = tokensUsed,
+            Model = model,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        try
+        {
+            _dbContext.JobMatches.Add(matchAudit);
+            await _dbContext.SaveChangesAsync(ct);
+
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($"[💾 DB PERSISTENCE: AGENT 2] Saved Match Audit #{matchAudit.Id} in 'job_matches' table");
+            if (originatingRequest != null)
+            {
+                Console.WriteLine($"[💾 DB PERSISTENCE: AGENT 2] Updated ServiceRequest #{originatingRequest.Id} status -> 'Matched'");
+            }
+            Console.ResetColor();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to persist match audit to database");
+        }
+
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine($"[✅ TASKBRIDGE AI: AGENT 2] Successfully Ranked {ranked.Count} Providers (Pool: {candidatePool.Count})");
         for (int i = 0; i < ranked.Count; i++)
@@ -211,10 +308,21 @@ public class MatchingAgentService
             JobPlan = job,
             MatchedProviders = ranked,
             CandidatePoolCount = candidatePool.Count,
+            MatchAuditId = matchAudit.Id,
             LatencyMs = sw.ElapsedMilliseconds,
             TokensUsed = tokensUsed,
             Model = model
         };
+    }
+
+    public async Task<List<JobMatchEntity>> GetMatchHistoryAsync(string? customerUserId = null, CancellationToken ct = default)
+    {
+        var query = _dbContext.JobMatches.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrWhiteSpace(customerUserId) && Guid.TryParse(customerUserId, out var custGuid))
+        {
+            query = query.Where(m => m.CustomerUserId == custGuid);
+        }
+        return await query.OrderByDescending(m => m.CreatedAt).Take(50).ToListAsync(ct);
     }
 
     private static ScoreBreakdown CalculateScores(
@@ -225,6 +333,7 @@ public class MatchingAgentService
         double rating,
         int reviewCount,
         JobPlanDetails job,
+        double distanceKm = 2.4,
         bool isRealDbProvider = false)
     {
         // 1. Skill Score (Max 35)
@@ -256,14 +365,18 @@ public class MatchingAgentService
 
         skillScore = Math.Min(skillScore, 35.0);
 
-        // 2. Location Score (Max 25)
-        double locScore = 15.0;
-        var reqLoc = (job.Location ?? "Colombo").ToLowerInvariant();
-        var candAreas = (serviceAreas ?? "Colombo").ToLowerInvariant();
-        if (candAreas.Contains(reqLoc) || reqLoc.Contains("colombo") || candAreas.Contains("colombo"))
-        {
-            locScore = 24.5;
-        }
+        // 2. Location & Proximity Score (Max 25)
+        double locScore;
+        if (distanceKm <= 2.0)
+            locScore = 25.0;
+        else if (distanceKm <= 5.0)
+            locScore = 23.5;
+        else if (distanceKm <= 10.0)
+            locScore = 20.0;
+        else if (distanceKm <= 20.0)
+            locScore = 16.0;
+        else
+            locScore = Math.Max(8.0, 25.0 - (distanceKm * 0.7));
 
         // 3. Budget Fit Score (Max 20)
         double budgetScore = 20.0;
@@ -287,7 +400,16 @@ public class MatchingAgentService
         }
 
         // 4. Rating & Track Record Score (Max 20)
-        double ratingScore = (rating / 5.0) * 15.0 + Math.Min(reviewCount, 50) / 50.0 * 5.0;
+        double ratingScore;
+        if (reviewCount == 0)
+        {
+            // Fair baseline score for newly onboarded specialists so they can compete fairly
+            ratingScore = 14.0;
+        }
+        else
+        {
+            ratingScore = (rating / 5.0) * 15.0 + Math.Min(reviewCount, 50) / 50.0 * 5.0;
+        }
         ratingScore = Math.Min(ratingScore, 20.0);
 
         return new ScoreBreakdown
@@ -298,8 +420,6 @@ public class MatchingAgentService
             RatingScore = Math.Round(ratingScore, 1)
         };
     }
-
-
 
     private async Task<int> SynthesizeAiJustificationsAsync(
         List<MatchedProviderDto> ranked,

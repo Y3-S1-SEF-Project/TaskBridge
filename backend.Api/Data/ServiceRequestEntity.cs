@@ -35,6 +35,11 @@ public sealed class ServiceRequestEntity
     /// </summary>
     public string? ClarificationAnswersJson { get; set; }
 
+    /// <summary>
+    /// Serialized JSON array of matched provider recommendations from Agent 2 (Matching Agent)
+    /// </summary>
+    public string? MatchedProvidersJson { get; set; }
+
     public string? CancellationReason { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;

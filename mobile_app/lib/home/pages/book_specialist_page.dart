@@ -116,38 +116,45 @@ class _BookSpecialistPageState extends State<BookSpecialistPage> {
       return;
     }
 
-    final lower = trimmed.toLowerCase();
-    final instantMatches = LocationService.popularSriLankanPlaces
-        .where((loc) =>
-            loc.shortName.toLowerCase().contains(lower) ||
-            loc.address.toLowerCase().contains(lower))
-        .take(5)
-        .toList();
-
     setState(() {
-      _locationSuggestions = instantMatches;
       _showLocationDropdown = true;
       _isLoadingLocationSuggestions = true;
     });
 
-    _locationSearchDebounce = Timer(const Duration(milliseconds: 250), () async {
-      final results = await LocationService.searchSuggestions(trimmed, limit: 6);
-      if (mounted && _locationController.text.trim() == trimmed) {
-        setState(() {
-          _locationSuggestions = results.isNotEmpty ? results : instantMatches;
-          _isLoadingLocationSuggestions = false;
-          _showLocationDropdown = _locationSuggestions.isNotEmpty;
+    _locationSearchDebounce =
+        Timer(const Duration(milliseconds: 300), () async {
+          final results = await LocationService.searchSuggestions(
+            trimmed,
+            limit: 6,
+          );
+          if (mounted && _locationController.text.trim() == trimmed) {
+            setState(() {
+              _locationSuggestions = results;
+              _isLoadingLocationSuggestions = false;
+              _showLocationDropdown = _locationSuggestions.isNotEmpty;
+            });
+          }
         });
-      }
-    });
   }
 
-  void _selectLocationSuggestion(UserLocation suggestion) {
+  Future<void> _selectLocationSuggestion(UserLocation suggestion) async {
     _locationSearchDebounce?.cancel();
     FocusScope.of(context).unfocus();
+
+    UserLocation finalLoc = suggestion;
+    if (suggestion.placeId != null &&
+        (suggestion.latitude == 0.0 || suggestion.longitude == 0.0)) {
+      final resolved =
+          await LocationService.getPlaceDetails(suggestion.placeId!);
+      if (resolved != null) {
+        finalLoc = resolved;
+      }
+    }
+
+    if (!mounted) return;
     setState(() {
-      _selectedLocation = suggestion;
-      _locationController.text = suggestion.address;
+      _selectedLocation = finalLoc;
+      _locationController.text = finalLoc.address;
       _showLocationDropdown = false;
       _locationSuggestions = [];
     });

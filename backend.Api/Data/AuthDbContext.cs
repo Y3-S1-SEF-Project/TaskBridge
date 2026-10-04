@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using TaskBridge.Api.Admin;
 using TaskBridge.Api.Auth;
+using TaskBridge.Api.Notifications;
 using backend.Api.AI;
 
 namespace TaskBridge.Api.Data;
@@ -7,15 +9,18 @@ namespace TaskBridge.Api.Data;
 public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(options)
 {
     public DbSet<AppUser> Users => Set<AppUser>();
+    public DbSet<AdminUser> Admins => Set<AdminUser>();
     public DbSet<ProviderProfile> Providers => Set<ProviderProfile>();
     public DbSet<BookingEntity> Bookings => Set<BookingEntity>();
     public DbSet<ProposalEntity> Proposals => Set<ProposalEntity>();
     public DbSet<JobCompletionEntity> JobCompletions => Set<JobCompletionEntity>();
     public DbSet<FeedbackEntity> Feedbacks => Set<FeedbackEntity>();
     public DbSet<ServiceRequestEntity> ServiceRequests => Set<ServiceRequestEntity>();
+    public DbSet<JobMatchEntity> JobMatches => Set<JobMatchEntity>();
     public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<ChatAuditLog> ChatAuditLogs => Set<ChatAuditLog>();
+    public DbSet<NotificationEntity> Notifications => Set<NotificationEntity>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -31,6 +36,23 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
             entity.Property(x => x.Phone).HasMaxLength(24).IsRequired();
             entity.Property(x => x.PasswordHash).IsRequired();
             entity.Property(x => x.EmailOtp).HasMaxLength(10);
+            entity.Property(x => x.Role).HasMaxLength(32).HasDefaultValue("User");
+            entity.HasIndex(x => x.Role);
+        });
+
+        model.Entity<AdminUser>(entity =>
+        {
+            entity.ToTable("admins");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.Username).IsUnique();
+            entity.HasIndex(x => x.Email).IsUnique();
+            entity.HasIndex(x => x.SessionToken);
+            entity.Property(x => x.Username).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.FullName).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Email).HasMaxLength(255).IsRequired();
+            entity.Property(x => x.PasswordHash).IsRequired();
+            entity.Property(x => x.Role).HasMaxLength(32).HasDefaultValue("Admin");
+            entity.Property(x => x.IsActive).HasDefaultValue(true);
         });
 
         model.Entity<ProviderProfile>(entity =>
@@ -42,8 +64,8 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
             entity.HasIndex(x => x.IsActive);
             entity.Property(x => x.Category).IsRequired();
             entity.Property(x => x.HourlyRate).HasColumnType("numeric(12,2)").HasDefaultValue(2500.00m);
-            entity.Property(x => x.Rating).HasDefaultValue(4.8);
-            entity.Property(x => x.ReviewCount).HasDefaultValue(12);
+            entity.Property(x => x.Rating).HasDefaultValue(0.0);
+            entity.Property(x => x.ReviewCount).HasDefaultValue(0);
             entity.Property(x => x.IsActive).HasDefaultValue(true);
 
             entity.HasOne(x => x.User)
@@ -103,8 +125,30 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
             entity.HasIndex(x => x.ProviderId);
             entity.HasIndex(x => x.CustomerId);
         });
-    }
 
+        model.Entity<NotificationEntity>(entity =>
+        {
+            entity.ToTable("notifications");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.UserId);
+            entity.HasIndex(x => x.UserName);
+            entity.HasIndex(x => x.IsRead);
+            entity.HasIndex(x => x.CreatedAt);
+            entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Type).HasMaxLength(50).IsRequired();
+        });
+
+        model.Entity<JobMatchEntity>(entity =>
+        {
+            entity.ToTable("job_matches");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.CustomerUserId);
+            entity.HasIndex(x => x.ServiceRequestId);
+            entity.HasIndex(x => x.Category);
+            entity.Property(x => x.ServiceTitle).HasMaxLength(200);
+            entity.Property(x => x.Category).HasMaxLength(100);
+        });
+    }
     public async Task EnsureSchemaAsync(CancellationToken ct = default)
     {
         const string sql = @"
@@ -135,7 +179,7 @@ CREATE TABLE IF NOT EXISTS users (
     ""ProviderServiceAreas"" text NULL,
     ""ProviderAvailability"" text NULL,
     ""ProviderBio"" text NULL,
-    ""ProviderEarnings"" numeric(12,2) NULL DEFAULT 54000.00,
+    ""ProviderEarnings"" numeric(12,2) NULL DEFAULT 0.00,
     ""ProviderHourlyRate"" numeric(12,2) NULL DEFAULT 2500.00
 );
 
@@ -148,12 +192,41 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderCertifications"" text NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderServiceAreas"" text NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderAvailability"" text NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderBio"" text NULL;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderEarnings"" numeric(12,2) NULL DEFAULT 54000.00;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderEarnings"" numeric(12,2) NULL DEFAULT 0.00;
+ALTER TABLE users ALTER COLUMN ""ProviderEarnings"" SET DEFAULT 0.00;
+UPDATE users SET ""ProviderEarnings"" = 0.00 WHERE ""ProviderEarnings"" = 54000.00;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderHourlyRate"" numeric(12,2) NULL DEFAULT 2500.00;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ""Role"" text NOT NULL DEFAULT 'User';
+UPDATE users SET ""Location"" = REGEXP_REPLACE(""Location"", '([A-Za-z0-9]+\+[A-Za-z0-9]+[,\s]*)+', '', 'g') WHERE ""Location"" ~ '[A-Za-z0-9]+\+[A-Za-z0-9]+';
+UPDATE users SET ""Address"" = REGEXP_REPLACE(""Address"", '([A-Za-z0-9]+\+[A-Za-z0-9]+[,\s]*)+', '', 'g') WHERE ""Address"" ~ '[A-Za-z0-9]+\+[A-Za-z0-9]+';
+UPDATE users SET ""Location"" = TRIM(BOTH ', ' FROM ""Location"") WHERE ""Location"" IS NOT NULL;
+UPDATE users SET ""Address"" = TRIM(BOTH ', ' FROM ""Address"") WHERE ""Address"" IS NOT NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (""Email"");
 CREATE INDEX IF NOT EXISTS ix_users_phone ON users (""Phone"");
 CREATE INDEX IF NOT EXISTS ix_users_session_token ON users (""SessionToken"");
+CREATE INDEX IF NOT EXISTS ix_users_role ON users (""Role"");
+
+-- Separate Dedicated Admins Table
+CREATE TABLE IF NOT EXISTS admins (
+    ""Id"" uuid PRIMARY KEY,
+    ""Username"" text NOT NULL,
+    ""FullName"" text NOT NULL,
+    ""Email"" text NOT NULL,
+    ""PasswordHash"" text NOT NULL,
+    ""Role"" text NOT NULL DEFAULT 'Admin',
+    ""SessionToken"" text NULL,
+    ""IsActive"" boolean NOT NULL DEFAULT true,
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
+    ""UpdatedAt"" timestamptz NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_admins_username ON admins (""Username"");
+CREATE UNIQUE INDEX IF NOT EXISTS ix_admins_email ON admins (""Email"");
+CREATE INDEX IF NOT EXISTS ix_admins_session_token ON admins (""SessionToken"");
+
+-- Clean up any admin credentials that were temporarily placed in users table
+DELETE FROM users WHERE ""Email"" = 'admin1@taskbridge.com' OR ""Phone"" = 'admin1';
 
 CREATE TABLE IF NOT EXISTS providers (
     ""Id"" uuid PRIMARY KEY,
@@ -166,15 +239,14 @@ CREATE TABLE IF NOT EXISTS providers (
     ""ServiceAreas"" text NULL,
     ""Availability"" text NULL,
     ""HourlyRate"" numeric(12,2) NOT NULL DEFAULT 2500.00,
-    ""Rating"" double precision NOT NULL DEFAULT 4.8,
-    ""ReviewCount"" integer NOT NULL DEFAULT 12,
+    ""Rating"" double precision NOT NULL DEFAULT 0.0,
+    ""ReviewCount"" integer NOT NULL DEFAULT 0,
     ""IsActive"" boolean NOT NULL DEFAULT true,
     ""Bio"" text NULL,
     ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
     ""UpdatedAt"" timestamptz NULL,
     CONSTRAINT fk_providers_user FOREIGN KEY (""UserId"") REFERENCES users (""Id"") ON DELETE CASCADE
 );
-
 CREATE INDEX IF NOT EXISTS ix_providers_user_id ON providers (""UserId"");
 CREATE INDEX IF NOT EXISTS ix_providers_category ON providers (""Category"");
 CREATE INDEX IF NOT EXISTS ix_providers_is_active ON providers (""IsActive"");
@@ -196,6 +268,13 @@ SELECT
 FROM users u
 WHERE u.""IsProvider"" = true
   AND NOT EXISTS (SELECT 1 FROM providers p WHERE p.""UserId"" = u.""Id"");
+
+-- Automatically recalculate and sync real ratings and review counts from feedbacks table
+-- Providers with 0 real customer reviews are reset to 0 reviews and 0.0 rating
+UPDATE providers p
+SET ""ReviewCount"" = (SELECT count(*) FROM feedbacks f WHERE f.""ProviderId"" = p.""Id"" OR f.""ProviderId"" = p.""UserId""),
+    ""Rating"" = COALESCE((SELECT ROUND(AVG(f.""Rating"")::numeric, 1) FROM feedbacks f WHERE f.""ProviderId"" = p.""Id"" OR f.""ProviderId"" = p.""UserId""), 0.0)
+WHERE NOT EXISTS (SELECT 1 FROM feedbacks f WHERE (f.""ProviderId"" = p.""Id"" OR f.""ProviderId"" = p.""UserId"") AND f.""Rating"" > 0);
 
 CREATE TABLE IF NOT EXISTS bookings (
     ""Id"" uuid PRIMARY KEY,
@@ -294,8 +373,11 @@ CREATE TABLE IF NOT EXISTS feedbacks (
     ""ProviderName"" text NOT NULL DEFAULT '',
     ""Rating"" integer NOT NULL DEFAULT 5,
     ""Comment"" text NOT NULL DEFAULT '',
+    ""Status"" text NOT NULL DEFAULT 'Approved',
     ""CreatedAt"" timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE feedbacks ADD COLUMN IF NOT EXISTS ""Status"" text NOT NULL DEFAULT 'Approved';
 
 CREATE INDEX IF NOT EXISTS ix_feedbacks_booking_ref ON feedbacks (""BookingReference"");
 CREATE INDEX IF NOT EXISTS ix_feedbacks_provider_id ON feedbacks (""ProviderId"");
@@ -371,6 +453,51 @@ CREATE TABLE IF NOT EXISTS service_requests (
 CREATE INDEX IF NOT EXISTS ix_service_requests_customer ON service_requests (""CustomerId"");
 CREATE INDEX IF NOT EXISTS ix_service_requests_status ON service_requests (""Status"");
 CREATE INDEX IF NOT EXISTS ix_service_requests_category ON service_requests (""Category"");
+
+CREATE TABLE IF NOT EXISTS notifications (
+    ""Id"" uuid PRIMARY KEY,
+    ""UserId"" uuid NULL,
+    ""UserName"" varchar(150) NULL,
+    ""Title"" varchar(200) NOT NULL,
+    ""Message"" text NOT NULL,
+    ""Type"" varchar(50) NOT NULL DEFAULT 'General',
+    ""ReferenceId"" varchar(100) NULL,
+    ""ReferenceType"" varchar(50) NULL,
+    ""MetadataJson"" text NULL,
+    ""IsRead"" boolean NOT NULL DEFAULT false,
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_notifications_user_id ON notifications (""UserId"");
+CREATE INDEX IF NOT EXISTS ix_notifications_user_name ON notifications (""UserName"");
+CREATE INDEX IF NOT EXISTS ix_notifications_is_read ON notifications (""IsRead"");
+CREATE INDEX IF NOT EXISTS ix_notifications_created_at ON notifications (""CreatedAt"");
+
+CREATE TABLE IF NOT EXISTS job_matches (
+    ""Id"" uuid PRIMARY KEY,
+    ""ServiceRequestId"" uuid NULL,
+    ""CustomerUserId"" uuid NULL,
+    ""CustomerName"" varchar(150) NOT NULL DEFAULT 'Customer',
+    ""Category"" varchar(100) NOT NULL DEFAULT '',
+    ""ServiceTitle"" varchar(200) NOT NULL DEFAULT '',
+    ""Location"" text NOT NULL DEFAULT '',
+    ""CandidatePoolCount"" integer NOT NULL DEFAULT 0,
+    ""TopMatchedProviderId"" uuid NULL,
+    ""TopMatchedProviderName"" varchar(150) NOT NULL DEFAULT '',
+    ""TopMatchScore"" integer NOT NULL DEFAULT 0,
+    ""TopAiReason"" text NOT NULL DEFAULT '',
+    ""MatchesJson"" text NOT NULL DEFAULT '[]',
+    ""LatencyMs"" bigint NOT NULL DEFAULT 0,
+    ""TokensUsed"" integer NOT NULL DEFAULT 0,
+    ""Model"" varchar(50) NOT NULL DEFAULT 'gpt-4o-mini',
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_job_matches_customer ON job_matches (""CustomerUserId"");
+CREATE INDEX IF NOT EXISTS ix_job_matches_service_req ON job_matches (""ServiceRequestId"");
+CREATE INDEX IF NOT EXISTS ix_job_matches_category ON job_matches (""Category"");
+
+ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS ""MatchedProvidersJson"" text NULL;
 ";
         await Database.ExecuteSqlRawAsync(sql, ct);
     }
