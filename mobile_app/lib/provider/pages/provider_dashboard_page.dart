@@ -12,6 +12,8 @@ import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../home/widgets/booking_card_widget.dart';
+import '../../notifications/services/notification_service.dart';
+import '../../notifications/widgets/notification_bell_button.dart';
 import 'provider_job_details_page.dart';
 
 class ProviderDashboardPage extends StatefulWidget {
@@ -35,7 +37,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
   Timer? _pollingTimer;
 
   String get _ratingText {
-    if (_feedbacks.isEmpty) return '5.0 ★';
+    if (_feedbacks.isEmpty) return '0.0 ★';
     final avg =
         _feedbacks.fold<double>(0.0, (acc, f) => acc + f.rating.toDouble()) /
         _feedbacks.length;
@@ -47,6 +49,11 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
     super.initState();
     BookingsSyncService.instance.addListener(_onSyncUpdate);
     _loadBookings();
+    NotificationService().initialize(
+      user: widget.user,
+      role: 'provider',
+      requestPermissions: true,
+    );
     _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (mounted) {
         _loadBookings(silent: true);
@@ -119,18 +126,25 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
             .map((p) => p.toBookingItem())
             .toList();
 
-        final bookingRefs = <String>{};
-        final combined = <BookingItem>[];
+        final bookingMap = <String, BookingItem>{};
         for (final p in filteredProposals) {
-          bookingRefs.add(p.bookingReference);
-          combined.add(p);
+          final baseKey = p.bookingReference
+              .replaceFirst('TB-', '')
+              .replaceFirst('PR-', '');
+          bookingMap[baseKey] = p;
         }
         for (final b in filteredBookings) {
-          if (b.bookingReference.startsWith('PR-') && bookingRefs.contains(b.bookingReference)) {
-            continue;
+          final baseKey = b.bookingReference
+              .replaceFirst('TB-', '')
+              .replaceFirst('PR-', '');
+          // If TB- exists, prefer TB- over PR-
+          if (!bookingMap.containsKey(baseKey) ||
+              b.bookingReference.startsWith('TB-')) {
+            bookingMap[baseKey] = b;
           }
-          combined.add(b);
         }
+
+        final combined = bookingMap.values.toList();
 
         setState(() {
           _bookings = combined;
@@ -152,6 +166,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
             proposalReference: booking.bookingReference,
             price: booking.price,
             schedule: booking.schedule,
+            acceptedByRole: 'Provider',
           )
         : await CoordinationApi.updateBookingStatus(
             bookingReference: booking.bookingReference,
@@ -187,6 +202,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
         : await CoordinationApi.cancelBooking(
             bookingReference: booking.bookingReference,
             reason: 'Declined by provider',
+            cancelledByRole: 'Provider',
           );
 
     if (success && mounted) {
@@ -748,12 +764,10 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
         .where((b) => b.status.toLowerCase() == 'completed')
         .toList();
 
-    double totalEarnings = completedJobs.fold(0.0, (sum, b) => sum + b.price);
-    if (totalEarnings == 0 &&
-        widget.user.providerEarnings != null &&
-        widget.user.providerEarnings! > 0) {
-      totalEarnings = widget.user.providerEarnings!;
-    }
+    final double totalEarnings = completedJobs.fold(
+      0.0,
+      (sum, b) => sum + b.price,
+    );
 
     final activePendingText = activeJobs.isNotEmpty
         ? '${activeJobs.length} Active'
@@ -807,27 +821,34 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
                         ),
                       ],
                     ),
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: palette.primary,
-                        side: BorderSide(color: palette.primary),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        NotificationBellButton(user: widget.user),
+                        const SizedBox(width: 4),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: palette.primary,
+                            side: BorderSide(color: palette.primary),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                          ),
+                          onPressed: widget.onSwitchToCustomer,
+                          icon: const Icon(AppIcons.switchMode, size: 18),
+                          label: const Text(
+                            'Customer',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                      ),
-                      onPressed: widget.onSwitchToCustomer,
-                      icon: const Icon(AppIcons.switchMode, size: 18),
-                      label: const Text(
-                        'Customer',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                      ],
                     ),
                   ],
                 ),

@@ -242,7 +242,6 @@ class ServiceRequestsApi {
     }
     return false;
   }
-
   /// Permanently deletes a service request from the database
   static Future<bool> deleteRequest({
     required String requestId,

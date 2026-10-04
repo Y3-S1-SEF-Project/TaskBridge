@@ -391,6 +391,41 @@ public class ServiceRequestsController : ControllerBase
         };
     }
 
+    /// <summary>
+    /// Permanently deletes a service request from the database.
+    /// Only the owning customer can delete their own requests.
+    /// </summary>
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> DeleteRequest(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var entity = await _db.ServiceRequests.FirstOrDefaultAsync(r => r.Id == id, ct);
+            if (entity == null)
+            {
+                return NotFound(new { message = "Service request not found." });
+            }
+
+            // Prevent deleting requests that are actively assigned or in progress
+            if (string.Equals(entity.Status, "Assigned", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(entity.Status, "Matching", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new { message = "Cannot delete a request that is currently being processed. Cancel it first." });
+            }
+
+            _db.ServiceRequests.Remove(entity);
+            await _db.SaveChangesAsync(ct);
+
+            _logger.LogInformation("Service request {Id} deleted permanently", id);
+            return Ok(new { success = true, message = "Service request deleted successfully." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting service request {Id}", id);
+            return StatusCode(500, new { message = "An error occurred while deleting the service request." });
+        }
+    }
+
     private Guid? GetCurrentUserId()
     {
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);

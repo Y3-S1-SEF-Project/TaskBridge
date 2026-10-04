@@ -68,48 +68,54 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
       return;
     }
 
-    // 1. Instant local index filtering (0ms feedback on first letter keystroke)
-    final lower = trimmed.toLowerCase();
-    final instantMatches = LocationService.popularSriLankanPlaces
-        .where(
-          (loc) =>
-              loc.shortName.toLowerCase().contains(lower) ||
-              loc.address.toLowerCase().contains(lower),
-        )
-        .take(5)
-        .toList();
-
     setState(() {
-      _suggestions = instantMatches;
       _showDropdown = true;
       _isLoadingSuggestions = true;
     });
 
-    // 2. Debounced online Nominatim / Geocoding query to supplement live results
-    _searchDebounceTimer = Timer(const Duration(milliseconds: 250), () async {
+    // Debounced live Google Places Autocomplete search
+    _searchDebounceTimer = Timer(const Duration(milliseconds: 300), () async {
       final results = await LocationService.searchSuggestions(
         trimmed,
         limit: 6,
       );
       if (mounted && _searchController.text.trim() == trimmed) {
         setState(() {
-          _suggestions = results.isNotEmpty ? results : instantMatches;
+          _suggestions = results;
           _isLoadingSuggestions = false;
-          _showDropdown = _suggestions.isNotEmpty;
+          _showDropdown = results.isNotEmpty;
         });
       }
     });
   }
 
-  void _selectSuggestion(UserLocation suggestion) {
+  Future<void> _selectSuggestion(UserLocation suggestion) async {
     _searchDebounceTimer?.cancel();
     FocusScope.of(context).unfocus();
+
     setState(() {
       _searchController.text = suggestion.shortName;
-      _selectedLocation = suggestion;
-      _currentCenter = LatLng(suggestion.latitude, suggestion.longitude);
       _showDropdown = false;
       _suggestions = [];
+      _isGeocoding = true;
+    });
+
+    UserLocation finalLoc = suggestion;
+    if (suggestion.placeId != null &&
+        (suggestion.latitude == 0.0 || suggestion.longitude == 0.0)) {
+      final resolved = await LocationService.getPlaceDetails(
+        suggestion.placeId!,
+      );
+      if (resolved != null) {
+        finalLoc = resolved;
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _selectedLocation = finalLoc;
+      _currentCenter = LatLng(finalLoc.latitude, finalLoc.longitude);
+      _isGeocoding = false;
     });
     _animateCameraTo(_currentCenter);
   }

@@ -181,16 +181,19 @@ public sealed class ChatHub : Hub
             }
 
             var unreadMessages = await _db.ChatMessages
-                .Where(m => m.ConversationId == convId && !m.IsRead && (m.RecipientId == userId || m.SenderId != userId || (conv.CustomerId == conv.ProviderId)))
+                .Where(m => m.ConversationId == convId && !m.IsRead && m.SenderId != userId)
                 .ToListAsync();
 
-            foreach (var msg in unreadMessages)
+            if (unreadMessages.Count > 0)
             {
-                msg.IsRead = true;
-            }
+                foreach (var msg in unreadMessages)
+                {
+                    msg.IsRead = true;
+                }
 
-            await _db.SaveChangesAsync();
-            await Clients.Group($"conv_{convId}").SendAsync("MessagesRead", new { conversationId = conversationIdStr, readBy = userId });
+                await _db.SaveChangesAsync();
+                await Clients.Group($"conv_{convId}").SendAsync("MessagesRead", new { conversationId = conversationIdStr, readBy = userId });
+            }
         }
     }
 

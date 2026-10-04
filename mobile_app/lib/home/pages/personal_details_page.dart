@@ -6,10 +6,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../auth/data/auth_api.dart';
 import '../../auth/data/auth_models.dart';
+import '../../core/services/location_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_spacing.dart';
+import 'location_picker_page.dart';
 
 class PersonalDetailsPage extends StatefulWidget {
   final AuthApi api;
@@ -26,12 +28,16 @@ class _PersonalDetailsPageState extends State<PersonalDetailsPage> {
   late final TextEditingController _phoneController;
   late final TextEditingController _emailController;
   late final TextEditingController _preferencesController;
+  late final TextEditingController _locationController;
+  late final TextEditingController _addressController;
 
   final ImagePicker _picker = ImagePicker();
   String? _profilePhotoUrl;
   bool _uploadingPhoto = false;
   bool _saving = false;
   String? _error;
+
+  UserLocation? _pickedLocation;
 
   @override
   void initState() {
@@ -42,7 +48,73 @@ class _PersonalDetailsPageState extends State<PersonalDetailsPage> {
     _preferencesController = TextEditingController(
       text: widget.user.preferences ?? 'Home maintenance · IT services',
     );
+    _locationController = TextEditingController(
+      text: LocationService.cleanLocationName(widget.user.location ?? ''),
+    );
+    _addressController = TextEditingController(
+      text: LocationService.cleanLocationName(widget.user.address ?? ''),
+    );
     _profilePhotoUrl = widget.user.profilePhotoUrl;
+    _initSavedLocation();
+  }
+
+  Future<void> _initSavedLocation() async {
+    final saved = await LocationService.getSavedLocation();
+    if (saved != null && mounted) {
+      final cleanShort = LocationService.cleanLocationName(saved.shortName);
+      final cleanAddr = LocationService.cleanLocationName(saved.address);
+      setState(() {
+        if (_locationController.text.trim().isEmpty ||
+            LocationService.isPlusCode(_locationController.text)) {
+          _locationController.text = cleanShort;
+        }
+        if (_addressController.text.trim().isEmpty ||
+            LocationService.isPlusCode(_addressController.text)) {
+          _addressController.text = cleanAddr;
+        }
+        _pickedLocation = UserLocation(
+          shortName: cleanShort.isNotEmpty ? cleanShort : 'Colombo',
+          address: cleanAddr.isNotEmpty ? cleanAddr : 'Colombo, Sri Lanka',
+          latitude: saved.latitude,
+          longitude: saved.longitude,
+        );
+      });
+    }
+  }
+
+  Future<void> _pickLocationOnMap() async {
+    final cached = _pickedLocation ?? await LocationService.getSavedLocation();
+    final initial = cached ?? UserLocation.defaultLocation;
+
+    if (!mounted) return;
+    final picked = await Navigator.push<UserLocation>(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            LocationPickerPage(initialLocation: initial, autoGps: false),
+      ),
+    );
+
+    if (picked != null && mounted) {
+      final cleanShort = LocationService.cleanLocationName(picked.shortName);
+      final cleanAddr = LocationService.cleanLocationName(picked.address);
+      final sanitized = UserLocation(
+        shortName: cleanShort.isNotEmpty ? cleanShort : 'Colombo',
+        address: cleanAddr.isNotEmpty ? cleanAddr : 'Colombo, Sri Lanka',
+        latitude: picked.latitude,
+        longitude: picked.longitude,
+      );
+      setState(() {
+        _pickedLocation = sanitized;
+        _locationController.text = sanitized.shortName;
+        if (_addressController.text.trim().isEmpty ||
+            _addressController.text.trim() == cached?.address ||
+            LocationService.isPlusCode(_addressController.text)) {
+          _addressController.text = sanitized.address;
+        }
+      });
+      await LocationService.saveLocation(sanitized);
+    }
   }
 
   @override
@@ -51,6 +123,8 @@ class _PersonalDetailsPageState extends State<PersonalDetailsPage> {
     _phoneController.dispose();
     _emailController.dispose();
     _preferencesController.dispose();
+    _locationController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
@@ -257,13 +331,34 @@ class _PersonalDetailsPageState extends State<PersonalDetailsPage> {
     });
 
     try {
+      final cleanLocation = LocationService.cleanLocationName(
+        _locationController.text.trim(),
+      );
+      final cleanAddress = LocationService.cleanLocationName(
+        _addressController.text.trim(),
+      );
+
       final updatedUser = await widget.api.updateProfile(
         fullName: name,
+        address: cleanAddress.isNotEmpty ? cleanAddress : null,
+        location: cleanLocation.isNotEmpty ? cleanLocation : null,
         preferences: _preferencesController.text.trim().isNotEmpty
             ? _preferencesController.text.trim()
             : null,
         profilePhotoUrl: _profilePhotoUrl,
       );
+
+      if (cleanLocation.isNotEmpty) {
+        await LocationService.saveLocation(
+          _pickedLocation ??
+              UserLocation(
+                shortName: cleanLocation,
+                address: cleanAddress.isNotEmpty ? cleanAddress : cleanLocation,
+                latitude: UserLocation.defaultLocation.latitude,
+                longitude: UserLocation.defaultLocation.longitude,
+              ),
+        );
+      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -449,6 +544,114 @@ class _PersonalDetailsPageState extends State<PersonalDetailsPage> {
                     icon: Icons.mail_outline_rounded,
                     badgeText: 'Linked',
                     badgeColor: palette.primary,
+                    palette: palette,
+                  ),
+                  const SizedBox(height: AppSpacing.s16),
+
+                  // ── Saved Location / City (with Map & GPS) ──
+                  _buildFieldLabel('Saved Location / City', palette),
+                  const SizedBox(height: 6),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: palette.surface,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: palette.border, width: 1.2),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: palette.soft,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.location_on_outlined,
+                            color: palette.primary,
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: _locationController,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: palette.text,
+                            ),
+                            decoration: InputDecoration(
+                              isDense: true,
+                              filled: false,
+                              fillColor: Colors.transparent,
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              disabledBorder: InputBorder.none,
+                              errorBorder: InputBorder.none,
+                              focusedErrorBorder: InputBorder.none,
+                              hintText: 'e.g. Maharagama, Colombo 03',
+                              hintStyle: TextStyle(
+                                color: palette.muted,
+                                fontSize: 14,
+                              ),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: _pickLocationOnMap,
+                            borderRadius: BorderRadius.circular(20),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: palette.primary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.map_outlined,
+                                    size: 14,
+                                    color: palette.primary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Map',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: palette.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s16),
+
+                  // ── Home / Street Address Field ──
+                  _buildFieldLabel('Home / Street Address', palette),
+                  const SizedBox(height: 6),
+                  _buildTextField(
+                    controller: _addressController,
+                    hint: 'e.g. No. 24, Park Road, Havelock Town',
+                    icon: Icons.home_outlined,
                     palette: palette,
                   ),
                   const SizedBox(height: AppSpacing.s16),

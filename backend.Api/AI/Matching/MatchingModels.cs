@@ -4,6 +4,9 @@ namespace backend.Api.AI;
 
 public class MatchingRequest
 {
+    [JsonPropertyName("serviceRequestId")]
+    public string? ServiceRequestId { get; set; }
+
     [JsonPropertyName("jobPlan")]
     public JobPlanDetails JobPlan { get; set; } = new();
 
@@ -93,6 +96,9 @@ public class MatchingResponse
 
     [JsonPropertyName("candidatePoolCount")]
     public int CandidatePoolCount { get; set; }
+
+    [JsonPropertyName("matchAuditId")]
+    public Guid? MatchAuditId { get; set; }
 
     [JsonPropertyName("latencyMs")]
     public long LatencyMs { get; set; }

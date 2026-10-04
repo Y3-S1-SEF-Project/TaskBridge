@@ -14,8 +14,8 @@ public sealed class ProviderProfile
     public string? ServiceAreas { get; set; }
     public string? Availability { get; set; }
     public decimal HourlyRate { get; set; } = 2500m;
-    public double Rating { get; set; } = 4.8;
-    public int ReviewCount { get; set; } = 12;
+    public double Rating { get; set; } = 0.0;
+    public int ReviewCount { get; set; } = 0;
     public bool IsActive { get; set; } = true;
     public string? Bio { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;

@@ -210,6 +210,29 @@ public class CoordinationAgentService
         return null;
     }
 
+    private async Task<Guid?> ResolveProviderIdAsync(string? providerId, string? providerName, CancellationToken ct)
+    {
+        if (!string.IsNullOrWhiteSpace(providerId) && Guid.TryParse(providerId, out var parsedGuid))
+        {
+            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == parsedGuid, ct);
+            if (user != null) return user.Id;
+
+            var profile = await _dbContext.Providers.FirstOrDefaultAsync(p => p.Id == parsedGuid, ct);
+            if (profile != null) return profile.UserId;
+
+            return parsedGuid;
+        }
+
+        if (!string.IsNullOrWhiteSpace(providerName))
+        {
+            var pName = providerName.Trim().ToLowerInvariant();
+            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.FullName.ToLower() == pName, ct);
+            if (user != null) return user.Id;
+        }
+
+        return null;
+    }
+
     private async Task BackfillMissingCustomerIdsAsync(CancellationToken ct)
     {
         try
@@ -273,7 +296,7 @@ public class CoordinationAgentService
             return existing;
         }
 
-        Guid? provId = Guid.TryParse(req.ProviderId, out var parsedGuid) ? parsedGuid : null;
+        Guid? provId = await ResolveProviderIdAsync(req.ProviderId, req.ProviderName, ct);
         Guid? custId = await ResolveCustomerIdAsync(req.CustomerId, req.CustomerName, ct);
 
         var entity = new BookingEntity
@@ -314,7 +337,7 @@ public class CoordinationAgentService
             : await GenerateProposalReferenceAsync(ct);
 
         Guid? custId = await ResolveCustomerIdAsync(req.CustomerId, req.CustomerName, ct);
-        Guid? provId = Guid.TryParse(req.ProviderId, out var parsedGuid) ? parsedGuid : null;
+        Guid? provId = await ResolveProviderIdAsync(req.ProviderId, req.ProviderName, ct);
 
         var existing = await _dbContext.Proposals.FirstOrDefaultAsync(p => p.ProposalReference == proposalRef, ct);
         if (existing != null)
@@ -707,7 +730,9 @@ public class CoordinationAgentService
             {
                 Id = proposal.Id,
                 BookingReference = proposal.ProposalReference,
+                CustomerId = proposal.CustomerId,
                 CustomerName = proposal.CustomerName,
+                ProviderId = proposal.ProviderId,
                 ProviderName = proposal.ProviderName,
                 ServiceTitle = proposal.ServiceTitle,
                 Category = proposal.Category,
@@ -789,7 +814,9 @@ public class CoordinationAgentService
             {
                 Id = proposal.Id,
                 BookingReference = proposal.ProposalReference,
+                CustomerId = proposal.CustomerId,
                 CustomerName = proposal.CustomerName,
+                ProviderId = proposal.ProviderId,
                 ProviderName = proposal.ProviderName,
                 ServiceTitle = proposal.ServiceTitle,
                 Category = proposal.Category,
@@ -853,7 +880,31 @@ public class CoordinationAgentService
             query = query.Where(b => b.Status.ToLower() == sLow);
         }
 
-        return await query.OrderByDescending(b => b.CreatedAt).ToListAsync(ct);
+        var rawList = await query.OrderByDescending(b => b.CreatedAt).ToListAsync(ct);
+
+        // Deduplicate bookings where one is PR-xxxx and one is TB-xxxx for the same job
+        var deduped = new List<BookingEntity>();
+        var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Sort so that 'TB-' (confirmed booking) is preferred over 'PR-' (proposal-stage booking)
+        var orderedList = rawList
+            .OrderByDescending(b => b.BookingReference.StartsWith("TB-", StringComparison.OrdinalIgnoreCase))
+            .ThenByDescending(b => b.UpdatedAt ?? b.CreatedAt)
+            .ToList();
+
+        foreach (var b in orderedList)
+        {
+            var baseKey = b.ProposalId.HasValue 
+                ? b.ProposalId.Value.ToString()
+                : b.BookingReference.Replace("TB-", "", StringComparison.OrdinalIgnoreCase).Replace("PR-", "", StringComparison.OrdinalIgnoreCase);
+            
+            if (seenKeys.Add(baseKey))
+            {
+                deduped.Add(b);
+            }
+        }
+
+        return deduped.OrderByDescending(b => b.CreatedAt).ToList();
     }
 
     /// <summary>

@@ -194,6 +194,10 @@ public class PlanningAgentService
                 openAiData.BudgetDisplay = $"Budget up to Rs. {request.Budget.Value:N0}";
                 openAiData.MissingFields.Remove("budget");
             }
+            else if (!openAiData.Budget.HasValue || openAiData.Budget <= 0)
+            {
+                if (!openAiData.MissingFields.Contains("budget")) openAiData.MissingFields.Add("budget");
+            }
 
             // If location was provided in request context, ensure location is set
             if (!string.IsNullOrWhiteSpace(request.UserLocation) && string.IsNullOrWhiteSpace(openAiData.Location))
@@ -357,6 +361,9 @@ public class PlanningAgentService
 
         var missing = new List<string>();
         if (locationMissing) missing.Add("location");
+        if (!hasDateWords) missing.Add("date");
+        if (!hasTimeWords) missing.Add("time");
+        if (!hasBudgetDigits && (!request.Budget.HasValue || request.Budget.Value <= 0)) missing.Add("budget");
         var scheduledDate = hasDateWords ? "Tomorrow · 17 Sep" : string.Empty;
         var scheduledTime = hasTimeWords ? "After 3:00 PM" : string.Empty;
 
