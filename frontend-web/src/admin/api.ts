@@ -7,6 +7,7 @@ import type {
   ProvidersSummary,
   CustomersSummary,
   ReviewsSummary,
+  BookingsSummary,
 } from './types';
 
 const API_BASE = '/api/admin';
@@ -322,5 +323,24 @@ export async function updateReviewStatus(
   if (res.ok) return await res.json();
   const err = await res.json().catch(() => ({}));
   throw new Error(err.message || 'Failed to update review status.');
+}
+
+export async function fetchBookings(params?: {
+  search?: string;
+  status?: string;
+}): Promise<BookingsSummary> {
+  const token = getStoredToken();
+  const searchParams = new URLSearchParams();
+  if (params?.search) searchParams.set('search', params.search);
+  if (params?.status && params.status !== 'All') searchParams.set('status', params.status);
+
+  const qs = searchParams.toString();
+  const res = await fetch(`${API_BASE}/bookings${qs ? `?${qs}` : ''}`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+
+  if (res.ok) return await res.json();
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to fetch bookings.');
 }
 

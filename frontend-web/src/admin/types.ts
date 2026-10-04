@@ -154,3 +154,33 @@ export interface ReviewsSummary {
   items: ReviewItem[];
 }
 
+export interface BookingItem {
+  id: string;
+  bookingReference: string;
+  serviceTitle: string;
+  category: string;
+  customerName: string;
+  customerId: string | null;
+  providerName: string;
+  providerId: string | null;
+  scheduledWindow: string;
+  location: string;
+  price: number;
+  rateType: string;
+  finalPrice: number | null;
+  status: string;
+  durationMinutes: number | null;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface BookingsSummary {
+  activeJobsCount: number;
+  scheduledTodayCount: number;
+  totalWorkFunds: number;
+  formattedWorkFunds: string;
+  completedJobsCount: number;
+  items: BookingItem[];
+}
+
+

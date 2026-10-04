@@ -805,6 +805,142 @@ public sealed class AdminController(
         return Ok(new { id = feedback.Id, status = feedback.Status });
     }
 
+    // ==================== BOOKINGS & JOBS ====================
+    [HttpGet("bookings")]
+    public async Task<ActionResult<BookingsSummaryDto>> GetBookings(
+        [FromQuery] string? search,
+        [FromQuery] string? status,
+        CancellationToken ct)
+    {
+        var bookings = await db.Bookings
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        var proposals = await db.Proposals
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        var completions = await db.JobCompletions
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        var items = new List<BookingItemDto>();
+        var seenRefs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var b in bookings)
+        {
+            seenRefs.Add(b.BookingReference);
+            var completion = completions.FirstOrDefault(c => c.BookingReference == b.BookingReference);
+
+            var effectiveStatus = b.Status;
+            if (completion != null || string.Equals(effectiveStatus, "Completed", StringComparison.OrdinalIgnoreCase))
+                effectiveStatus = "Completed";
+            else if (string.Equals(effectiveStatus, "Started", StringComparison.OrdinalIgnoreCase) || string.Equals(effectiveStatus, "InProgress", StringComparison.OrdinalIgnoreCase))
+                effectiveStatus = "In Progress";
+            else if (string.Equals(effectiveStatus, "Upcoming", StringComparison.OrdinalIgnoreCase))
+                effectiveStatus = "Confirmed";
+
+            var sched = !string.IsNullOrWhiteSpace(b.Schedule)
+                ? b.Schedule
+                : b.CreatedAt.ToString("MMM dd, yyyy");
+
+            items.Add(new BookingItemDto(
+                b.Id,
+                b.BookingReference,
+                string.IsNullOrWhiteSpace(b.ServiceTitle) ? "General Service" : b.ServiceTitle,
+                b.Category,
+                string.IsNullOrWhiteSpace(b.CustomerName) ? "Customer" : b.CustomerName,
+                b.CustomerId,
+                string.IsNullOrWhiteSpace(b.ProviderName) ? "Unassigned" : b.ProviderName,
+                b.ProviderId,
+                sched,
+                b.Location,
+                b.Price,
+                b.RateType ?? "Hourly",
+                b.FinalCalculatedPrice ?? completion?.CalculatedPrice,
+                effectiveStatus,
+                b.DurationMinutes ?? completion?.DurationMinutes,
+                b.Notes,
+                b.CreatedAt));
+        }
+
+        // Also include accepted proposals if not already tracked
+        foreach (var p in proposals)
+        {
+            if (!seenRefs.Contains(p.ProposalReference) && (p.Status == "Accepted" || p.Status == "Completed" || p.Status == "In Progress"))
+            {
+                seenRefs.Add(p.ProposalReference);
+                var completion = completions.FirstOrDefault(c => c.BookingReference == p.ProposalReference);
+                var effectiveStatus = p.Status == "Accepted" ? "Confirmed" : p.Status;
+                if (completion != null) effectiveStatus = "Completed";
+
+                var sched = !string.IsNullOrWhiteSpace(p.PreferredSchedule)
+                    ? p.PreferredSchedule
+                    : p.CreatedAt.ToString("MMM dd, yyyy");
+
+                items.Add(new BookingItemDto(
+                    p.Id,
+                    p.ProposalReference,
+                    p.ServiceTitle,
+                    p.Category,
+                    string.IsNullOrWhiteSpace(p.CustomerName) ? "Customer" : p.CustomerName,
+                    p.CustomerId,
+                    string.IsNullOrWhiteSpace(p.ProviderName) ? "Unassigned" : p.ProviderName,
+                    p.ProviderId,
+                    sched,
+                    p.Location,
+                    p.EstimatedRate,
+                    p.RateType ?? "Hourly",
+                    completion?.CalculatedPrice ?? p.EstimatedRate,
+                    effectiveStatus,
+                    completion?.DurationMinutes,
+                    p.Notes,
+                    p.CreatedAt));
+            }
+        }
+
+        var today = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero);
+
+        var activeJobs = items.Count(b => b.Status == "In Progress" || b.Status == "Confirmed" || b.Status == "Upcoming" || b.Status == "Started");
+        var scheduledToday = items.Count(b => 
+            b.CreatedAt >= today || 
+            b.ScheduledWindow.Contains("Today", StringComparison.OrdinalIgnoreCase) ||
+            b.ScheduledWindow.Contains(DateTime.UtcNow.ToString("MMM dd"), StringComparison.OrdinalIgnoreCase));
+
+        var completedItems = items.Where(b => string.Equals(b.Status, "Completed", StringComparison.OrdinalIgnoreCase)).ToList();
+        var totalFunds = completedItems.Sum(b => b.FinalPrice.HasValue && b.FinalPrice.Value > 0 ? b.FinalPrice.Value : b.Price);
+        var formattedFunds = totalFunds >= 1000 ? $"LKR {Math.Round(totalFunds / 1000, 1)}k" : $"LKR {totalFunds:N0}";
+        var completedCount = completedItems.Count;
+
+        var filtered = items.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var q = search.Trim();
+            filtered = filtered.Where(b =>
+                b.BookingReference.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                b.ServiceTitle.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                b.CustomerName.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                b.ProviderName.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                b.Location.Contains(q, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) && !status.Equals("All", StringComparison.OrdinalIgnoreCase))
+        {
+            filtered = filtered.Where(b => string.Equals(b.Status, status, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var resultList = filtered.OrderByDescending(b => b.CreatedAt).ToList();
+
+        return Ok(new BookingsSummaryDto(
+            activeJobs,
+            scheduledToday,
+            totalFunds,
+            formattedFunds,
+            completedCount,
+            resultList));
+    }
+
     private async Task<AdminUser?> GetCurrentAdmin(CancellationToken ct)
     {
         var header = Request.Headers.Authorization.ToString();

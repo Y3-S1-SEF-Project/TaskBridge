@@ -162,3 +162,30 @@ public sealed record ReviewsSummaryDto(
 public sealed record UpdateReviewStatusRequest(
     [Required] string Status);
 
+public sealed record BookingItemDto(
+    Guid Id,
+    string BookingReference,
+    string ServiceTitle,
+    string Category,
+    string CustomerName,
+    Guid? CustomerId,
+    string ProviderName,
+    Guid? ProviderId,
+    string ScheduledWindow,
+    string Location,
+    decimal Price,
+    string RateType,
+    decimal? FinalPrice,
+    string Status,
+    int? DurationMinutes,
+    string? Notes,
+    DateTimeOffset CreatedAt);
+
+public sealed record BookingsSummaryDto(
+    int ActiveJobsCount,
+    int ScheduledTodayCount,
+    decimal TotalWorkFunds,
+    string FormattedWorkFunds,
+    int CompletedJobsCount,
+    List<BookingItemDto> Items);
+
