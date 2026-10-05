@@ -94,3 +94,6 @@ project.nuget.cache
 **/problems-report.html
 **/replay_pid*.log
 **/build/
+
+# Ignore publish output
+**/publish/
