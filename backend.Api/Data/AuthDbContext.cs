@@ -5,6 +5,7 @@ using TaskBridge.Api.Notifications;
 using backend.Api.AI;
 
 using TaskBridge.Api.Disputes;
+using TaskBridge.Api.Inquiries;
 
 namespace TaskBridge.Api.Data;
 
@@ -24,6 +25,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
     public DbSet<ChatAuditLog> ChatAuditLogs => Set<ChatAuditLog>();
     public DbSet<NotificationEntity> Notifications => Set<NotificationEntity>();
     public DbSet<DisputeEntity> Disputes => Set<DisputeEntity>();
+    public DbSet<InquiryEntity> Inquiries => Set<InquiryEntity>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -151,6 +153,26 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
             entity.HasIndex(x => x.Category);
             entity.Property(x => x.ServiceTitle).HasMaxLength(200);
             entity.Property(x => x.Category).HasMaxLength(100);
+        });
+
+        model.Entity<DisputeEntity>(entity =>
+        {
+            entity.ToTable("disputes");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.DisputeReference);
+            entity.HasIndex(x => x.BookingReference);
+            entity.HasIndex(x => x.CustomerId);
+            entity.HasIndex(x => x.ProviderId);
+            entity.HasIndex(x => x.Status);
+        });
+
+        model.Entity<InquiryEntity>(entity =>
+        {
+            entity.ToTable("inquiries");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.InquiryReference);
+            entity.HasIndex(x => x.UserId);
+            entity.HasIndex(x => x.Status);
         });
     }
 
@@ -541,6 +563,32 @@ CREATE INDEX IF NOT EXISTS ix_disputes_booking_ref ON disputes (""BookingReferen
 CREATE INDEX IF NOT EXISTS ix_disputes_customer ON disputes (""CustomerId"");
 CREATE INDEX IF NOT EXISTS ix_disputes_provider ON disputes (""ProviderId"");
 CREATE INDEX IF NOT EXISTS ix_disputes_status ON disputes (""Status"");
+
+CREATE TABLE IF NOT EXISTS inquiries (
+    ""Id"" uuid PRIMARY KEY,
+    ""InquiryReference"" varchar(50) NOT NULL,
+    ""UserId"" uuid NULL,
+    ""UserName"" varchar(150) NOT NULL,
+    ""UserEmail"" varchar(255) NULL,
+    ""UserPhone"" varchar(50) NULL,
+    ""UserRole"" varchar(50) NOT NULL DEFAULT 'Customer',
+    ""Subject"" varchar(255) NOT NULL,
+    ""Category"" varchar(100) NOT NULL,
+    ""Message"" text NOT NULL,
+    ""AttachmentUrlsJson"" text NULL,
+    ""Priority"" varchar(50) NOT NULL DEFAULT 'Normal',
+    ""Status"" varchar(50) NOT NULL DEFAULT 'Open',
+    ""AdminResponse"" text NULL,
+    ""RespondedByAdminId"" uuid NULL,
+    ""RespondedByAdminName"" varchar(150) NULL,
+    ""RespondedAt"" timestamptz NULL,
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
+    ""UpdatedAt"" timestamptz NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_inquiries_ref ON inquiries (""InquiryReference"");
+CREATE INDEX IF NOT EXISTS ix_inquiries_user ON inquiries (""UserId"");
+CREATE INDEX IF NOT EXISTS ix_inquiries_status ON inquiries (""Status"");
 ";
         await Database.ExecuteSqlRawAsync(sql, ct);
     }

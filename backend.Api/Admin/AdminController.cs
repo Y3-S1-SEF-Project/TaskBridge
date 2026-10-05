@@ -115,22 +115,22 @@ public sealed class AdminController(
             providerChart.Add(new DayActivityDto(dayLabel, dayReqs, dayBooks, dayActiveProv));
         }
 
-        // Recent Inquiries from DB Feedbacks & Cancellations
-        var recentFeedbacks = await db.Feedbacks
+        // Real inquiries from DB
+        var openInquiriesCount = await db.Inquiries.CountAsync(i => i.Status == "Open" || i.Status == "InProgress", ct);
+        var totalInquiriesCount = await db.Inquiries.CountAsync(ct);
+        var inquiriesList = await db.Inquiries
             .AsNoTracking()
-            .OrderByDescending(f => f.CreatedAt)
+            .OrderByDescending(i => i.CreatedAt)
             .Take(5)
+            .Select(i => new InquiryItemDto(
+                i.InquiryReference,
+                i.UserName,
+                i.Subject,
+                i.Category,
+                i.Priority,
+                i.Status,
+                i.CreatedAt))
             .ToListAsync(ct);
-
-        var inquiries = recentFeedbacks.Select((f, idx) => new InquiryItemDto(
-            $"INQ-{(1000 + idx)}",
-            string.IsNullOrWhiteSpace(f.CustomerName) ? "Customer" : f.CustomerName,
-            string.IsNullOrWhiteSpace(f.Comment) ? $"Booking Review for {f.BookingReference}" : f.Comment,
-            string.IsNullOrWhiteSpace(f.ProviderName) ? "Service Provider" : f.ProviderName,
-            f.Rating <= 3 ? "High" : "Normal",
-            "Resolved",
-            f.CreatedAt
-        )).ToList();
 
         var stats = new DashboardStatsDto(
             totalRequests,
@@ -139,8 +139,8 @@ public sealed class AdminController(
             jobsStartingToday,
             completedJobs,
             completionRate,
-            inquiries.Count,
-            0,
+            totalInquiriesCount,
+            openInquiriesCount,
             aiWorkflowsCount,
             aiSuccessRate,
             humanReviewsCount,
@@ -148,7 +148,7 @@ public sealed class AdminController(
             0,
             serviceChart,
             providerChart,
-            inquiries);
+            inquiriesList);
 
         return Ok(stats);
     }
@@ -325,28 +325,7 @@ public sealed class AdminController(
             resultList));
     }
 
-    // List all inquiries with status/priority
-    [HttpGet("inquiries")]
-    public async Task<ActionResult<List<InquiryItemDto>>> GetInquiries(CancellationToken ct)
-    {
-        var recentFeedbacks = await db.Feedbacks
-            .AsNoTracking()
-            .OrderByDescending(f => f.CreatedAt)
-            .Take(10)
-            .ToListAsync(ct);
 
-        var inquiries = recentFeedbacks.Select((f, idx) => new InquiryItemDto(
-            $"INQ-{(1000 + idx)}",
-            string.IsNullOrWhiteSpace(f.CustomerName) ? "Customer" : f.CustomerName,
-            string.IsNullOrWhiteSpace(f.Comment) ? $"Booking Review for {f.BookingReference}" : f.Comment,
-            string.IsNullOrWhiteSpace(f.ProviderName) ? "Service Provider" : f.ProviderName,
-            f.Rating <= 3 ? "High" : "Normal",
-            "Resolved",
-            f.CreatedAt
-        )).ToList();
-
-        return Ok(inquiries);
-    }
 
     // List all administrators from the dedicated 'admins' table
     [HttpGet("admins")]

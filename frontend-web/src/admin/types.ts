@@ -326,4 +326,33 @@ export interface DisputesSummary {
   disputes: DisputeRecord[];
 }
 
+export interface SupportInquiryRecord {
+  id: string;
+  inquiryReference: string;
+  userId?: string | null;
+  userName: string;
+  userEmail?: string | null;
+  userPhone?: string | null;
+  userRole: string;
+  subject: string;
+  category: string;
+  message: string;
+  attachmentUrls: string[];
+  priority: 'Normal' | 'High' | 'Urgent' | string;
+  status: 'Open' | 'InProgress' | 'Responded' | 'Resolved' | string;
+  adminResponse?: string | null;
+  respondedByAdminName?: string | null;
+  respondedAt?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface InquiriesSummary {
+  inquiries: SupportInquiryRecord[];
+  totalCount: number;
+  openCount: number;
+  respondedCount: number;
+  resolvedCount: number;
+}
+
 

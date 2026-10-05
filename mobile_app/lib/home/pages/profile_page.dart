@@ -9,6 +9,7 @@ import '../../auth/data/auth_models.dart';
 import '../../auth/pages/login_page.dart';
 import 'personal_details_page.dart';
 import 'customer_disputes_page.dart';
+import 'customer_inquiries_page.dart';
 import '../../core/services/location_service.dart';
 import '../../core/services/theme_service.dart';
 import '../../core/services/user_mode_service.dart';
@@ -791,12 +792,28 @@ class _ProfilePageState extends State<ProfilePage> {
                     subtitle: 'Active disputes, claims & admin resolutions',
                     iconBgColor: const Color(0xFFFEF2F2),
                     iconColor: const Color(0xFFDC2626),
-                    showDivider: false,
+                    showDivider: true,
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => CustomerDisputesPage(user: _currentUser),
+                        ),
+                      );
+                    },
+                  ),
+                  _SleekMenuTile(
+                    icon: Iconsax.message_question,
+                    title: 'My inquiries',
+                    subtitle: 'System issues, bug reports & support responses',
+                    iconBgColor: const Color(0xFFEFF6FF),
+                    iconColor: const Color(0xFF2563EB),
+                    showDivider: false,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CustomerInquiriesPage(user: _currentUser),
                         ),
                       );
                     },
