@@ -297,12 +297,30 @@ FROM users u
 WHERE u.""IsProvider"" = true
   AND NOT EXISTS (SELECT 1 FROM providers p WHERE p.""UserId"" = u.""Id"");
 
--- Automatically recalculate and sync real ratings and review counts from feedbacks table
--- Providers with 0 real customer reviews are reset to 0 reviews and 0.0 rating
-UPDATE providers p
-SET ""ReviewCount"" = (SELECT count(*) FROM feedbacks f WHERE f.""ProviderId"" = p.""Id"" OR f.""ProviderId"" = p.""UserId""),
-    ""Rating"" = COALESCE((SELECT ROUND(AVG(f.""Rating"")::numeric, 1) FROM feedbacks f WHERE f.""ProviderId"" = p.""Id"" OR f.""ProviderId"" = p.""UserId""), 0.0)
-WHERE NOT EXISTS (SELECT 1 FROM feedbacks f WHERE (f.""ProviderId"" = p.""Id"" OR f.""ProviderId"" = p.""UserId"") AND f.""Rating"" > 0);
+CREATE TABLE IF NOT EXISTS proposals (
+    ""Id"" uuid PRIMARY KEY,
+    ""ProposalReference"" text NOT NULL,
+    ""CustomerId"" uuid NULL,
+    ""CustomerName"" text NOT NULL DEFAULT 'Customer',
+    ""ProviderId"" uuid NULL,
+    ""ProviderName"" text NOT NULL DEFAULT '',
+    ""ServiceTitle"" text NOT NULL,
+    ""Category"" text NOT NULL,
+    ""Location"" text NOT NULL,
+    ""PreferredSchedule"" text NOT NULL,
+    ""EstimatedRate"" numeric(12,2) NOT NULL,
+    ""RateType"" text NOT NULL DEFAULT 'Hourly',
+    ""Status"" text NOT NULL DEFAULT 'Pending',
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
+    ""UpdatedAt"" timestamptz NULL
+);
+
+ALTER TABLE proposals ADD COLUMN IF NOT EXISTS ""RateType"" text NOT NULL DEFAULT 'Hourly';
+ALTER TABLE proposals ADD COLUMN IF NOT EXISTS ""Notes"" text NULL;
+
+CREATE INDEX IF NOT EXISTS ix_proposals_reference ON proposals (""ProposalReference"");
+CREATE INDEX IF NOT EXISTS ix_proposals_status ON proposals (""Status"");
+CREATE INDEX IF NOT EXISTS ix_proposals_provider_id ON proposals (""ProviderId"");
 
 CREATE TABLE IF NOT EXISTS bookings (
     ""Id"" uuid PRIMARY KEY,
@@ -324,34 +342,10 @@ CREATE TABLE IF NOT EXISTS bookings (
 
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""ProposalId"" uuid NULL;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""RateType"" text NOT NULL DEFAULT 'Hourly';
-ALTER TABLE proposals ADD COLUMN IF NOT EXISTS ""RateType"" text NOT NULL DEFAULT 'Hourly';
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""Notes"" text NULL;
-ALTER TABLE proposals ADD COLUMN IF NOT EXISTS ""Notes"" text NULL;
 
 CREATE INDEX IF NOT EXISTS ix_bookings_reference ON bookings (""BookingReference"");
 CREATE INDEX IF NOT EXISTS ix_bookings_status ON bookings (""Status"");
-
-CREATE TABLE IF NOT EXISTS proposals (
-    ""Id"" uuid PRIMARY KEY,
-    ""ProposalReference"" text NOT NULL,
-    ""CustomerId"" uuid NULL,
-    ""CustomerName"" text NOT NULL DEFAULT 'Customer',
-    ""ProviderId"" uuid NULL,
-    ""ProviderName"" text NOT NULL DEFAULT '',
-    ""ServiceTitle"" text NOT NULL,
-    ""Category"" text NOT NULL,
-    ""Location"" text NOT NULL,
-    ""PreferredSchedule"" text NOT NULL,
-    ""EstimatedRate"" numeric(12,2) NOT NULL,
-    ""RateType"" text NOT NULL DEFAULT 'Hourly',
-    ""Status"" text NOT NULL DEFAULT 'Pending',
-    ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
-    ""UpdatedAt"" timestamptz NULL
-);
-
-CREATE INDEX IF NOT EXISTS ix_proposals_reference ON proposals (""ProposalReference"");
-CREATE INDEX IF NOT EXISTS ix_proposals_status ON proposals (""Status"");
-CREATE INDEX IF NOT EXISTS ix_proposals_provider_id ON proposals (""ProviderId"");
 
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""StartedAt"" timestamptz NULL;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ""EndedAt"" timestamptz NULL;
@@ -589,6 +583,12 @@ CREATE TABLE IF NOT EXISTS inquiries (
 CREATE INDEX IF NOT EXISTS ix_inquiries_ref ON inquiries (""InquiryReference"");
 CREATE INDEX IF NOT EXISTS ix_inquiries_user ON inquiries (""UserId"");
 CREATE INDEX IF NOT EXISTS ix_inquiries_status ON inquiries (""Status"");
+
+-- Automatically recalculate and sync real ratings and review counts from feedbacks table
+UPDATE providers p
+SET ""ReviewCount"" = (SELECT count(*) FROM feedbacks f WHERE f.""ProviderId"" = p.""Id"" OR f.""ProviderId"" = p.""UserId""),
+    ""Rating"" = COALESCE((SELECT ROUND(AVG(f.""Rating"")::numeric, 1) FROM feedbacks f WHERE f.""ProviderId"" = p.""Id"" OR f.""ProviderId"" = p.""UserId""), 0.0)
+WHERE NOT EXISTS (SELECT 1 FROM feedbacks f WHERE (f.""ProviderId"" = p.""Id"" OR f.""ProviderId"" = p.""UserId"") AND f.""Rating"" > 0);
 ";
         await Database.ExecuteSqlRawAsync(sql, ct);
     }

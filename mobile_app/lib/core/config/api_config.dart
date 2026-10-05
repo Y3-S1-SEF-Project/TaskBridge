@@ -84,7 +84,7 @@ class ApiConfig {
     if (_resolvedBaseUrl != null && _resolvedBaseUrl!.isNotEmpty) {
       return _resolvedBaseUrl!;
     }
-    return get('API_BASE_URL', fallback: 'http://10.0.2.2:5298');
+    return get('API_BASE_URL', fallback: 'http://13.60.35.78');
   }
 
   /// Candidate URLs for connection probing read from .env
@@ -109,8 +109,9 @@ class ApiConfig {
       }
     }
 
-    // Always include standard fallbacks: Android emulator loopback, Mac IP, localhost
+    // Always include standard fallbacks: AWS EC2 server, Android emulator loopback, Mac IP, localhost
     const fallbacks = [
+      'http://13.60.35.78',
       'http://10.0.2.2:5298',
       'http://192.168.1.12:5298',
       'http://localhost:5298',
