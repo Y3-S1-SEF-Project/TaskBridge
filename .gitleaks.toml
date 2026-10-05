@@ -1,0 +1,16 @@
+[extend]
+# Use default Gitleaks rules and configure custom ignores
+
+[allowlist]
+description = "TaskBridge CI allowlist for mock/example files and test suites"
+paths = [
+  '''\.env\.example''',
+  '''appsettings\.Development\.json''',
+  '''backend\.Api/Tests/''',
+  '''mobile_app/test/'''
+]
+regexes = [
+  '''TaskBridge_SuperSecret_Jwt_Security_Key_2026_SEF_SLIIT!''',
+  '''c9286c861b2743d4efa54c2ba00ac2095852e5c9ed43e7f5f7f5e062f6993816''',
+  '''TaskBridge_AES256_SecretKey_9874523412345678'''
+]
