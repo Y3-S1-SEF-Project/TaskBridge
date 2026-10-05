@@ -45,8 +45,12 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
 
   Future<void> _loadConversations() async {
     final user = await AuthApi.getCachedUser();
-    final convs = await _chatService.fetchConversations(role: 'customer');
-    final supportConv = await _chatService.fetchSupportConversation();
+    final results = await Future.wait([
+      _chatService.fetchConversations(role: 'customer'),
+      _chatService.fetchSupportConversation(),
+    ]);
+    final convs = results[0] as List<ChatConversationModel>;
+    final supportConv = results[1] as ChatConversationModel?;
 
     if (mounted) {
       final myId = user?.id ?? '';

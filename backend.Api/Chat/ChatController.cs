@@ -65,17 +65,38 @@ public sealed class ChatController : ControllerBase
         {
             // Customer mode: user is acting as customer.
             // Exclude conversations where user is the provider.
-            query = query.Where(c => c.CustomerId == userId.Value && c.ProviderId != userId.Value && (!providerProfileId.HasValue || c.ProviderId != providerProfileId.Value));
+            query = query.Where(c => c.CustomerId == userId.Value && c.ProviderId != userId.Value);
+            if (providerProfileId.HasValue)
+            {
+                var pId = providerProfileId.Value;
+                query = query.Where(c => c.ProviderId != pId);
+            }
         }
         else if (string.Equals(role, "provider", StringComparison.OrdinalIgnoreCase))
         {
             // Provider mode: user is acting as provider.
             // Exclude conversations where user is the customer.
-            query = query.Where(c => (c.ProviderId == userId.Value || (providerProfileId.HasValue && c.ProviderId == providerProfileId.Value)) && c.CustomerId != userId.Value);
+            if (providerProfileId.HasValue)
+            {
+                var pId = providerProfileId.Value;
+                query = query.Where(c => (c.ProviderId == userId.Value || c.ProviderId == pId) && c.CustomerId != userId.Value);
+            }
+            else
+            {
+                query = query.Where(c => c.ProviderId == userId.Value && c.CustomerId != userId.Value);
+            }
         }
         else
         {
-            query = query.Where(c => c.CustomerId == userId.Value || c.ProviderId == userId.Value || (providerProfileId.HasValue && c.ProviderId == providerProfileId.Value));
+            if (providerProfileId.HasValue)
+            {
+                var pId = providerProfileId.Value;
+                query = query.Where(c => c.CustomerId == userId.Value || c.ProviderId == userId.Value || c.ProviderId == pId);
+            }
+            else
+            {
+                query = query.Where(c => c.CustomerId == userId.Value || c.ProviderId == userId.Value);
+            }
         }
 
         var convs = await query

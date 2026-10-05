@@ -356,6 +356,9 @@ export async function fetchAdminConversations(): Promise<AdminConversation[]> {
   });
 
   if (res.ok) return await res.json();
+  if (res.status === 401 || res.status === 403) {
+    throw new Error('Admin authorization required. Please log in again.');
+  }
   const err = await res.json().catch(() => ({}));
   throw new Error(err.message || 'Failed to fetch conversations.');
 }
@@ -367,6 +370,9 @@ export async function fetchAdminMessages(conversationId: string): Promise<AdminC
   });
 
   if (res.ok) return await res.json();
+  if (res.status === 401 || res.status === 403) {
+    throw new Error('Admin authorization required. Please log in again.');
+  }
   const err = await res.json().catch(() => ({}));
   throw new Error(err.message || 'Failed to fetch messages.');
 }

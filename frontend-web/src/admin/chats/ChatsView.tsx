@@ -83,12 +83,17 @@ export const ChatsView: React.FC = () => {
     }
   }, [selectedConv, loadMessages]);
 
+  // ── Load Conversations immediately on mount ──
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+
   // ── Setup SignalR Real-Time Hub ──
   useEffect(() => {
-    const token = localStorage.getItem('taskbridge_admin_token') || '';
+    let isMounted = true;
     const connection = new signalR.HubConnectionBuilder()
       .withUrl('/hubs/chat', {
-        accessTokenFactory: () => token,
+        accessTokenFactory: () => localStorage.getItem('taskbridge_admin_token') || '',
       })
       .withAutomaticReconnect([0, 2000, 5000, 10000])
       .configureLogging(signalR.LogLevel.Warning)
@@ -96,9 +101,15 @@ export const ChatsView: React.FC = () => {
 
     hubConnectionRef.current = connection;
 
-    connection.onreconnecting(() => setHubStatus('connecting'));
-    connection.onreconnected(() => setHubStatus('connected'));
-    connection.onclose(() => setHubStatus('disconnected'));
+    connection.onreconnecting(() => {
+      if (isMounted) setHubStatus('connecting');
+    });
+    connection.onreconnected(() => {
+      if (isMounted) setHubStatus('connected');
+    });
+    connection.onclose(() => {
+      if (isMounted) setHubStatus('disconnected');
+    });
 
     // Real-time message receiver
     connection.on('ReceiveMessage', (newMsg: AdminChatMessage) => {
@@ -147,23 +158,28 @@ export const ChatsView: React.FC = () => {
       });
     });
 
-    // Start connection
+    // Start connection non-blockingly
     connection
       .start()
       .then(() => {
-        setHubStatus('connected');
-        loadConversations();
+        if (isMounted) setHubStatus('connected');
       })
       .catch(err => {
-        console.warn('[ChatsView] SignalR start error:', err);
-        setHubStatus('disconnected');
-        loadConversations();
+        if (isMounted) {
+          console.warn('[ChatsView] SignalR connection warning:', err);
+          setHubStatus('disconnected');
+        }
       });
 
     return () => {
-      connection.stop();
+      isMounted = false;
+      try {
+        if (connection.state === signalR.HubConnectionState.Connected) {
+          connection.stop();
+        }
+      } catch (_) {}
     };
-  }, [loadConversations, scrollToBottom]);
+  }, [scrollToBottom]);
 
   // ── Send Admin Message ──
   const handleSendMessage = async (e?: React.FormEvent) => {

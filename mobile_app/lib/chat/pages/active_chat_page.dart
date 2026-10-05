@@ -56,17 +56,30 @@ class _ActiveChatPageState extends State<ActiveChatPage> {
 
   Future<void> _loadUserAndMessages() async {
     _currentUser = await AuthApi.getCachedUser();
-    await _chatService.initSignalR();
-    await _chatService.joinConversation(widget.conversationId);
-    await _chatService.markAsRead(widget.conversationId);
 
-    final msgs = await _chatService.fetchMessages(widget.conversationId);
-    if (mounted) {
-      setState(() {
-        _messages = msgs;
-        _isLoading = false;
-      });
-      _scrollToBottom();
+    // 1. Fetch messages immediately so user doesn't wait on SignalR handshake
+    _chatService.fetchMessages(widget.conversationId).then((msgs) {
+      if (mounted) {
+        setState(() {
+          _messages = msgs;
+          _isLoading = false;
+        });
+        _scrollToBottom();
+      }
+    }).catchError((e) {
+      debugPrint('[ActiveChatPage] Fetch messages error: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    });
+
+    // 2. Connect SignalR and join conversation in parallel
+    try {
+      await _chatService.initSignalR();
+      await _chatService.joinConversation(widget.conversationId);
+      await _chatService.markAsRead(widget.conversationId);
+    } catch (e) {
+      debugPrint('[ActiveChatPage] SignalR sync notice: $e');
     }
 
     // Listen for live messages
