@@ -215,3 +215,78 @@ export interface AdminChatMessage {
   isSupportSender: boolean;
 }
 
+export interface AiWorkflowItem {
+  id: string;
+  name: string;
+  agentType: string;
+  triggerEvent: string;
+  latencyMs: number;
+  tokensUsed: number;
+  status: string;
+  model: string;
+  timestamp: string;
+  createdAt: string;
+}
+
+export interface AiWorkflowTraceStep {
+  stepNumber: number;
+  title: string;
+  description: string;
+  durationMs: number;
+  status: string;
+}
+
+export interface AiWorkflowTrace {
+  id: string;
+  name: string;
+  agentType: string;
+  model: string;
+  triggerEvent: string;
+  status: string;
+  latencyMs: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  estimatedCostUsd: number;
+  guardrailStatus: string;
+  inputPayload: string;
+  outputPayload: string;
+  steps: AiWorkflowTraceStep[];
+  createdAt: string;
+}
+
+export interface AgentTelemetryItem {
+  name: string;
+  role: string;
+  model: string;
+  status: string;
+  capacity: string;
+  requestsToday: number;
+  avgLatencyMs: number;
+}
+
+export interface TokenDistributionItem {
+  label: string;
+  percentage: number;
+  color: string;
+}
+
+export interface AiMonitoringSummary {
+  modelInferenceSuccess: string;
+  totalTokensToday: number;
+  estimatedCostToday: string;
+  p95Latency: string;
+  guardrailInterceptions: number;
+  agents: AgentTelemetryItem[];
+  tokenDistribution: TokenDistributionItem[];
+}
+
+export interface AiWorkflowsSummary {
+  activeAgents: number;
+  executionsToday: number;
+  autonomousCompletionRate: string;
+  averageLatency: string;
+  humanReviewFallbacks: number;
+  workflows: AiWorkflowItem[];
+}
+

@@ -10,6 +10,9 @@ import type {
   BookingsSummary,
   AdminConversation,
   AdminChatMessage,
+  AiWorkflowsSummary,
+  AiWorkflowTrace,
+  AiMonitoringSummary,
 } from './types';
 
 const API_BASE = '/api/admin';
@@ -404,4 +407,47 @@ export async function deleteAdminMessage(messageId: string): Promise<void> {
   if (res.ok) return;
   const err = await res.json().catch(() => ({}));
   throw new Error(err.message || 'Failed to delete message.');
+}
+
+export async function fetchAiWorkflows(params?: {
+  agentType?: string;
+  status?: string;
+  search?: string;
+}): Promise<AiWorkflowsSummary> {
+  const token = getStoredToken();
+  const searchParams = new URLSearchParams();
+  if (params?.search) searchParams.set('search', params.search);
+  if (params?.agentType && params.agentType !== 'All') searchParams.set('agentType', params.agentType);
+  if (params?.status && params.status !== 'All') searchParams.set('status', params.status);
+
+  const qs = searchParams.toString();
+  const res = await fetch(`${API_BASE}/ai/workflows${qs ? `?${qs}` : ''}`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+
+  if (res.ok) return await res.json();
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to fetch AI workflows telemetry.');
+}
+
+export async function fetchAiWorkflowTrace(id: string): Promise<AiWorkflowTrace> {
+  const token = getStoredToken();
+  const res = await fetch(`${API_BASE}/ai/workflows/${encodeURIComponent(id)}/trace`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+
+  if (res.ok) return await res.json();
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || `Failed to fetch trace for workflow ${id}.`);
+}
+
+export async function fetchAiMonitoring(): Promise<AiMonitoringSummary> {
+  const token = getStoredToken();
+  const res = await fetch(`${API_BASE}/ai/monitoring`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+
+  if (res.ok) return await res.json();
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to fetch AI monitoring telemetry.');
 }

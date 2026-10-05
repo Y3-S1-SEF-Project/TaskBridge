@@ -189,3 +189,72 @@ public sealed record BookingsSummaryDto(
     int CompletedJobsCount,
     List<BookingItemDto> Items);
 
+public sealed record AiWorkflowItemDto(
+    string Id,
+    string Name,
+    string AgentType,
+    string TriggerEvent,
+    long LatencyMs,
+    int TokensUsed,
+    string Status,
+    string Model,
+    string Timestamp,
+    DateTimeOffset CreatedAt);
+
+public sealed record AiWorkflowTraceStepDto(
+    int StepNumber,
+    string Title,
+    string Description,
+    long DurationMs,
+    string Status);
+
+public sealed record AiWorkflowTraceDto(
+    string Id,
+    string Name,
+    string AgentType,
+    string Model,
+    string TriggerEvent,
+    string Status,
+    long LatencyMs,
+    int PromptTokens,
+    int CompletionTokens,
+    int TotalTokens,
+    decimal EstimatedCostUsd,
+    string GuardrailStatus,
+    string InputPayload,
+    string OutputPayload,
+    List<AiWorkflowTraceStepDto> Steps,
+    DateTimeOffset CreatedAt);
+
+public sealed record AgentTelemetryItemDto(
+    string Name,
+    string Role,
+    string Model,
+    string Status,
+    string Capacity,
+    int RequestsToday,
+    long AvgLatencyMs);
+
+public sealed record TokenDistributionItemDto(
+    string Label,
+    int Percentage,
+    string Color);
+
+public sealed record AiMonitoringSummaryDto(
+    string ModelInferenceSuccess,
+    int TotalTokensToday,
+    string EstimatedCostToday,
+    string P95Latency,
+    int GuardrailInterceptions,
+    List<AgentTelemetryItemDto> Agents,
+    List<TokenDistributionItemDto> TokenDistribution);
+
+public sealed record AiWorkflowsSummaryDto(
+    int ActiveAgents,
+    int ExecutionsToday,
+    string AutonomousCompletionRate,
+    string AverageLatency,
+    int HumanReviewFallbacks,
+    List<AiWorkflowItemDto> Workflows);
+
+

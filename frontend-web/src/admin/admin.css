@@ -2507,3 +2507,234 @@
     display: none !important;
   }
 }
+
+/* ==========================================================================
+   AI Workflows & Monitoring Telemetry Styles
+   ========================================================================== */
+
+.admin-trace-modal {
+  max-width: 860px !important;
+  max-height: 90vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  border-radius: 18px !important;
+  overflow: hidden !important;
+}
+
+.admin-trace-modal .admin-modal-body {
+  overflow-y: auto !important;
+  padding: 20px 24px !important;
+  gap: 18px !important;
+  flex: 1 !important;
+}
+
+.admin-trace-stats-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  background: #f4f8f5;
+  border: 1px solid #dae8df;
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+
+.admin-trace-stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.admin-trace-stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  color: #617368;
+}
+
+.admin-trace-stat-val {
+  font-size: 14px;
+  font-weight: 700;
+  color: #113c2b;
+}
+
+.admin-trace-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 2px solid #e5ede8;
+  padding-bottom: 4px;
+  margin-top: 4px;
+}
+
+.admin-trace-tab-btn {
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: #617368;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.18s ease;
+}
+
+.admin-trace-tab-btn:hover {
+  background: #f0f6f2;
+  color: #113c2b;
+}
+
+.admin-trace-tab-btn.active {
+  background: #113c2b;
+  color: #ffffff;
+}
+
+.admin-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+  padding-left: 28px;
+}
+
+.admin-timeline::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 11px;
+  width: 2px;
+  background: #d4e3d9;
+}
+
+.admin-timeline-step {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #e2ede6;
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.admin-timeline-step:hover {
+  border-color: #256b4a;
+  transform: translateY(-1px);
+}
+
+.admin-timeline-marker {
+  position: absolute;
+  left: -28px;
+  top: 14px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #256b4a;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  border: 3px solid #ffffff;
+  box-shadow: 0 0 0 1px #256b4a;
+}
+
+.admin-timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.admin-timeline-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #113c2b;
+}
+
+.admin-timeline-desc {
+  font-size: 12.5px;
+  color: #4a5c51;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.admin-code-container {
+  background: #0f1c15;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #1f3a2b;
+}
+
+.admin-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #14271d;
+  border-bottom: 1px solid #1f3a2b;
+}
+
+.admin-code-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #92bfa6;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.admin-code-pre {
+  margin: 0;
+  padding: 14px 16px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #d1fae5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.admin-live-pulse {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #22c55e;
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  animation: pulse-green 1.8s infinite;
+  margin-right: 6px;
+}
+
+@keyframes pulse-green {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+.admin-agent-telemetry-card {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #e1ede5;
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.admin-agent-telemetry-card:hover {
+  transform: translateY(-2px);
+  border-color: #256b4a;
+  box-shadow: 0 6px 16px rgba(17, 60, 43, 0.08);
+}
