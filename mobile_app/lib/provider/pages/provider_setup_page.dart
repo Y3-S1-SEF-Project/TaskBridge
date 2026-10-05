@@ -11,6 +11,7 @@ import '../../auth/widgets/auth_layout.dart';
 import '../../core/services/location_service.dart';
 import '../../core/services/user_mode_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/design_system.dart';
@@ -168,6 +169,7 @@ class ProviderSetupPage extends StatefulWidget {
 }
 
 class _ProviderSetupPageState extends State<ProviderSetupPage> {
+  AppPalette get palette => AppPalette.of(context);
   late final TextEditingController _skillsController;
   late final TextEditingController _experienceController;
   late final TextEditingController _availabilityController;
@@ -418,11 +420,11 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.primary,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: AppColors.textPrimary,
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: palette.primary,
+              onPrimary: palette.onPrimary,
+              surface: palette.surface,
+              onSurface: palette.textPrimary,
             ),
           ),
           child: child!,
@@ -444,11 +446,11 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.primary,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: AppColors.textPrimary,
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: palette.primary,
+              onPrimary: palette.onPrimary,
+              surface: palette.surface,
+              onSurface: palette.textPrimary,
             ),
           ),
           child: child!,
@@ -498,7 +500,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: palette.surface,
       builder: (ctx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
@@ -506,34 +508,31 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
+              Text(
                 'Upload Certification / Document',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: palette.textPrimary,
                 ),
               ),
               const SizedBox(height: 16),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const CircleAvatar(
-                  backgroundColor: AppColors.primaryLight,
+                leading: CircleAvatar(
+                  backgroundColor: palette.primaryLight,
                   child: Icon(
                     Icons.picture_as_pdf_rounded,
-                    color: AppColors.primary,
+                    color: palette.primary,
                   ),
                 ),
                 title: const Text(
                   'Upload PDF or Document',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
-                subtitle: const Text(
+                subtitle: Text(
                   'PDF, DOC, DOCX up to 10MB',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
+                  style: TextStyle(fontSize: 12, color: palette.textSecondary),
                 ),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -542,23 +541,20 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const CircleAvatar(
-                  backgroundColor: AppColors.primaryLight,
+                leading: CircleAvatar(
+                  backgroundColor: palette.primaryLight,
                   child: Icon(
                     Icons.photo_library_outlined,
-                    color: AppColors.primary,
+                    color: palette.primary,
                   ),
                 ),
                 title: const Text(
                   'Choose photo from Gallery',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
-                subtitle: const Text(
+                subtitle: Text(
                   'JPG, PNG, WEBP',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
+                  style: TextStyle(fontSize: 12, color: palette.textSecondary),
                 ),
                 onTap: () async {
                   Navigator.pop(ctx);
@@ -569,23 +565,20 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const CircleAvatar(
-                  backgroundColor: AppColors.primaryLight,
+                leading: CircleAvatar(
+                  backgroundColor: palette.primaryLight,
                   child: Icon(
                     Icons.camera_alt_outlined,
-                    color: AppColors.primary,
+                    color: palette.primary,
                   ),
                 ),
                 title: const Text(
                   'Take photo of certificate',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
-                subtitle: const Text(
+                subtitle: Text(
                   'Use camera to capture paper document',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
+                  style: TextStyle(fontSize: 12, color: palette.textSecondary),
                 ),
                 onTap: () async {
                   Navigator.pop(ctx);
@@ -630,7 +623,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Document "${file.name}" uploaded successfully!'),
-            backgroundColor: AppColors.primary,
+            backgroundColor: palette.primary,
           ),
         );
       }
@@ -640,7 +633,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Could not upload document: $e'),
-            backgroundColor: AppColors.error,
+            backgroundColor: palette.error,
           ),
         );
       }
@@ -673,9 +666,9 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
           _uploadingCert = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Certification photo uploaded successfully!'),
-            backgroundColor: AppColors.primary,
+            backgroundColor: palette.primary,
           ),
         );
       }
@@ -685,7 +678,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Could not upload certification: $e'),
-            backgroundColor: AppColors.error,
+            backgroundColor: palette.error,
           ),
         );
       }
@@ -761,23 +754,23 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: palette.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
+        title: Text(
           'Add Custom Category',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
+            color: palette.textPrimary,
           ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Enter your trade or service category:',
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              style: TextStyle(fontSize: 13, color: palette.textSecondary),
             ),
             const SizedBox(height: 14),
             TextField(
@@ -786,26 +779,23 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
               textCapitalization: TextCapitalization.words,
               decoration: InputDecoration(
                 hintText: 'e.g. Masonry, Locksmith, Pest Control…',
-                hintStyle: const TextStyle(
+                hintStyle: TextStyle(
                   fontSize: 14,
-                  color: AppColors.textSecondary,
+                  color: palette.textSecondary,
                 ),
                 filled: true,
-                fillColor: AppColors.surface,
+                fillColor: palette.surface,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 12,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.border),
+                  borderSide: BorderSide(color: palette.border),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: AppColors.primary,
-                    width: 1.5,
-                  ),
+                  borderSide: BorderSide(color: palette.primary, width: 1.5),
                 ),
               ),
             ),
@@ -814,14 +804,14 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text(
+            child: Text(
               'Cancel',
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: palette.textSecondary),
             ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
+              backgroundColor: palette.primary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
@@ -854,7 +844,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: palette.surface,
       builder: (ctx) {
         return SafeArea(
           child: Padding(
@@ -864,21 +854,18 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Select Primary Category',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
+                    color: palette.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
+                Text(
                   'Choose the main category that best represents your trade.',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                  ),
+                  style: TextStyle(fontSize: 13, color: palette.textSecondary),
                 ),
                 const SizedBox(height: 16),
                 Expanded(
@@ -903,16 +890,14 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               color: isCustom
-                                  ? AppColors.primary
-                                  : AppColors.primaryLight,
+                                  ? palette.primary
+                                  : palette.primaryLight,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
                               Icons.add_circle_outline_rounded,
                               size: 18,
-                              color: isCustom
-                                  ? Colors.white
-                                  : AppColors.primary,
+                              color: isCustom ? Colors.white : palette.primary,
                             ),
                           ),
                           title: Text(
@@ -925,8 +910,8 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                   ? FontWeight.w700
                                   : FontWeight.w600,
                               color: isCustom
-                                  ? AppColors.primary
-                                  : AppColors.textPrimary,
+                                  ? palette.primary
+                                  : palette.textPrimary,
                             ),
                           ),
                           subtitle: isCustom
@@ -936,13 +921,10 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                 )
                               : null,
                           trailing: isCustom
-                              ? const Icon(
-                                  Icons.check_circle,
-                                  color: AppColors.primary,
-                                )
-                              : const Icon(
+                              ? Icon(Icons.check_circle, color: palette.primary)
+                              : Icon(
                                   Icons.chevron_right_rounded,
-                                  color: AppColors.textSecondary,
+                                  color: palette.textSecondary,
                                 ),
                           onTap: () => _openCustomCategoryDialog(ctx),
                         );
@@ -958,16 +940,14 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? AppColors.primary
-                                : AppColors.primaryLight,
+                                ? palette.primary
+                                : palette.primaryLight,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
                             cat.icon,
                             size: 18,
-                            color: isSelected
-                                ? Colors.white
-                                : AppColors.primary,
+                            color: isSelected ? Colors.white : palette.primary,
                           ),
                         ),
                         title: Text(
@@ -978,15 +958,12 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                 ? FontWeight.w700
                                 : FontWeight.w600,
                             color: isSelected
-                                ? AppColors.primary
-                                : AppColors.textPrimary,
+                                ? palette.primary
+                                : palette.textPrimary,
                           ),
                         ),
                         trailing: isSelected
-                            ? const Icon(
-                                Icons.check_circle,
-                                color: AppColors.primary,
-                              )
+                            ? Icon(Icons.check_circle, color: palette.primary)
                             : null,
                         onTap: () {
                           setState(() {
@@ -1014,7 +991,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: palette.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -1054,12 +1031,12 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'Select Services You Provide',
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w800,
-                                    color: AppColors.textPrimary,
+                                    color: palette.textPrimary,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -1069,8 +1046,8 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                     color: tempSelected.isNotEmpty
-                                        ? AppColors.primary
-                                        : AppColors.textSecondary,
+                                        ? palette.primary
+                                        : palette.textSecondary,
                                   ),
                                 ),
                               ],
@@ -1081,10 +1058,10 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                               onPressed: () {
                                 setSheetState(() => tempSelected.clear());
                               },
-                              child: const Text(
+                              child: Text(
                                 'Clear all',
                                 style: TextStyle(
-                                  color: AppColors.error,
+                                  color: palette.error,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -1108,13 +1085,13 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                         autofocus: false,
                         decoration: InputDecoration(
                           hintText: 'Search plumbing, AC, wiring, cleaning…',
-                          hintStyle: const TextStyle(
+                          hintStyle: TextStyle(
                             fontSize: 14,
-                            color: AppColors.textSecondary,
+                            color: palette.textSecondary,
                           ),
-                          prefixIcon: const Icon(
+                          prefixIcon: Icon(
                             Icons.search_rounded,
-                            color: AppColors.textSecondary,
+                            color: palette.textSecondary,
                           ),
                           suffixIcon: query.isNotEmpty
                               ? IconButton(
@@ -1128,27 +1105,23 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                 )
                               : null,
                           filled: true,
-                          fillColor: AppColors.background,
+                          fillColor: palette.background,
                           contentPadding: const EdgeInsets.symmetric(
                             vertical: 12,
                             horizontal: 16,
                           ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(14),
-                            borderSide: const BorderSide(
-                              color: AppColors.border,
-                            ),
+                            borderSide: BorderSide(color: palette.border),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(14),
-                            borderSide: const BorderSide(
-                              color: AppColors.border,
-                            ),
+                            borderSide: BorderSide(color: palette.border),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(14),
-                            borderSide: const BorderSide(
-                              color: AppColors.primary,
+                            borderSide: BorderSide(
+                              color: palette.primary,
                               width: 1.5,
                             ),
                           ),
@@ -1179,16 +1152,16 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                 fontWeight: FontWeight.w600,
                                 color: selectedCategoryFilter == null
                                     ? Colors.white
-                                    : AppColors.textPrimary,
+                                    : palette.textPrimary,
                               ),
-                              selectedColor: AppColors.primary,
-                              backgroundColor: AppColors.surface,
+                              selectedColor: palette.primary,
+                              backgroundColor: palette.surface,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                                 side: BorderSide(
                                   color: selectedCategoryFilter == null
-                                      ? AppColors.primary
-                                      : AppColors.border,
+                                      ? palette.primary
+                                      : palette.border,
                                 ),
                               ),
                               onSelected: (_) {
@@ -1211,16 +1184,16 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                   fontWeight: FontWeight.w600,
                                   color: isSel
                                       ? Colors.white
-                                      : AppColors.textPrimary,
+                                      : palette.textPrimary,
                                 ),
-                                selectedColor: AppColors.primary,
-                                backgroundColor: AppColors.surface,
+                                selectedColor: palette.primary,
+                                backgroundColor: palette.surface,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                   side: BorderSide(
                                     color: isSel
-                                        ? AppColors.primary
-                                        : AppColors.border,
+                                        ? palette.primary
+                                        : palette.border,
                                   ),
                                 ),
                                 onSelected: (_) {
@@ -1248,18 +1221,18 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(
+                                    Icon(
                                       Icons.search_off_rounded,
                                       size: 48,
-                                      color: AppColors.textSecondary,
+                                      color: palette.textSecondary,
                                     ),
                                     const SizedBox(height: 12),
                                     Text(
                                       'No services found for "$searchQuery"',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 15,
                                         fontWeight: FontWeight.w600,
-                                        color: AppColors.textPrimary,
+                                        color: palette.textPrimary,
                                       ),
                                     ),
                                     const SizedBox(height: 8),
@@ -1274,7 +1247,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                         }
                                       },
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppColors.primary,
+                                        backgroundColor: palette.primary,
                                         foregroundColor: Colors.white,
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(
@@ -1316,11 +1289,9 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                   ),
                                   child: Container(
                                     decoration: BoxDecoration(
-                                      color: AppColors.surface,
+                                      color: palette.surface,
                                       borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: AppColors.border,
-                                      ),
+                                      border: Border.all(color: palette.border),
                                     ),
                                     child: Column(
                                       crossAxisAlignment:
@@ -1339,23 +1310,23 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                                   6,
                                                 ),
                                                 decoration: BoxDecoration(
-                                                  color: AppColors.primaryLight,
+                                                  color: palette.primaryLight,
                                                   borderRadius:
                                                       BorderRadius.circular(8),
                                                 ),
                                                 child: Icon(
                                                   cat.icon,
                                                   size: 16,
-                                                  color: AppColors.primary,
+                                                  color: palette.primary,
                                                 ),
                                               ),
                                               const SizedBox(width: 10),
                                               Text(
                                                 cat.categoryName,
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                   fontSize: 14,
                                                   fontWeight: FontWeight.w700,
-                                                  color: AppColors.textPrimary,
+                                                  color: palette.textPrimary,
                                                 ),
                                               ),
                                             ],
@@ -1393,7 +1364,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                                     height: 22,
                                                     decoration: BoxDecoration(
                                                       color: isChecked
-                                                          ? AppColors.primary
+                                                          ? palette.primary
                                                           : Colors.transparent,
                                                       borderRadius:
                                                           BorderRadius.circular(
@@ -1401,8 +1372,8 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                                           ),
                                                       border: Border.all(
                                                         color: isChecked
-                                                            ? AppColors.primary
-                                                            : AppColors.border,
+                                                            ? palette.primary
+                                                            : palette.border,
                                                         width: 1.5,
                                                       ),
                                                     ),
@@ -1463,7 +1434,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                           height: 50,
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
+                              backgroundColor: palette.primary,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
@@ -1632,7 +1603,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: palette.background,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -1659,8 +1630,8 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                               _isExistingProvider
                                   ? 'EDIT PROVIDER PROFILE'
                                   : 'YOUR EXPERTISE, YOUR OPPORTUNITY',
-                              style: const TextStyle(
-                                color: AppColors.primary,
+                              style: TextStyle(
+                                color: palette.primary,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 1.1,
@@ -1669,10 +1640,10 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                             if (_showDoLater)
                               GestureDetector(
                                 onTap: _skipAndEnterProviderMode,
-                                child: const Text(
+                                child: Text(
                                   'DO LATER',
                                   style: TextStyle(
-                                    color: AppColors.primary,
+                                    color: palette.primary,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
                                     letterSpacing: 1.1,
@@ -1691,10 +1662,10 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                 _isExistingProvider
                                     ? 'Edit your provider\nprofile'
                                     : 'Set up your provider\nprofile',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 26,
                                   fontWeight: FontWeight.w800,
-                                  color: AppColors.textPrimary,
+                                  color: palette.textPrimary,
                                   letterSpacing: -0.5,
                                   height: 1.2,
                                 ),
@@ -1712,12 +1683,12 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Primary Trade Category',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
+                                color: palette.textPrimary,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -1730,12 +1701,12 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                   vertical: 14,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.surface,
+                                  color: palette.surface,
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
                                     color: _selectedCategory != null
-                                        ? AppColors.primary
-                                        : AppColors.border,
+                                        ? palette.primary
+                                        : palette.border,
                                     width: _selectedCategory != null
                                         ? 1.5
                                         : 1.0,
@@ -1746,8 +1717,8 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                     Icon(
                                       Icons.category_outlined,
                                       color: _selectedCategory != null
-                                          ? AppColors.primary
-                                          : AppColors.textSecondary,
+                                          ? palette.primary
+                                          : palette.textSecondary,
                                       size: 20,
                                     ),
                                     const SizedBox(width: 12),
@@ -1761,14 +1732,14 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                               ? FontWeight.w700
                                               : FontWeight.normal,
                                           color: _selectedCategory != null
-                                              ? AppColors.textPrimary
-                                              : AppColors.textSecondary,
+                                              ? palette.textPrimary
+                                              : palette.textSecondary,
                                         ),
                                       ),
                                     ),
-                                    const Icon(
+                                    Icon(
                                       Icons.arrow_drop_down,
-                                      color: AppColors.textSecondary,
+                                      color: palette.textSecondary,
                                     ),
                                   ],
                                 ),
@@ -1796,12 +1767,12 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                               children: [
                                 Row(
                                   children: [
-                                    const Text(
+                                    Text(
                                       'Services I Provide',
                                       style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w700,
-                                        color: AppColors.textPrimary,
+                                        color: palette.textPrimary,
                                       ),
                                     ),
                                     if (_selectedServices.isNotEmpty) ...[
@@ -1812,17 +1783,17 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                           vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: AppColors.primaryLight,
+                                          color: palette.primaryLight,
                                           borderRadius: BorderRadius.circular(
                                             10,
                                           ),
                                         ),
                                         child: Text(
                                           '${_selectedServices.length}',
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 11,
                                             fontWeight: FontWeight.w700,
-                                            color: AppColors.primary,
+                                            color: palette.primary,
                                           ),
                                         ),
                                       ),
@@ -1830,11 +1801,11 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                   ],
                                 ),
                                 const SizedBox(height: 2),
-                                const Text(
+                                Text(
                                   'Choose all tasks you are qualified to do',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: AppColors.textSecondary,
+                                    color: palette.textSecondary,
                                   ),
                                 ),
                               ],
@@ -1842,15 +1813,15 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                             TextButton.icon(
                               onPressed: _openServiceSelectionSheet,
                               style: TextButton.styleFrom(
-                                foregroundColor: AppColors.primary,
+                                foregroundColor: palette.primary,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 12,
                                   vertical: 8,
                                 ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(20),
-                                  side: const BorderSide(
-                                    color: AppColors.primary,
+                                  side: BorderSide(
+                                    color: palette.primary,
                                     width: 1.2,
                                   ),
                                 ),
@@ -1878,16 +1849,16 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                 horizontal: 16,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.surface,
+                                color: palette.surface,
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: AppColors.border),
+                                border: Border.all(color: palette.border),
                               ),
-                              child: const Row(
+                              child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
                                     Icons.add_circle_outline_rounded,
-                                    color: AppColors.primary,
+                                    color: palette.primary,
                                     size: 20,
                                   ),
                                   SizedBox(width: 8),
@@ -1895,7 +1866,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                     'Tap "+ Add Service" to select services',
                                     style: TextStyle(
                                       fontSize: 14,
-                                      color: AppColors.textSecondary,
+                                      color: palette.textSecondary,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -1916,12 +1887,12 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                   right: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primaryLight.withValues(
+                                  color: palette.primaryLight.withValues(
                                     alpha: 0.6,
                                   ),
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: AppColors.primary.withValues(
+                                    color: palette.primary.withValues(
                                       alpha: 0.3,
                                     ),
                                     width: 1,
@@ -1932,10 +1903,10 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                   children: [
                                     Text(
                                       service,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,
-                                        color: AppColors.textPrimary,
+                                        color: palette.textPrimary,
                                       ),
                                     ),
                                     const SizedBox(width: 6),
@@ -1949,14 +1920,14 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                         padding: const EdgeInsets.all(2),
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
-                                          color: AppColors.primary.withValues(
+                                          color: palette.primary.withValues(
                                             alpha: 0.15,
                                           ),
                                         ),
-                                        child: const Icon(
+                                        child: Icon(
                                           Icons.close_rounded,
                                           size: 14,
-                                          color: AppColors.primary,
+                                          color: palette.primary,
                                         ),
                                       ),
                                     ),
@@ -1968,20 +1939,20 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                         const SizedBox(height: AppSpacing.s20),
 
                         // ── 3. Provider Location & Coverage ──
-                        const Text(
+                        Text(
                           'Provider Location',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                            color: palette.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 2),
-                        const Text(
+                        Text(
                           'Your primary working location on Google Maps',
                           style: TextStyle(
                             fontSize: 12,
-                            color: AppColors.textSecondary,
+                            color: palette.textSecondary,
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -1989,9 +1960,9 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                         // Google Maps Location Card with Embedded Live Mini Map
                         Container(
                           decoration: BoxDecoration(
-                            color: AppColors.surface,
+                            color: palette.surface,
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: AppColors.border),
+                            border: Border.all(color: palette.border),
                           ),
                           clipBehavior: Clip.antiAlias,
                           child: Column(
@@ -2006,12 +1977,12 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                       width: 40,
                                       height: 40,
                                       decoration: BoxDecoration(
-                                        color: AppColors.primaryLight,
+                                        color: palette.primaryLight,
                                         borderRadius: BorderRadius.circular(10),
                                       ),
-                                      child: const Icon(
+                                      child: Icon(
                                         Icons.location_on_rounded,
-                                        color: AppColors.primary,
+                                        color: palette.primary,
                                         size: 22,
                                       ),
                                     ),
@@ -2024,10 +1995,10 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                           Text(
                                             _providerLocation?.shortName ??
                                                 'Select Base Location',
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 15,
                                               fontWeight: FontWeight.w700,
-                                              color: AppColors.textPrimary,
+                                              color: palette.textPrimary,
                                             ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
@@ -2036,9 +2007,9 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                           Text(
                                             _providerLocation?.address ??
                                                 'Tap to pick on Google Maps',
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 12,
-                                              color: AppColors.textSecondary,
+                                              color: palette.textSecondary,
                                             ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
@@ -2056,18 +2027,18 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                           vertical: 6,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: AppColors.primaryLight,
+                                          color: palette.primaryLight,
                                           borderRadius: BorderRadius.circular(
                                             20,
                                           ),
                                         ),
-                                        child: const Row(
+                                        child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Icon(
                                               Icons.map_rounded,
                                               size: 14,
-                                              color: AppColors.primary,
+                                              color: palette.primary,
                                             ),
                                             SizedBox(width: 4),
                                             Text(
@@ -2075,7 +2046,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w700,
-                                                color: AppColors.primary,
+                                                color: palette.primary,
                                               ),
                                             ),
                                           ],
@@ -2116,9 +2087,9 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                               _providerLocation!.longitude,
                                             ),
                                             radius: _selectedRadiusKm * 1000.0,
-                                            fillColor: AppColors.primary
+                                            fillColor: palette.primary
                                                 .withValues(alpha: 0.18),
-                                            strokeColor: AppColors.primary,
+                                            strokeColor: palette.primary,
                                             strokeWidth: 2,
                                           ),
                                       },
@@ -2158,7 +2129,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                           vertical: 5,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withValues(
+                                          color: palette.surface.withValues(
                                             alpha: 0.94,
                                           ),
                                           borderRadius: BorderRadius.circular(
@@ -2177,18 +2148,18 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            const Icon(
+                                            Icon(
                                               Icons.radar_rounded,
                                               size: 14,
-                                              color: AppColors.primary,
+                                              color: palette.primary,
                                             ),
                                             const SizedBox(width: 4),
                                             Text(
                                               '$_selectedRadiusKm km Radius',
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 11,
                                                 fontWeight: FontWeight.w700,
-                                                color: AppColors.textPrimary,
+                                                color: palette.textPrimary,
                                               ),
                                             ),
                                           ],
@@ -2209,7 +2180,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                             vertical: 6,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: Colors.white,
+                                            color: palette.surface,
                                             borderRadius: BorderRadius.circular(
                                               20,
                                             ),
@@ -2223,13 +2194,13 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                               ),
                                             ],
                                           ),
-                                          child: const Row(
+                                          child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
                                               Icon(
                                                 Icons.fullscreen_rounded,
                                                 size: 16,
-                                                color: AppColors.primary,
+                                                color: palette.primary,
                                               ),
                                               SizedBox(width: 4),
                                               Text(
@@ -2237,7 +2208,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                                 style: TextStyle(
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.w700,
-                                                  color: AppColors.primary,
+                                                  color: palette.primary,
                                                 ),
                                               ),
                                             ],
@@ -2260,20 +2231,20 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text(
+                                Text(
                                   'Service Radius',
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
-                                    color: AppColors.textPrimary,
+                                    color: palette.textPrimary,
                                   ),
                                 ),
                                 Text(
                                   'Within $_selectedRadiusKm km',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
+                                    color: palette.primary,
                                   ),
                                 ),
                               ],
@@ -2297,15 +2268,15 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                         alignment: Alignment.center,
                                         decoration: BoxDecoration(
                                           color: isSelected
-                                              ? AppColors.primary
-                                              : AppColors.surface,
+                                              ? palette.primary
+                                              : palette.surface,
                                           borderRadius: BorderRadius.circular(
                                             10,
                                           ),
                                           border: Border.all(
                                             color: isSelected
-                                                ? AppColors.primary
-                                                : AppColors.border,
+                                                ? palette.primary
+                                                : palette.border,
                                             width: isSelected ? 1.5 : 1,
                                           ),
                                         ),
@@ -2318,7 +2289,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                                 : FontWeight.w500,
                                             color: isSelected
                                                 ? Colors.white
-                                                : AppColors.textPrimary,
+                                                : palette.textPrimary,
                                           ),
                                         ),
                                       ),
@@ -2334,26 +2305,26 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.primaryLight.withValues(
+                                color: palette.primaryLight.withValues(
                                   alpha: 0.4,
                                 ),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(
+                                  Icon(
                                     Icons.radar_rounded,
                                     size: 16,
-                                    color: AppColors.primary,
+                                    color: palette.primary,
                                   ),
                                   const SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
                                       'Receiving tasks within $_selectedRadiusKm km of ${_providerLocation?.shortName ?? "your location"}',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w500,
-                                        color: AppColors.primary,
+                                        color: palette.primary,
                                       ),
                                     ),
                                   ),
@@ -2381,17 +2352,15 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                               color:
                                   _certificationUrl != null &&
                                       _certificationUrl!.isNotEmpty
-                                  ? AppColors.primaryLight.withValues(
-                                      alpha: 0.3,
-                                    )
-                                  : AppColors.surface,
+                                  ? palette.primaryLight.withValues(alpha: 0.3)
+                                  : palette.surface,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color:
                                     _certificationUrl != null &&
                                         _certificationUrl!.isNotEmpty
-                                    ? AppColors.primary
-                                    : AppColors.border,
+                                    ? palette.primary
+                                    : palette.border,
                                 width:
                                     _certificationUrl != null &&
                                         _certificationUrl!.isNotEmpty
@@ -2404,7 +2373,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                               horizontal: 16,
                             ),
                             child: _uploadingCert
-                                ? const Center(
+                                ? Center(
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
@@ -2414,7 +2383,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                             strokeWidth: 2.5,
                                             valueColor:
                                                 AlwaysStoppedAnimation<Color>(
-                                                  AppColors.primary,
+                                                  palette.primary,
                                                 ),
                                           ),
                                         ),
@@ -2423,7 +2392,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                           'Uploading document to Cloudflare R2…',
                                           style: TextStyle(
                                             fontSize: 13,
-                                            color: AppColors.textSecondary,
+                                            color: palette.textSecondary,
                                           ),
                                         ),
                                       ],
@@ -2438,10 +2407,10 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                           color:
                                               _certificationUrl != null &&
                                                   _certificationUrl!.isNotEmpty
-                                              ? AppColors.primary.withValues(
+                                              ? palette.primary.withValues(
                                                   alpha: 0.12,
                                                 )
-                                              : AppColors.background,
+                                              : palette.background,
                                           borderRadius: BorderRadius.circular(
                                             12,
                                           ),
@@ -2458,7 +2427,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                                     : Icons.task_alt_rounded)
                                               : Icons.camera_alt_outlined,
                                           size: 28,
-                                          color: AppColors.primary,
+                                          color: palette.primary,
                                         ),
                                       ),
                                       const SizedBox(width: 14),
@@ -2474,10 +2443,10 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                                   ? (_certFileName ??
                                                         'Certificate uploaded')
                                                   : 'Upload certifications',
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 15,
                                                 fontWeight: FontWeight.w700,
-                                                color: AppColors.textPrimary,
+                                                color: palette.textPrimary,
                                               ),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
@@ -2495,8 +2464,8 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                                     _certificationUrl != null &&
                                                         _certificationUrl!
                                                             .isNotEmpty
-                                                    ? AppColors.primary
-                                                    : AppColors.textSecondary,
+                                                    ? palette.primary
+                                                    : palette.textSecondary,
                                                 fontWeight:
                                                     _certificationUrl != null &&
                                                         _certificationUrl!
@@ -2511,10 +2480,10 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                       if (_certificationUrl != null &&
                                           _certificationUrl!.isNotEmpty)
                                         IconButton(
-                                          icon: const Icon(
+                                          icon: Icon(
                                             Icons.close_rounded,
                                             size: 20,
-                                            color: AppColors.textSecondary,
+                                            color: palette.textSecondary,
                                           ),
                                           tooltip: 'Remove certification',
                                           onPressed: () {
@@ -2531,20 +2500,20 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                         const SizedBox(height: AppSpacing.s16),
 
                         // ── 6. Availability & Working Hours Section ──
-                        const Text(
+                        Text(
                           'Availability & Working Hours',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                            color: palette.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 2),
-                        const Text(
+                        Text(
                           'Set your operating days and daily working hours (AM to PM)',
                           style: TextStyle(
                             fontSize: 12,
-                            color: AppColors.textSecondary,
+                            color: palette.textSecondary,
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -2579,15 +2548,15 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                         ),
                                         decoration: BoxDecoration(
                                           color: isSel
-                                              ? AppColors.primary
-                                              : AppColors.surface,
+                                              ? palette.primary
+                                              : palette.surface,
                                           borderRadius: BorderRadius.circular(
                                             10,
                                           ),
                                           border: Border.all(
                                             color: isSel
-                                                ? AppColors.primary
-                                                : AppColors.border,
+                                                ? palette.primary
+                                                : palette.border,
                                             width: isSel ? 1.5 : 1,
                                           ),
                                         ),
@@ -2600,7 +2569,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                                 : FontWeight.w500,
                                             color: isSel
                                                 ? Colors.white
-                                                : AppColors.textPrimary,
+                                                : palette.textPrimary,
                                           ),
                                         ),
                                       ),
@@ -2625,20 +2594,20 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                     vertical: 12,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: AppColors.surface,
+                                    color: palette.surface,
                                     borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(color: AppColors.border),
+                                    border: Border.all(color: palette.border),
                                   ),
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      const Row(
+                                      Row(
                                         children: [
                                           Icon(
                                             Icons.wb_sunny_outlined,
                                             size: 14,
-                                            color: AppColors.primary,
+                                            color: palette.primary,
                                           ),
                                           SizedBox(width: 4),
                                           Text(
@@ -2646,7 +2615,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                             style: TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.w700,
-                                              color: AppColors.textSecondary,
+                                              color: palette.textSecondary,
                                               letterSpacing: 0.5,
                                             ),
                                           ),
@@ -2659,16 +2628,16 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                         children: [
                                           Text(
                                             _formatTimeOfDay(_startTime),
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.w800,
-                                              color: AppColors.textPrimary,
+                                              color: palette.textPrimary,
                                             ),
                                           ),
-                                          const Icon(
+                                          Icon(
                                             Icons.keyboard_arrow_down_rounded,
                                             size: 18,
-                                            color: AppColors.textSecondary,
+                                            color: palette.textSecondary,
                                           ),
                                         ],
                                       ),
@@ -2683,14 +2652,14 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                               ),
                               child: Container(
                                 padding: const EdgeInsets.all(6),
-                                decoration: const BoxDecoration(
-                                  color: AppColors.primaryLight,
+                                decoration: BoxDecoration(
+                                  color: palette.primaryLight,
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(
+                                child: Icon(
                                   Icons.arrow_forward_rounded,
                                   size: 14,
-                                  color: AppColors.primary,
+                                  color: palette.primary,
                                 ),
                               ),
                             ),
@@ -2705,20 +2674,20 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                     vertical: 12,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: AppColors.surface,
+                                    color: palette.surface,
                                     borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(color: AppColors.border),
+                                    border: Border.all(color: palette.border),
                                   ),
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      const Row(
+                                      Row(
                                         children: [
                                           Icon(
                                             Icons.nightlight_round_outlined,
                                             size: 14,
-                                            color: AppColors.primary,
+                                            color: palette.primary,
                                           ),
                                           SizedBox(width: 4),
                                           Text(
@@ -2726,7 +2695,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                             style: TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.w700,
-                                              color: AppColors.textSecondary,
+                                              color: palette.textSecondary,
                                               letterSpacing: 0.5,
                                             ),
                                           ),
@@ -2739,16 +2708,16 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                         children: [
                                           Text(
                                             _formatTimeOfDay(_endTime),
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.w800,
-                                              color: AppColors.textPrimary,
+                                              color: palette.textPrimary,
                                             ),
                                           ),
-                                          const Icon(
+                                          Icon(
                                             Icons.keyboard_arrow_down_rounded,
                                             size: 18,
-                                            color: AppColors.textSecondary,
+                                            color: palette.textSecondary,
                                           ),
                                         ],
                                       ),
@@ -2768,26 +2737,24 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.primaryLight.withValues(
-                              alpha: 0.4,
-                            ),
+                            color: palette.primaryLight.withValues(alpha: 0.4),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.schedule_rounded,
                                 size: 16,
-                                color: AppColors.primary,
+                                color: palette.primary,
                               ),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
                                   'Working hours: $_selectedDays · ${_formatTimeOfDay(_startTime)} – ${_formatTimeOfDay(_endTime)}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
-                                    color: AppColors.primary,
+                                    color: palette.primary,
                                   ),
                                 ),
                               ),
@@ -2802,13 +2769,13 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                           children: [
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: const [
+                              children: [
                                 Text(
                                   'Standard Hourly Rate (LKR)',
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
+                                    color: palette.textPrimary,
                                   ),
                                 ),
                                 Text(
@@ -2816,17 +2783,17 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
-                                    color: AppColors.primary,
+                                    color: palette.primary,
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 6),
-                            const Text(
+                            Text(
                               'Set your baseline hourly rate. TaskBridge AI uses this to match you with customer job budgets.',
                               style: TextStyle(
                                 fontSize: 13,
-                                color: AppColors.textSecondary,
+                                color: palette.textSecondary,
                                 height: 1.35,
                               ),
                             ),
@@ -2862,15 +2829,15 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                     ),
                                     decoration: BoxDecoration(
                                       color: isSelected
-                                          ? AppColors.primary
-                                          : AppColors.primaryLight.withValues(
+                                          ? palette.primary
+                                          : palette.primaryLight.withValues(
                                               alpha: 0.5,
                                             ),
                                       borderRadius: BorderRadius.circular(20),
                                       border: Border.all(
                                         color: isSelected
-                                            ? AppColors.primary
-                                            : AppColors.primary.withValues(
+                                            ? palette.primary
+                                            : palette.primary.withValues(
                                                 alpha: 0.25,
                                               ),
                                       ),
@@ -2882,7 +2849,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                                         fontWeight: FontWeight.w700,
                                         color: isSelected
                                             ? Colors.white
-                                            : AppColors.primary,
+                                            : palette.primary,
                                       ),
                                     ),
                                   ),

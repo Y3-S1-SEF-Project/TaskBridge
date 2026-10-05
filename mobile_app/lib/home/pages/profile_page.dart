@@ -8,6 +8,8 @@ import '../../auth/data/auth_api.dart';
 import '../../auth/data/auth_models.dart';
 import '../../auth/pages/login_page.dart';
 import 'personal_details_page.dart';
+import 'customer_disputes_page.dart';
+import 'customer_inquiries_page.dart';
 import '../../core/services/location_service.dart';
 import '../../core/services/theme_service.dart';
 import '../../core/services/user_mode_service.dart';
@@ -43,6 +45,7 @@ class _ProfilePageState extends State<ProfilePage> {
   late AuthUser? _currentUser;
   final ImagePicker _picker = ImagePicker();
   bool _isUploadingPhoto = false;
+  bool _isProviderMode = false;
 
   @override
   void initState() {
@@ -366,38 +369,46 @@ class _ProfilePageState extends State<ProfilePage> {
       return;
     }
 
-    if (!_currentUser!.isProvider) {
-      final hasDetails =
-          (_currentUser!.providerSkills?.trim().isNotEmpty == true) ||
-          (_currentUser!.providerServices?.trim().isNotEmpty == true);
-      // First time: navigate to Provider Setup screen P10
-      final updated = await Navigator.push<AuthUser>(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ProviderSetupPage(
-            user: _currentUser!,
-            api: widget.api!,
-            isFirstTime: !hasDetails,
+    setState(() => _isProviderMode = true);
+
+    try {
+      if (!_currentUser!.isProvider) {
+        final hasDetails =
+            (_currentUser!.providerSkills?.trim().isNotEmpty == true) ||
+            (_currentUser!.providerServices?.trim().isNotEmpty == true);
+        // First time: navigate to Provider Setup screen P10
+        final updated = await Navigator.push<AuthUser>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProviderSetupPage(
+              user: _currentUser!,
+              api: widget.api!,
+              isFirstTime: !hasDetails,
+            ),
           ),
-        ),
-      );
-      if (updated != null && mounted) {
-        setState(() => _currentUser = updated);
+        );
+        if (updated != null && mounted) {
+          setState(() => _currentUser = updated);
+        }
+      } else {
+        // Already a provider: switch directly to Provider Mode!
+        await UserModeService.setMode(UserMode.provider);
+        if (!mounted) return;
+        final updated = await Navigator.push<AuthUser>(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                ProviderMainPage(user: _currentUser!, api: widget.api!),
+          ),
+        );
+        await UserModeService.setMode(UserMode.customer);
+        if (updated != null && mounted) {
+          setState(() => _currentUser = updated);
+        }
       }
-    } else {
-      // Already a provider: switch directly to Provider Mode!
-      await UserModeService.setMode(UserMode.provider);
-      if (!mounted) return;
-      final updated = await Navigator.push<AuthUser>(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-              ProviderMainPage(user: _currentUser!, api: widget.api!),
-        ),
-      );
-      await UserModeService.setMode(UserMode.customer);
-      if (updated != null && mounted) {
-        setState(() => _currentUser = updated);
+    } finally {
+      if (mounted) {
+        setState(() => _isProviderMode = false);
       }
     }
   }
@@ -785,21 +796,38 @@ class _ProfilePageState extends State<ProfilePage> {
                     onTap: _openSavedAddresses,
                   ),
                   _SleekMenuTile(
-                    icon: Iconsax.wallet_2,
-                    title: 'Payment methods',
-                    subtitle: 'Cards, payment preferences & history',
-                    iconBgColor: const Color(0xFFEDFAF1),
-                    iconColor: const Color(0xFF16A34A),
-                    onTap: () => _showFeatureNotice('Payment methods'),
+                    icon: Iconsax.shield_security,
+                    title: 'My disputes',
+                    subtitle: 'Active disputes, claims & admin resolutions',
+                    iconBgColor: const Color(0xFFFEF2F2),
+                    iconColor: const Color(0xFFDC2626),
+                    showDivider: true,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              CustomerDisputesPage(user: _currentUser),
+                        ),
+                      );
+                    },
                   ),
                   _SleekMenuTile(
-                    icon: Iconsax.star,
-                    title: 'My reviews',
-                    subtitle: 'Ratings & feedback given to specialists',
-                    iconBgColor: const Color(0xFFFEF9C3),
-                    iconColor: const Color(0xFFCA8A04),
+                    icon: Iconsax.message_question,
+                    title: 'My inquiries',
+                    subtitle: 'System issues, bug reports & support responses',
+                    iconBgColor: const Color(0xFFEFF6FF),
+                    iconColor: const Color(0xFF2563EB),
                     showDivider: false,
-                    onTap: () => _showFeatureNotice('My reviews'),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              CustomerInquiriesPage(user: _currentUser),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -812,7 +840,15 @@ class _ProfilePageState extends State<ProfilePage> {
                   Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      onTap: _switchToProvider,
+                      onTap: () async {
+                        if (!_isProviderMode) {
+                          setState(() => _isProviderMode = true);
+                          await Future.delayed(
+                            const Duration(milliseconds: 150),
+                          );
+                          _switchToProvider();
+                        }
+                      },
                       borderRadius: BorderRadius.circular(AppRadius.r16),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -825,7 +861,9 @@ class _ProfilePageState extends State<ProfilePage> {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: palette.soft,
+                                color: _isProviderMode
+                                    ? palette.primary.withValues(alpha: 0.12)
+                                    : palette.soft,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Center(
@@ -852,7 +890,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    'Switch to provider dashboard',
+                                    _isProviderMode
+                                        ? 'Switching to provider dashboard...'
+                                        : 'Switch to provider dashboard',
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w500,
@@ -863,11 +903,17 @@ class _ProfilePageState extends State<ProfilePage> {
                               ),
                             ),
                             Switch.adaptive(
-                              value: false,
+                              value: _isProviderMode,
                               activeTrackColor: palette.primary,
                               activeThumbColor: Colors.white,
-                              onChanged: (val) {
-                                if (val) _switchToProvider();
+                              onChanged: (val) async {
+                                if (val) {
+                                  setState(() => _isProviderMode = true);
+                                  await Future.delayed(
+                                    const Duration(milliseconds: 150),
+                                  );
+                                  _switchToProvider();
+                                }
                               },
                             ),
                           ],

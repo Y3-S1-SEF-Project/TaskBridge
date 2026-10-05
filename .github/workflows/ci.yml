@@ -1,0 +1,110 @@
+name: TaskBridge CI Pipeline
+
+on:
+  push:
+    branches: [ main, alwis-dev, admin-dev ]
+  pull_request:
+    branches: [ main, alwis-dev, admin-dev ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 1. Backend CI: .NET 10 Web API Build & Unit Tests
+  # ─────────────────────────────────────────────────────────────────────────────
+  backend-ci:
+    name: Backend CI (.NET 10 API & Tests)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK 10.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('backend.Api/**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore dependencies
+        run: dotnet restore backend.Api/backend.Api.csproj
+
+      - name: Build backend in Release mode
+        run: dotnet build backend.Api/backend.Api.csproj --configuration Release --no-restore
+
+      - name: Run Backend Unit Tests (Auth, AI Planning, Matching)
+        run: dotnet test backend.Api/Tests/TaskBridge.Auth.Tests.csproj --verbosity normal
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 2. Frontend CI: Web Admin (React 19 + TypeScript + Vite)
+  # ─────────────────────────────────────────────────────────────────────────────
+  frontend-ci:
+    name: Web Admin CI (React + TypeScript Build)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend-web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend-web
+        run: npm ci
+
+      - name: Type-check and Build Production Bundle
+        working-directory: frontend-web
+        run: npm run build
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 3. Mobile CI: Flutter Mobile App (Lint Analysis & Widget Tests)
+  # ─────────────────────────────────────────────────────────────────────────────
+  mobile-ci:
+    name: Mobile App CI (Flutter Analyze & Tests)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Create mock .env for CI asset bundle
+        working-directory: mobile_app
+        run: cp .env.example .env
+
+      - name: Install Flutter dependencies
+        working-directory: mobile_app
+        run: flutter pub get
+
+      - name: Static Code Analysis (Linting)
+        working-directory: mobile_app
+        run: flutter analyze lib/
+
+      - name: Run Flutter Widget & Unit Tests
+        working-directory: mobile_app
+        run: flutter test

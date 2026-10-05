@@ -20,6 +20,9 @@ public sealed class NotificationEntity
     public string Message { get; set; } = string.Empty;
 
     [MaxLength(50)]
+    public string? TargetRole { get; set; } // customer, provider, or null for both
+
+    [MaxLength(50)]
     public string Type { get; set; } = "General"; 
     // Types: ProposalReceived, ProposalAccepted, ProposalDeclined, CounterBid, JobStarted, JobCompleted, BookingCancelled, ServiceRequestCreated, PaymentReceived, System
 

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../ai/models/coordination_models.dart';
+import '../../core/services/location_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_palette.dart';
 import '../data/provider_api.dart';
@@ -32,6 +34,8 @@ class _CustomerJobDetailsPageState extends State<CustomerJobDetailsPage> {
   String? _resolvedPhone;
   double? _resolvedRating;
   int? _resolvedReviewCount;
+  LatLng? _bookingLatLng;
+  GoogleMapController? _mapController;
 
   @override
   void initState() {
@@ -39,6 +43,13 @@ class _CustomerJobDetailsPageState extends State<CustomerJobDetailsPage> {
     _booking = widget.booking;
     _resolvedPhone = _booking.providerPhone;
     _initProviderDetails();
+    _resolveLocationCoordinates();
+  }
+
+  @override
+  void dispose() {
+    _mapController?.dispose();
+    super.dispose();
   }
 
   void _initProviderDetails() {
@@ -166,8 +177,8 @@ class _CustomerJobDetailsPageState extends State<CustomerJobDetailsPage> {
     final pId = (_booking.providerId != null && _booking.providerId!.isNotEmpty)
         ? _booking.providerId!
         : (_providerItem?.userId != null && _providerItem!.userId.isNotEmpty
-            ? _providerItem!.userId
-            : (_providerItem?.id ?? ''));
+              ? _providerItem!.userId
+              : (_providerItem?.id ?? ''));
 
     if (pId.isEmpty) {
       Navigator.pop(context);
@@ -194,7 +205,9 @@ class _CustomerJobDetailsPageState extends State<CustomerJobDetailsPage> {
           builder: (_) => ActiveChatPage(
             conversationId: conv.id,
             recipientId: conv.providerId,
-            recipientName: conv.providerName.isNotEmpty ? conv.providerName : _booking.providerName,
+            recipientName: conv.providerName.isNotEmpty
+                ? conv.providerName
+                : _booking.providerName,
             subtitle: 'Booking #${_booking.bookingReference}',
             bookingReference: _booking.bookingReference,
           ),
@@ -206,12 +219,63 @@ class _CustomerJobDetailsPageState extends State<CustomerJobDetailsPage> {
     }
   }
 
+  /// Geocodes or extracts coordinates for the booking's service location
+  Future<void> _resolveLocationCoordinates() async {
+    final locationText = _booking.location.trim();
+    if (locationText.isEmpty) return;
+
+    // 1. Check if location contains explicit coordinates e.g. "6.8402, 79.9015"
+    final coordMatch = RegExp(
+      r'(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)',
+    ).firstMatch(locationText);
+    if (coordMatch != null) {
+      final lat = double.tryParse(coordMatch.group(1)!);
+      final lng = double.tryParse(coordMatch.group(2)!);
+      if (lat != null && lng != null && mounted) {
+        setState(() => _bookingLatLng = LatLng(lat, lng));
+        return;
+      }
+    }
+
+    // 2. Geocode via LocationService
+    try {
+      final loc = await LocationService.searchLocation(locationText);
+      if (loc != null && mounted) {
+        setState(() => _bookingLatLng = LatLng(loc.latitude, loc.longitude));
+        return;
+      }
+    } catch (_) {}
+
+    // 3. Default to Boralesgamuwa/Jambugasmulla/Colombo coordinates if mentioned
+    final lower = locationText.toLowerCase();
+    if (lower.contains('boralesgamuwa') ||
+        lower.contains('jambugasmulla') ||
+        lower.contains('nugegoda')) {
+      if (mounted) {
+        setState(() => _bookingLatLng = const LatLng(6.8480, 79.9015));
+      }
+    } else if (mounted) {
+      setState(() => _bookingLatLng = const LatLng(6.8833, 79.8653));
+    }
+  }
+
+  /// Opens the destination directly in native Google Maps or external browser navigation
   Future<void> _openInGoogleMaps() async {
     final locationStr = _booking.location.trim();
     final query = Uri.encodeComponent(locationStr);
-    final mapsUri = Uri.parse(
-      'https://www.google.com/maps/search/?api=1&query=$query',
-    );
+
+    Uri mapsUri;
+    if (_bookingLatLng != null) {
+      // Directions directly to destination coordinate
+      mapsUri = Uri.parse(
+        'https://www.google.com/maps/dir/?api=1&destination=${_bookingLatLng!.latitude},${_bookingLatLng!.longitude}',
+      );
+    } else {
+      // Universal Google Maps search URI
+      mapsUri = Uri.parse(
+        'https://www.google.com/maps/search/?api=1&query=$query',
+      );
+    }
 
     try {
       final launched = await launchUrl(
@@ -1004,70 +1068,108 @@ class _CustomerJobDetailsPageState extends State<CustomerJobDetailsPage> {
               ),
               child: Stack(
                 children: [
-                  Positioned.fill(
-                    child: CustomPaint(painter: _RealisticCityMapPainter()),
-                  ),
-                  // Sleek authentic teardrop pin positioned properly
-                  Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                  if (_bookingLatLng != null)
+                    GoogleMap(
+                      initialCameraPosition: CameraPosition(
+                        target: _bookingLatLng!,
+                        zoom: 15.0,
+                      ),
+                      onMapCreated: (ctrl) {
+                        _mapController = ctrl;
+                      },
+                      markers: {
+                        Marker(
+                          markerId: const MarkerId('job_destination_pin'),
+                          position: _bookingLatLng!,
+                          infoWindow: InfoWindow(
+                            title: 'Job Destination',
+                            snippet: shortLoc,
+                          ),
+                        ),
+                      },
+                      zoomControlsEnabled: false,
+                      myLocationButtonEnabled: false,
+                      compassEnabled: false,
+                      mapToolbarEnabled: false,
+                      tiltGesturesEnabled: false,
+                      rotateGesturesEnabled: false,
+                      scrollGesturesEnabled: false,
+                      zoomGesturesEnabled: false,
+                    )
+                  else
+                    // Vector City Map with realistic Pin Needle
+                    Stack(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: _RealisticCityMapPainter(),
                           ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0F172A),
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.25),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Row(
+                        ),
+                        // Sleek authentic teardrop pin positioned properly
+                        Center(
+                          child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Container(
-                                width: 6,
-                                height: 6,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF22C55E),
-                                  shape: BoxShape.circle,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0F172A),
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.25,
+                                      ),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFF22C55E),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      shortLoc,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(width: 6),
-                              Text(
-                                shortLoc,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
+                              const SizedBox(height: 2),
+                              const Icon(
+                                Icons.location_on_rounded,
+                                color: Color(0xFFE11D48),
+                                size: 36,
+                              ),
+                              Container(
+                                width: 14,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
                             ],
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        const Icon(
-                          Icons.location_on_rounded,
-                          color: Color(0xFFE11D48),
-                          size: 36,
-                        ),
-                        Container(
-                          width: 14,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(10),
                           ),
                         ),
                       ],
                     ),
-                  ),
 
                   // Tap gesture on the map to open directly in Google Maps
                   Positioned.fill(
@@ -1179,6 +1281,28 @@ class _CustomerJobDetailsPageState extends State<CustomerJobDetailsPage> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            height: 40,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: palette.primary,
+                side: BorderSide(
+                  color: palette.primary.withValues(alpha: 0.45),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: _openInGoogleMaps,
+              icon: const Icon(Icons.directions_rounded, size: 17),
+              label: const Text(
+                'Open in Google Maps / Directions',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              ),
+            ),
           ),
         ],
       ),

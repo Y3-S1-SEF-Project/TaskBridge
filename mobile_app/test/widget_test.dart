@@ -9,6 +9,8 @@ import 'package:mobile_app/core/widgets/design_system.dart';
 import 'package:mobile_app/home/pages/home_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:mobile_app/notifications/services/notification_service.dart';
+
 class FakeAuthApi extends AuthApi {
   int logins = 0;
 
@@ -30,6 +32,10 @@ class FakeAuthApi extends AuthApi {
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+  });
+
+  tearDown(() {
+    NotificationService().cancelReconnect();
   });
 
   test('Phone validation accepts local/international numbers and rejects landlines', () {
@@ -75,6 +81,7 @@ void main() {
 
     expect(api.logins, 1);
     expect(find.byType(HomePage), findsOneWidget);
+    NotificationService().cancelReconnect();
     await tester.pumpWidget(const SizedBox.shrink());
   });
 }

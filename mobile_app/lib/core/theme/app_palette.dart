@@ -42,6 +42,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
   Color get textPrimary => text;
   Color get textSecondary => muted;
   Color get pillBackground => soft;
+  Color get primaryLight => soft;
 
   static const light = AppPalette(
     background: AppColors.background,

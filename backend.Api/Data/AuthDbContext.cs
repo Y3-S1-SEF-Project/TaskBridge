@@ -4,6 +4,9 @@ using TaskBridge.Api.Auth;
 using TaskBridge.Api.Notifications;
 using backend.Api.AI;
 
+using TaskBridge.Api.Disputes;
+using TaskBridge.Api.Inquiries;
+
 namespace TaskBridge.Api.Data;
 
 public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(options)
@@ -21,6 +24,8 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<ChatAuditLog> ChatAuditLogs => Set<ChatAuditLog>();
     public DbSet<NotificationEntity> Notifications => Set<NotificationEntity>();
+    public DbSet<DisputeEntity> Disputes => Set<DisputeEntity>();
+    public DbSet<InquiryEntity> Inquiries => Set<InquiryEntity>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -136,6 +141,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
             entity.HasIndex(x => x.CreatedAt);
             entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
             entity.Property(x => x.Type).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.TargetRole).HasMaxLength(50);
         });
 
         model.Entity<JobMatchEntity>(entity =>
@@ -147,6 +153,26 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
             entity.HasIndex(x => x.Category);
             entity.Property(x => x.ServiceTitle).HasMaxLength(200);
             entity.Property(x => x.Category).HasMaxLength(100);
+        });
+
+        model.Entity<DisputeEntity>(entity =>
+        {
+            entity.ToTable("disputes");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.DisputeReference);
+            entity.HasIndex(x => x.BookingReference);
+            entity.HasIndex(x => x.CustomerId);
+            entity.HasIndex(x => x.ProviderId);
+            entity.HasIndex(x => x.Status);
+        });
+
+        model.Entity<InquiryEntity>(entity =>
+        {
+            entity.ToTable("inquiries");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.InquiryReference);
+            entity.HasIndex(x => x.UserId);
+            entity.HasIndex(x => x.Status);
         });
     }
     public async Task EnsureSchemaAsync(CancellationToken ct = default)
@@ -498,6 +524,69 @@ CREATE INDEX IF NOT EXISTS ix_job_matches_service_req ON job_matches (""ServiceR
 CREATE INDEX IF NOT EXISTS ix_job_matches_category ON job_matches (""Category"");
 
 ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS ""MatchedProvidersJson"" text NULL;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS ""TargetRole"" varchar(50) NULL;
+
+CREATE TABLE IF NOT EXISTS disputes (
+    ""Id"" uuid PRIMARY KEY,
+    ""DisputeReference"" varchar(50) NOT NULL,
+    ""BookingId"" uuid NULL,
+    ""BookingReference"" varchar(50) NOT NULL,
+    ""CustomerId"" uuid NULL,
+    ""CustomerName"" varchar(150) NOT NULL,
+    ""CustomerPhone"" varchar(50) NULL,
+    ""CustomerEmail"" varchar(255) NULL,
+    ""ProviderId"" uuid NULL,
+    ""ProviderName"" varchar(150) NOT NULL,
+    ""ServiceTitle"" varchar(200) NOT NULL,
+    ""Category"" varchar(100) NOT NULL,
+    ""FeeAmount"" numeric(12,2) NOT NULL DEFAULT 0,
+    ""ReasonCategory"" varchar(100) NOT NULL,
+    ""Description"" text NOT NULL,
+    ""DesiredResolution"" varchar(100) NOT NULL,
+    ""BeforePhotoUrlsJson"" text NULL,
+    ""AfterPhotoUrlsJson"" text NULL,
+    ""CustomerEvidencePhotoUrlsJson"" text NULL,
+    ""Status"" varchar(50) NOT NULL DEFAULT 'PendingAdminReview',
+    ""ResolutionSummary"" text NULL,
+    ""ResolutionAction"" varchar(50) NULL,
+    ""ResolvedByAdminId"" uuid NULL,
+    ""ResolvedByAdminName"" varchar(150) NULL,
+    ""ResolvedAt"" timestamptz NULL,
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
+    ""UpdatedAt"" timestamptz NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_disputes_ref ON disputes (""DisputeReference"");
+CREATE INDEX IF NOT EXISTS ix_disputes_booking_ref ON disputes (""BookingReference"");
+CREATE INDEX IF NOT EXISTS ix_disputes_customer ON disputes (""CustomerId"");
+CREATE INDEX IF NOT EXISTS ix_disputes_provider ON disputes (""ProviderId"");
+CREATE INDEX IF NOT EXISTS ix_disputes_status ON disputes (""Status"");
+
+CREATE TABLE IF NOT EXISTS inquiries (
+    ""Id"" uuid PRIMARY KEY,
+    ""InquiryReference"" varchar(50) NOT NULL,
+    ""UserId"" uuid NULL,
+    ""UserName"" varchar(150) NOT NULL,
+    ""UserEmail"" varchar(255) NULL,
+    ""UserPhone"" varchar(50) NULL,
+    ""UserRole"" varchar(50) NOT NULL DEFAULT 'Customer',
+    ""Subject"" varchar(255) NOT NULL,
+    ""Category"" varchar(100) NOT NULL,
+    ""Message"" text NOT NULL,
+    ""AttachmentUrlsJson"" text NULL,
+    ""Priority"" varchar(50) NOT NULL DEFAULT 'Normal',
+    ""Status"" varchar(50) NOT NULL DEFAULT 'Open',
+    ""AdminResponse"" text NULL,
+    ""RespondedByAdminId"" uuid NULL,
+    ""RespondedByAdminName"" varchar(150) NULL,
+    ""RespondedAt"" timestamptz NULL,
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
+    ""UpdatedAt"" timestamptz NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_inquiries_ref ON inquiries (""InquiryReference"");
+CREATE INDEX IF NOT EXISTS ix_inquiries_user ON inquiries (""UserId"");
+CREATE INDEX IF NOT EXISTS ix_inquiries_status ON inquiries (""Status"");
 ";
         await Database.ExecuteSqlRawAsync(sql, ct);
     }

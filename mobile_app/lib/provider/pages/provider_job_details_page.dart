@@ -19,6 +19,7 @@ import 'job_completion_proof_page.dart';
 import '../../chat/pages/active_chat_page.dart';
 import '../../chat/services/chat_service.dart';
 import '../../auth/data/auth_api.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 /// Full Job Details page for providers displaying complete customer info,
 /// confirmed schedule, realistic interactive location map, rate type (hourly vs fixed),
@@ -41,21 +42,30 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
   JobCompletionModel? _completion;
   bool _isLoadingProof = false;
 
+  bool get _isDisputed =>
+      _currentBooking.status == 'Disputed' ||
+      _currentBooking.isDisputed ||
+      _completion?.status == 'Disputed';
+
   bool get _isRevisionRequested =>
-      _currentBooking.status == 'RevisionRequested' ||
-      _currentBooking.isRevisionRequested;
+      !_isDisputed &&
+      (_currentBooking.status == 'RevisionRequested' ||
+          _currentBooking.isRevisionRequested ||
+          _completion?.status == 'RevisionRequested');
 
   bool get _isDraftProof =>
       _completion != null &&
       _completion!.status.toLowerCase() == 'draft' &&
       !_isPendingSignOff &&
       !_isRevisionRequested &&
+      !_isDisputed &&
       !_currentBooking.isCompleted;
 
   bool get _isPendingSignOff =>
-      _currentBooking.status == 'PendingCustomerSignOff' ||
-      _currentBooking.isPendingSignOff ||
-      _completion?.status == 'PendingCustomerSignOff';
+      !_isDisputed &&
+      (_currentBooking.status == 'PendingCustomerSignOff' ||
+          _currentBooking.isPendingSignOff ||
+          _completion?.status == 'PendingCustomerSignOff');
 
   LatLng? _bookingLatLng;
   GoogleMapController? _mapController;
@@ -949,7 +959,14 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
     String statusSubtitle;
     IconData icon;
 
-    if (_isRevisionRequested) {
+    if (_isDisputed) {
+      bg = Colors.red.shade50;
+      fg = Colors.red.shade900;
+      statusTitle = 'Job On Hold • Under Admin Dispute Review';
+      statusSubtitle =
+          'The customer has raised a formal dispute regarding this service. All actions are frozen while TaskBridge administrators review the case and mediate.';
+      icon = Iconsax.shield_cross;
+    } else if (_isRevisionRequested) {
       bg = palette.surface;
       fg = palette.text;
       statusTitle = 'Revision Requested by Customer';
@@ -2564,6 +2581,45 @@ class _ProviderJobDetailsPageState extends State<ProviderJobDetailsPage> {
                 'Back to Jobs',
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_isDisputed) {
+      return Container(
+        color: palette.surface,
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: SafeArea(
+          top: false,
+          child: Container(
+            height: 48,
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.red.shade200),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Iconsax.shield_cross,
+                  color: Colors.red.shade700,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Job Frozen • Under Admin Dispute Review',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red.shade800,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
             ),
           ),
         ),

@@ -33,6 +33,14 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
   late AuthUser _currentUser;
   List<FeedbackModel> _feedbacks = [];
   bool _isLoadingFeedbacks = false;
+  bool _isProviderMode = true;
+
+  Future<void> _handleSwitchToCustomer() async {
+    if (!_isProviderMode) return;
+    setState(() => _isProviderMode = false);
+    await Future.delayed(const Duration(milliseconds: 150));
+    widget.onSwitchToCustomer();
+  }
 
   @override
   void initState() {
@@ -135,10 +143,7 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                   children: [
                     Text(
                       'Total Earned This Month',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: palette.muted,
-                      ),
+                      style: TextStyle(fontSize: 13, color: palette.muted),
                     ),
                     const SizedBox(height: 6),
                     Text(
@@ -256,41 +261,41 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                   child: _isLoadingFeedbacks
                       ? const Center(child: CircularProgressIndicator())
                       : _feedbacks.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.rate_review_outlined,
-                                    size: 48,
-                                    color: palette.muted,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    'No reviews yet',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                      color: palette.text,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Completed jobs with client ratings will appear here.',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: palette.muted,
-                                    ),
-                                  ),
-                                ],
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.rate_review_outlined,
+                                size: 48,
+                                color: palette.muted,
                               ),
-                            )
-                          : ListView.separated(
-                              controller: scrollController,
-                              itemCount: _feedbacks.length,
-                              separatorBuilder: (_, _) =>
-                                  const SizedBox(height: 12),
+                              const SizedBox(height: 12),
+                              Text(
+                                'No reviews yet',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: palette.text,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Completed jobs with client ratings will appear here.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: palette.muted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.separated(
+                          controller: scrollController,
+                          itemCount: _feedbacks.length,
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: 12),
                           itemBuilder: (ctx, i) {
                             final fb = _feedbacks[i];
                             return Container(
@@ -324,9 +329,10 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                                               starIdx < fb.rating.floor()
                                                   ? Icons.star_rounded
                                                   : (starIdx < fb.rating
-                                                      ? Icons.star_half_rounded
-                                                      : Icons
-                                                          .star_outline_rounded),
+                                                        ? Icons
+                                                              .star_half_rounded
+                                                        : Icons
+                                                              .star_outline_rounded),
                                               color: const Color(0xFFF59E0B),
                                               size: 16,
                                             );
@@ -419,7 +425,9 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                       ),
                     ),
                     subtitle: Text(
-                      sheetIsDark ? 'Dark theme enabled' : 'Light theme enabled',
+                      sheetIsDark
+                          ? 'Dark theme enabled'
+                          : 'Light theme enabled',
                       style: TextStyle(color: palette.muted, fontSize: 13),
                     ),
                     trailing: Switch.adaptive(
@@ -435,10 +443,7 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                   const Divider(),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: Icon(
-                      Icons.edit_outlined,
-                      color: palette.primary,
-                    ),
+                    leading: Icon(Icons.edit_outlined, color: palette.primary),
                     title: Text(
                       'Edit Provider Profile',
                       style: TextStyle(color: palette.text),
@@ -754,7 +759,7 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                   Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      onTap: widget.onSwitchToCustomer,
+                      onTap: _handleSwitchToCustomer,
                       borderRadius: BorderRadius.circular(AppRadius.r16),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -767,7 +772,9 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: palette.soft,
+                                color: _isProviderMode
+                                    ? palette.primary.withValues(alpha: 0.12)
+                                    : palette.soft,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Center(
@@ -784,7 +791,7 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Customer mode',
+                                    'Provider mode',
                                     style: TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w700,
@@ -794,7 +801,9 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    'Switch to customer dashboard',
+                                    _isProviderMode
+                                        ? 'Currently active · Turn off for customer'
+                                        : 'Switching to customer dashboard...',
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w500,
@@ -805,11 +814,13 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                               ),
                             ),
                             Switch.adaptive(
-                              value: false,
+                              value: _isProviderMode,
                               activeTrackColor: palette.primary,
                               activeThumbColor: Colors.white,
                               onChanged: (val) {
-                                if (val) widget.onSwitchToCustomer();
+                                if (!val) {
+                                  _handleSwitchToCustomer();
+                                }
                               },
                             ),
                           ],
@@ -828,8 +839,9 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                   _SleekMenuTile(
                     icon: isDark ? Iconsax.moon : Iconsax.sun_1,
                     title: 'Dark mode',
-                    subtitle:
-                        isDark ? 'Dark theme enabled' : 'Light theme enabled',
+                    subtitle: isDark
+                        ? 'Dark theme enabled'
+                        : 'Light theme enabled',
                     iconBgColor: isDark
                         ? palette.soft
                         : const Color(0xFFFEF3C7),

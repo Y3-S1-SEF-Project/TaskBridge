@@ -11,6 +11,9 @@ import '../../core/theme/app_palette.dart';
 import '../widgets/fullscreen_photo_viewer.dart';
 import '../../chat/pages/active_chat_page.dart';
 import '../../chat/services/chat_service.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
+import 'create_dispute_page.dart';
+import 'customer_disputes_page.dart';
 
 class CustomerCompletionReviewPage extends StatefulWidget {
   final BookingItem booking;
@@ -36,6 +39,10 @@ class _CustomerCompletionReviewPageState
       widget.booking.isCompleted ||
       _completion?.status.toLowerCase() == 'completed' ||
       _existingFeedback != null;
+
+  bool get _isDisputed =>
+      widget.booking.isDisputed ||
+      _completion?.status.toLowerCase() == 'disputed';
 
   @override
   void initState() {
@@ -611,9 +618,11 @@ class _CustomerCompletionReviewPageState
                   _buildDurationAndPriceCard(palette),
                   const SizedBox(height: 24),
 
-                  // Actions: If completed, show feedback & inquiry; else show approve/revision buttons
+                  // Actions: If completed, show feedback & inquiry; else if disputed show dispute banner; else show approve/revision/dispute buttons
                   if (_isJobFinished)
                     _buildCompletedFeedbackAndInquirySection(palette)
+                  else if (_isDisputed)
+                    _buildDisputedSection(palette)
                   else
                     _buildCustomerActionButtons(palette),
                   const SizedBox(height: 30),
@@ -1107,8 +1116,10 @@ class _CustomerCompletionReviewPageState
 
   Widget _buildDurationAndPriceCard(AppPalette palette) {
     final effectiveStart = _completion?.startedAt ?? widget.booking.startedAt;
-    final effectiveEnd = _completion?.endedAt ?? widget.booking.endedAt ?? DateTime.now();
-    final mins = _completion?.durationMinutes ??
+    final effectiveEnd =
+        _completion?.endedAt ?? widget.booking.endedAt ?? DateTime.now();
+    final mins =
+        _completion?.durationMinutes ??
         widget.booking.durationMinutes ??
         (effectiveStart != null
             ? effectiveEnd.difference(effectiveStart).inMinutes.clamp(1, 9999)
@@ -1270,7 +1281,112 @@ class _CustomerCompletionReviewPageState
             ),
           ),
         ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          height: 46,
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.red.shade700,
+              side: BorderSide(color: Colors.red.shade300),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            onPressed: () async {
+              final result = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CreateDisputePage(
+                    booking: widget.booking,
+                    completion: _completion,
+                  ),
+                ),
+              );
+              if (result == true) {
+                _loadCompletionDetails();
+              }
+            },
+            icon: const Icon(Iconsax.shield_cross, size: 18),
+            label: Text(
+              'Raise Dispute / Report Issue to Admin',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildDisputedSection(AppPalette palette) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.red.shade300, width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Iconsax.shield_cross, color: Colors.red.shade700, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Job Disputed & Under Admin Review',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.red.shade900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'A formal dispute was opened for this job. Work sign-off and payment disbursement are on freeze until TaskBridge operations completes mediation.',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13,
+              color: Colors.red.shade900,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade700,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const CustomerDisputesPage(),
+                  ),
+                );
+              },
+              icon: const Icon(Iconsax.document_text, size: 18),
+              label: const Text(
+                'View Dispute Status & Details',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1657,7 +1773,8 @@ class _CustomerCompletionReviewPageState
                     showDialog(
                       context: context,
                       barrierDismissible: false,
-                      builder: (_) => const Center(child: CircularProgressIndicator()),
+                      builder: (_) =>
+                          const Center(child: CircularProgressIndicator()),
                     );
 
                     final pId = widget.booking.providerId ?? '';
@@ -1684,7 +1801,8 @@ class _CustomerCompletionReviewPageState
                             conversationId: conv.id,
                             recipientId: conv.providerId,
                             recipientName: widget.booking.providerName,
-                            subtitle: 'Booking #${widget.booking.bookingReference}',
+                            subtitle:
+                                'Booking #${widget.booking.bookingReference}',
                             bookingReference: widget.booking.bookingReference,
                           ),
                         ),

@@ -70,8 +70,12 @@ public class ReviewAgentService
             ?? string.Empty;
         var model = _configuration["OpenAI:Model"] ?? "gpt-4o-mini";
 
+        var altRef = request.BookingReference.StartsWith("TB-")
+            ? request.BookingReference.Replace("TB-", "PR-")
+            : request.BookingReference.Replace("PR-", "TB-");
+
         var booking = await _dbContext.Bookings
-            .FirstOrDefaultAsync(b => b.BookingReference == request.BookingReference, ct);
+            .FirstOrDefaultAsync(b => b.BookingReference == request.BookingReference || b.BookingReference == altRef, ct);
 
         var startedAt = booking?.StartedAt ?? request.StartedAt ?? booking?.CreatedAt ?? DateTimeOffset.UtcNow;
         var endedAt = request.EndedAt ?? DateTimeOffset.UtcNow;
@@ -449,22 +453,34 @@ public class ReviewAgentService
 
     public async Task<JobCompletionEntity?> GetCompletionDetailsAsync(string bookingRef, CancellationToken ct = default)
     {
+        var altRef = bookingRef.StartsWith("TB-")
+            ? bookingRef.Replace("TB-", "PR-")
+            : bookingRef.Replace("PR-", "TB-");
+
         var comp = await _dbContext.JobCompletions
-            .FirstOrDefaultAsync(c => c.BookingReference == bookingRef, ct);
+            .FirstOrDefaultAsync(c => c.BookingReference == bookingRef || c.BookingReference == altRef, ct);
         if (comp != null)
         {
-            var b = await _dbContext.Bookings.AsNoTracking().FirstOrDefaultAsync(x => x.BookingReference == bookingRef, ct);
-            if (b != null && comp.Status == "RevisionRequested" && b.Status != "RevisionRequested")
+            var b = await _dbContext.Bookings.AsNoTracking().FirstOrDefaultAsync(x => x.BookingReference == bookingRef || x.BookingReference == altRef, ct);
+            if (b != null)
             {
-                comp.Status = "Draft";
-                await _dbContext.SaveChangesAsync(ct);
+                if (comp.CustomerId == null && b.CustomerId != null)
+                {
+                    comp.CustomerId = b.CustomerId;
+                    comp.CustomerName = b.CustomerName;
+                }
+                if (comp.Status == "RevisionRequested" && b.Status != "RevisionRequested")
+                {
+                    comp.Status = "Draft";
+                    await _dbContext.SaveChangesAsync(ct);
+                }
             }
             return comp;
         }
 
         // Check if booking exists
         var booking = await _dbContext.Bookings
-            .FirstOrDefaultAsync(b => b.BookingReference == bookingRef, ct);
+            .FirstOrDefaultAsync(b => b.BookingReference == bookingRef || b.BookingReference == altRef, ct);
         if (booking == null)
             return null;
 
@@ -540,18 +556,27 @@ public class ReviewAgentService
 
     public async Task<bool> SubmitToCustomerAsync(SubmitToCustomerRequest request, CancellationToken ct = default)
     {
+        var altRef = request.BookingReference.StartsWith("TB-")
+            ? request.BookingReference.Replace("TB-", "PR-")
+            : request.BookingReference.Replace("PR-", "TB-");
+
         var booking = await _dbContext.Bookings
-            .FirstOrDefaultAsync(b => b.BookingReference == request.BookingReference, ct);
+            .FirstOrDefaultAsync(b => b.BookingReference == request.BookingReference || b.BookingReference == altRef, ct);
         if (booking == null) return false;
 
         booking.Status = "PendingCustomerSignOff";
         booking.UpdatedAt = DateTimeOffset.UtcNow;
 
         var completion = await _dbContext.JobCompletions
-            .FirstOrDefaultAsync(c => c.BookingReference == request.BookingReference, ct);
+            .FirstOrDefaultAsync(c => c.BookingReference == request.BookingReference || c.BookingReference == altRef, ct);
         if (completion != null)
         {
             completion.Status = "PendingCustomerSignOff";
+            if (completion.CustomerId == null && booking.CustomerId != null)
+            {
+                completion.CustomerId = booking.CustomerId;
+                completion.CustomerName = booking.CustomerName;
+            }
             completion.UpdatedAt = DateTimeOffset.UtcNow;
         }
 
@@ -566,8 +591,12 @@ public class ReviewAgentService
 
     public async Task<object> CustomerApproveAsync(CustomerApprovalRequest request, CancellationToken ct = default)
     {
+        var altRef = request.BookingReference.StartsWith("TB-")
+            ? request.BookingReference.Replace("TB-", "PR-")
+            : request.BookingReference.Replace("PR-", "TB-");
+
         var completion = await _dbContext.JobCompletions
-            .FirstOrDefaultAsync(c => c.BookingReference == request.BookingReference, ct);
+            .FirstOrDefaultAsync(c => c.BookingReference == request.BookingReference || c.BookingReference == altRef, ct);
 
         if (completion != null)
         {
@@ -576,7 +605,7 @@ public class ReviewAgentService
         }
 
         var booking = await _dbContext.Bookings
-            .FirstOrDefaultAsync(b => b.BookingReference == request.BookingReference, ct);
+            .FirstOrDefaultAsync(b => b.BookingReference == request.BookingReference || b.BookingReference == altRef, ct);
 
         if (booking != null)
         {
@@ -601,8 +630,12 @@ public class ReviewAgentService
 
     public async Task<object> RequestRevisionAsync(RequestRevisionRequest request, CancellationToken ct = default)
     {
+        var altRef = request.BookingReference.StartsWith("TB-")
+            ? request.BookingReference.Replace("TB-", "PR-")
+            : request.BookingReference.Replace("PR-", "TB-");
+
         var completion = await _dbContext.JobCompletions
-            .FirstOrDefaultAsync(c => c.BookingReference == request.BookingReference, ct);
+            .FirstOrDefaultAsync(c => c.BookingReference == request.BookingReference || c.BookingReference == altRef, ct);
 
         if (completion != null)
         {
@@ -622,7 +655,7 @@ public class ReviewAgentService
         }
 
         var booking = await _dbContext.Bookings
-            .FirstOrDefaultAsync(b => b.BookingReference == request.BookingReference, ct);
+            .FirstOrDefaultAsync(b => b.BookingReference == request.BookingReference || b.BookingReference == altRef, ct);
 
         if (booking != null)
         {

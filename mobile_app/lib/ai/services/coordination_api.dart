@@ -237,56 +237,76 @@ class CoordinationApi {
     final isCustomer = sender?.toLowerCase() == 'customer';
     final targetStatus = isCustomer ? 'CustomerCountered' : 'ProviderCountered';
 
-    final idx = _localBookings.indexWhere(
-      (b) => b.bookingReference == bookingReference,
-    );
-    if (idx != -1) {
-      final old = _localBookings[idx];
-      if (old.isActive || old.status.toLowerCase() == 'in progress') {
-        return false;
+    final altRef = bookingReference.startsWith('TB-')
+        ? bookingReference.replaceFirst('TB-', 'PR-')
+        : bookingReference.replaceFirst('PR-', 'TB-');
+    final baseRef = bookingReference
+        .replaceFirst('TB-', '')
+        .replaceFirst('PR-', '');
+
+    for (var i = 0; i < _localBookings.length; i++) {
+      final b = _localBookings[i];
+      final bBase = b.bookingReference
+          .replaceFirst('TB-', '')
+          .replaceFirst('PR-', '');
+      if (b.bookingReference == bookingReference ||
+          b.bookingReference == altRef ||
+          bBase == baseRef) {
+        if (b.isActive || b.status.toLowerCase() == 'in progress') {
+          return false;
+        }
+        final newSchedule = availableTime != null && availableTime.isNotEmpty
+            ? '$availableTime · ${b.location}'
+            : b.schedule;
+        _localBookings[i] = BookingItem(
+          id: b.id,
+          bookingReference: b.bookingReference,
+          customerName: b.customerName,
+          customerPhone: b.customerPhone,
+          providerName: b.providerName,
+          providerId: b.providerId,
+          providerPhone: b.providerPhone,
+          serviceTitle: b.serviceTitle,
+          category: b.category,
+          location: b.location,
+          schedule: newSchedule,
+          price: counterPrice,
+          rateType: rateType ?? b.rateType,
+          status: targetStatus,
+          createdAt: b.createdAt,
+        );
       }
-      final newSchedule = availableTime != null && availableTime.isNotEmpty
-          ? '$availableTime · ${old.location}'
-          : old.schedule;
-      _localBookings[idx] = BookingItem(
-        id: old.id,
-        bookingReference: old.bookingReference,
-        customerName: old.customerName,
-        providerName: old.providerName,
-        serviceTitle: old.serviceTitle,
-        category: old.category,
-        location: old.location,
-        schedule: newSchedule,
-        price: counterPrice,
-        rateType: rateType ?? old.rateType,
-        status: targetStatus,
-        createdAt: old.createdAt,
-      );
     }
 
-    final pIdx = _localProposals.indexWhere(
-      (p) => p.proposalReference == bookingReference,
-    );
-    if (pIdx != -1) {
-      final old = _localProposals[pIdx];
-      final newSchedule = availableTime != null && availableTime.isNotEmpty
-          ? '$availableTime · ${old.location}'
-          : old.preferredSchedule;
-      _localProposals[pIdx] = ProposalItem(
-        id: old.id,
-        proposalReference: old.proposalReference,
-        serviceTitle: old.serviceTitle,
-        category: old.category,
-        providerName: old.providerName,
-        providerId: old.providerId,
-        customerName: old.customerName,
-        location: old.location,
-        preferredSchedule: newSchedule,
-        estimatedRate: counterPrice,
-        rateType: rateType ?? old.rateType,
-        status: targetStatus,
-        createdAt: old.createdAt,
-      );
+    for (var i = 0; i < _localProposals.length; i++) {
+      final p = _localProposals[i];
+      final pBase = p.proposalReference
+          .replaceFirst('TB-', '')
+          .replaceFirst('PR-', '');
+      if (p.proposalReference == bookingReference ||
+          p.proposalReference == altRef ||
+          pBase == baseRef) {
+        final newSchedule = availableTime != null && availableTime.isNotEmpty
+            ? '$availableTime · ${p.location}'
+            : p.preferredSchedule;
+        _localProposals[i] = ProposalItem(
+          id: p.id,
+          proposalReference: p.proposalReference,
+          serviceTitle: p.serviceTitle,
+          category: p.category,
+          providerName: p.providerName,
+          providerId: p.providerId,
+          providerPhone: p.providerPhone,
+          customerName: p.customerName,
+          customerPhone: p.customerPhone,
+          location: p.location,
+          preferredSchedule: newSchedule,
+          estimatedRate: counterPrice,
+          rateType: rateType ?? p.rateType,
+          status: targetStatus,
+          createdAt: p.createdAt,
+        );
+      }
     }
 
     final payload = jsonEncode({
@@ -318,6 +338,38 @@ class CoordinationApi {
 
     BookingsSyncService.instance.triggerImmediateUpdate();
     return true;
+  }
+
+  /// Evaluates a rebid against the provider's standard hourly rate using the Coordination Agent.
+  static Future<RebidEvaluationResult?> evaluateRebid({
+    required String bookingReference,
+    required double proposedPrice,
+    required String senderRole,
+  }) async {
+    final payload = jsonEncode({
+      'bookingReference': bookingReference,
+      'proposedPrice': proposedPrice,
+      'senderRole': senderRole,
+    });
+
+    for (final candidate in _candidateUrls) {
+      final uri = Uri.parse('$candidate/api/agent/coordination/rebid/evaluate');
+      try {
+        final response = await http
+            .post(
+              uri,
+              headers: {'Content-Type': 'application/json'},
+              body: payload,
+            )
+            .timeout(const Duration(seconds: 4));
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          return RebidEvaluationResult.fromJson(data);
+        }
+      } catch (_) {}
+    }
+    return null;
   }
 
   /// Cancels an active quotation request or booking.
@@ -734,70 +786,106 @@ class CoordinationApi {
     String? rateType,
     String? acceptedByRole,
   }) async {
-    // Update local proposal
-    final idx = _localProposals.indexWhere(
-      (p) => p.proposalReference == proposalReference,
-    );
-    if (idx != -1) {
-      final old = _localProposals[idx];
-      _localProposals[idx] = ProposalItem(
-        id: old.id,
-        proposalReference: old.proposalReference,
-        serviceTitle: old.serviceTitle,
-        category: old.category,
-        providerName: old.providerName,
-        providerId: old.providerId,
-        customerName: old.customerName,
-        location: old.location,
-        preferredSchedule: schedule,
-        estimatedRate: price,
-        rateType: rateType ?? old.rateType,
-        status: 'Accepted',
-        createdAt: old.createdAt,
+    final altRef = proposalReference.startsWith('TB-')
+        ? proposalReference.replaceFirst('TB-', 'PR-')
+        : proposalReference.replaceFirst('PR-', 'TB-');
+    final propBase = proposalReference
+        .replaceFirst('TB-', '')
+        .replaceFirst('PR-', '');
+
+    // Resolve effective agreed price: if passed price <= 0, fallback to local proposal rebid rate
+    double effectivePrice = price;
+    if (effectivePrice <= 0) {
+      final pMatch = _localProposals.where(
+        (p) =>
+            p.proposalReference == proposalReference ||
+            p.proposalReference == altRef ||
+            p.proposalReference
+                    .replaceFirst('TB-', '')
+                    .replaceFirst('PR-', '') ==
+                propBase,
       );
+      if (pMatch.isNotEmpty && pMatch.first.estimatedRate > 0) {
+        effectivePrice = pMatch.first.estimatedRate;
+      }
+    }
+
+    // Update local proposal
+    for (var i = 0; i < _localProposals.length; i++) {
+      final p = _localProposals[i];
+      final pBase = p.proposalReference
+          .replaceFirst('TB-', '')
+          .replaceFirst('PR-', '');
+      if (p.proposalReference == proposalReference ||
+          p.proposalReference == altRef ||
+          pBase == propBase) {
+        _localProposals[i] = ProposalItem(
+          id: p.id,
+          proposalReference: p.proposalReference,
+          serviceTitle: p.serviceTitle,
+          category: p.category,
+          providerName: p.providerName,
+          providerId: p.providerId,
+          providerPhone: p.providerPhone,
+          customerName: p.customerName,
+          customerPhone: p.customerPhone,
+          location: p.location,
+          preferredSchedule: schedule,
+          estimatedRate: effectivePrice,
+          rateType: rateType ?? p.rateType,
+          status: 'Accepted',
+          createdAt: p.createdAt,
+        );
+      }
     }
 
     // Optimistically insert confirmed booking into _localBookings immediately
-    if (idx != -1) {
-      final old = _localProposals[idx];
-      final optimisticBooking = BookingItem(
-        id: 'b-${DateTime.now().millisecondsSinceEpoch}',
-        bookingReference: proposalReference.startsWith('PR-')
-            ? proposalReference.replaceFirst('PR-', 'TB-')
-            : proposalReference,
-        customerName: old.customerName,
-        customerPhone: old.customerPhone,
-        providerName: old.providerName,
-        providerId: old.providerId,
-        providerPhone: old.providerPhone,
-        serviceTitle: old.serviceTitle,
-        category: old.category,
-        location: old.location,
-        schedule: schedule,
-        price: price,
-        rateType: rateType ?? old.rateType,
-        status: 'Upcoming',
-        createdAt: DateTime.now(),
-      );
-      final propBase = proposalReference
-          .replaceFirst('TB-', '')
-          .replaceFirst('PR-', '');
-      _localBookings.removeWhere(
-        (b) =>
-            b.bookingReference
-                .replaceFirst('TB-', '')
-                .replaceFirst('PR-', '') ==
-            propBase,
-      );
-      _localBookings.insert(0, optimisticBooking);
-    }
+    final matchingProps = _localProposals.where(
+      (p) =>
+          p.proposalReference == proposalReference ||
+          p.proposalReference == altRef ||
+          p.proposalReference
+                  .replaceFirst('TB-', '')
+                  .replaceFirst('PR-', '') ==
+              propBase,
+    );
+    final pSource = matchingProps.isNotEmpty ? matchingProps.first : null;
+
+    final optimisticBooking = BookingItem(
+      id: 'b-${DateTime.now().millisecondsSinceEpoch}',
+      bookingReference: proposalReference.startsWith('PR-')
+          ? proposalReference.replaceFirst('PR-', 'TB-')
+          : proposalReference,
+      customerName: pSource?.customerName ?? 'Customer',
+      customerPhone: pSource?.customerPhone,
+      providerName: pSource?.providerName ?? 'Provider',
+      providerId: pSource?.providerId,
+      providerPhone: pSource?.providerPhone,
+      serviceTitle: pSource?.serviceTitle ?? 'Service',
+      category: pSource?.category ?? 'General',
+      location: pSource?.location ?? '',
+      schedule: schedule,
+      price: effectivePrice,
+      rateType: rateType ?? pSource?.rateType ?? 'Hourly',
+      status: 'Upcoming',
+      createdAt: DateTime.now(),
+    );
+
+    _localBookings.removeWhere(
+      (b) =>
+          b.bookingReference
+              .replaceFirst('TB-', '')
+              .replaceFirst('PR-', '') ==
+          propBase,
+    );
+    _localBookings.insert(0, optimisticBooking);
     BookingsSyncService.instance.triggerImmediateUpdate();
 
     final candidates = _candidateUrls;
     final payload = jsonEncode({
       'proposalReference': proposalReference,
       'confirmedSchedule': schedule,
-      'confirmedPrice': price,
+      'confirmedPrice': effectivePrice,
       'rateType': rateType,
       'acceptedByRole': acceptedByRole,
     });

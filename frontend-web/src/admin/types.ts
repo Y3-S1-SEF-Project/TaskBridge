@@ -290,3 +290,69 @@ export interface AiWorkflowsSummary {
   workflows: AiWorkflowItem[];
 }
 
+export interface DisputeRecord {
+  id: string;
+  disputeReference: string;
+  bookingId?: string | null;
+  bookingReference: string;
+  customerId?: string | null;
+  customerName: string;
+  customerPhone?: string | null;
+  customerEmail?: string | null;
+  providerId?: string | null;
+  providerName: string;
+  serviceTitle: string;
+  category: string;
+  feeAmount: number;
+  reasonCategory: string;
+  description: string;
+  desiredResolution: string;
+  beforePhotoUrls: string[];
+  afterPhotoUrls: string[];
+  customerEvidencePhotoUrls: string[];
+  status: string; // PendingAdminReview, UnderInvestigation, Resolved, Cancelled
+  resolutionSummary?: string | null;
+  resolutionAction?: string | null;
+  resolvedByAdminName?: string | null;
+  resolvedAt?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface DisputesSummary {
+  totalDisputes: number;
+  pendingCount: number;
+  resolvedCount: number;
+  disputes: DisputeRecord[];
+}
+
+export interface SupportInquiryRecord {
+  id: string;
+  inquiryReference: string;
+  userId?: string | null;
+  userName: string;
+  userEmail?: string | null;
+  userPhone?: string | null;
+  userRole: string;
+  subject: string;
+  category: string;
+  message: string;
+  attachmentUrls: string[];
+  priority: 'Normal' | 'High' | 'Urgent' | string;
+  status: 'Open' | 'InProgress' | 'Responded' | 'Resolved' | string;
+  adminResponse?: string | null;
+  respondedByAdminName?: string | null;
+  respondedAt?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface InquiriesSummary {
+  inquiries: SupportInquiryRecord[];
+  totalCount: number;
+  openCount: number;
+  respondedCount: number;
+  resolvedCount: number;
+}
+
+

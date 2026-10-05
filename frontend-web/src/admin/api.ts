@@ -13,6 +13,10 @@ import type {
   AiWorkflowsSummary,
   AiWorkflowTrace,
   AiMonitoringSummary,
+  DisputesSummary,
+  DisputeRecord,
+  SupportInquiryRecord,
+  InquiriesSummary,
 } from './types';
 
 const API_BASE = '/api/admin';
@@ -457,3 +461,100 @@ export async function fetchAiMonitoring(): Promise<AiMonitoringSummary> {
   const err = await res.json().catch(() => ({}));
   throw new Error(err.message || 'Failed to fetch AI monitoring telemetry.');
 }
+
+export async function fetchAdminDisputes(params?: {
+  status?: string;
+  search?: string;
+}): Promise<DisputesSummary> {
+  const token = getStoredToken();
+  const searchParams = new URLSearchParams();
+  if (params?.search) searchParams.set('search', params.search);
+  if (params?.status && params.status !== 'All') searchParams.set('status', params.status);
+
+  const qs = searchParams.toString();
+  const res = await fetch(`/api/admin/disputes${qs ? `?${qs}` : ''}`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+
+  if (res.ok) return await res.json();
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to fetch disputes.');
+}
+
+export async function resolveAdminDispute(
+  disputeId: string,
+  action: 'Completed' | 'Cancelled' | string,
+  summary: string,
+  adminName?: string
+): Promise<{ success: boolean; dispute: DisputeRecord; bookingStatus: string; message: string }> {
+  const token = getStoredToken();
+  const res = await fetch(`/api/admin/disputes/${encodeURIComponent(disputeId)}/resolve`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      resolutionAction: action,
+      resolutionSummary: summary,
+      adminName: adminName || 'Admin Operations',
+    }),
+  });
+
+  if (res.ok) return await res.json();
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to resolve dispute.');
+}
+
+export async function fetchAdminInquiries(filters?: {
+  status?: string;
+  priority?: string;
+  search?: string;
+}): Promise<InquiriesSummary> {
+  const token = getStoredToken();
+  const params = new URLSearchParams();
+  if (filters?.status && filters.status !== 'All') params.append('status', filters.status);
+  if (filters?.priority && filters.priority !== 'All') params.append('priority', filters.priority);
+  if (filters?.search) params.append('search', filters.search);
+
+  try {
+    const res = await fetch(`/api/admin/inquiries?${params.toString()}`, {
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+    if (res.ok) return await res.json();
+  } catch {}
+
+  return { inquiries: [], totalCount: 0, openCount: 0, respondedCount: 0, resolvedCount: 0 };
+}
+
+export async function respondAdminInquiry(
+  id: string,
+  data: { responseMessage: string; status: string; adminName?: string }
+): Promise<SupportInquiryRecord> {
+  const token = getStoredToken();
+  const res = await fetch(`/api/admin/inquiries/${encodeURIComponent(id)}/respond`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (res.ok) return await res.json();
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to send inquiry response.');
+}
+
+export async function deleteAdminInquiry(id: string): Promise<boolean> {
+  const token = getStoredToken();
+  const res = await fetch(`/api/admin/inquiries/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  return res.ok;
+}
+
+

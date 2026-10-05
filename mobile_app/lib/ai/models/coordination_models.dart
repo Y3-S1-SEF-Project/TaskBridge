@@ -275,6 +275,7 @@ class BookingItem {
           status.toLowerCase() == 'in progress');
   bool get isPendingSignOff => status.toLowerCase() == 'pendingcustomersignoff';
   bool get isRevisionRequested => status.toLowerCase() == 'revisionrequested';
+  bool get isDisputed => status.toLowerCase() == 'disputed';
   bool get isRequested =>
       !isCancelled &&
       !isCompleted &&
@@ -285,7 +286,11 @@ class BookingItem {
           isProviderCountered ||
           isCustomerCountered);
   bool get isOngoing =>
-      (isRequested || isActive || isPendingSignOff || isRevisionRequested) &&
+      (isRequested ||
+          isActive ||
+          isPendingSignOff ||
+          isRevisionRequested ||
+          isDisputed) &&
       !isCancelled &&
       !isCompleted &&
       !isUpcoming;
@@ -464,6 +469,45 @@ class ProposalItem {
       notes: notes,
       status: normStatus,
       createdAt: createdAt,
+    );
+  }
+}
+
+class RebidEvaluationResult {
+  final bool hasAgentWarning;
+  final String? agentWarning;
+  final String agentAdvisoryType;
+  final double standardHourlyRate;
+  final double proposedPrice;
+  final double variancePercentage;
+  final String providerName;
+
+  const RebidEvaluationResult({
+    required this.hasAgentWarning,
+    this.agentWarning,
+    this.agentAdvisoryType = 'Balanced',
+    this.standardHourlyRate = 0.0,
+    this.proposedPrice = 0.0,
+    this.variancePercentage = 0.0,
+    this.providerName = '',
+  });
+
+  factory RebidEvaluationResult.fromJson(Map<String, dynamic> json) {
+    return RebidEvaluationResult(
+      hasAgentWarning: json['hasAgentWarning'] as bool? ?? false,
+      agentWarning: json['agentWarning'] as String?,
+      agentAdvisoryType: json['agentAdvisoryType'] as String? ?? 'Balanced',
+      standardHourlyRate:
+          (json['standardHourlyRate'] as num?)?.toDouble() ??
+          (json['standardRate'] as num?)?.toDouble() ??
+          0.0,
+      proposedPrice:
+          (json['proposedPrice'] as num?)?.toDouble() ??
+          (json['counterPrice'] as num?)?.toDouble() ??
+          0.0,
+      variancePercentage:
+          (json['variancePercentage'] as num?)?.toDouble() ?? 0.0,
+      providerName: json['providerName'] as String? ?? '',
     );
   }
 }

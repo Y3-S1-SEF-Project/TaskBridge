@@ -465,14 +465,22 @@ public class CoordinationAgentService
         var proposal = await _dbContext.Proposals.FirstOrDefaultAsync(p => p.ProposalReference == req.ProposalReference, ct);
         if (proposal == null)
         {
-            var altRef = req.ProposalReference.Replace("TB-", "PR-");
+            var altRef = req.ProposalReference.StartsWith("TB-")
+                ? req.ProposalReference.Replace("TB-", "PR-")
+                : req.ProposalReference.Replace("PR-", "TB-");
             proposal = await _dbContext.Proposals.FirstOrDefaultAsync(p => p.ProposalReference == altRef, ct);
         }
 
-        if (proposal == null) return null;
+        if (proposal == null)
+        {
+            var linkedB = await _dbContext.Bookings.FirstOrDefaultAsync(b => b.BookingReference == req.ProposalReference, ct);
+            if (linkedB?.ProposalId != null)
+            {
+                proposal = await _dbContext.Proposals.FirstOrDefaultAsync(p => p.Id == linkedB.ProposalId.Value, ct);
+            }
+        }
 
-        proposal.Status = "Accepted";
-        proposal.UpdatedAt = DateTimeOffset.UtcNow;
+        if (proposal == null) return null;
 
         Guid? bookingCustId = proposal.CustomerId ?? await ResolveCustomerIdAsync(null, proposal.CustomerName, ct);
         if (!proposal.CustomerId.HasValue && bookingCustId.HasValue)
@@ -484,13 +492,28 @@ public class CoordinationAgentService
         var linkedBooking = await _dbContext.Bookings.FirstOrDefaultAsync(b =>
             b.ProposalId == proposal.Id ||
             b.BookingReference == proposal.ProposalReference ||
-            b.BookingReference == proposal.ProposalReference.Replace("PR-", "TB-"), ct);
+            b.BookingReference == proposal.ProposalReference.Replace("PR-", "TB-") ||
+            b.BookingReference == proposal.ProposalReference.Replace("TB-", "PR-"), ct);
+
+        // Always resolve the agreed price from the proposal's updated rebid rate first
+        decimal resolvedAgreedPrice = req.ConfirmedPrice > 0
+            ? req.ConfirmedPrice
+            : (proposal.EstimatedRate > 0 ? proposal.EstimatedRate : (linkedBooking?.Price > 0 ? linkedBooking.Price : 2500m));
+
+        if (proposal.EstimatedRate > 0 && req.ConfirmedPrice <= 0)
+        {
+            resolvedAgreedPrice = proposal.EstimatedRate;
+        }
+
+        proposal.Status = "Accepted";
+        proposal.EstimatedRate = resolvedAgreedPrice;
+        proposal.UpdatedAt = DateTimeOffset.UtcNow;
 
         if (linkedBooking != null)
         {
             linkedBooking.Status = "Upcoming";
             linkedBooking.Schedule = !string.IsNullOrWhiteSpace(req.ConfirmedSchedule) ? req.ConfirmedSchedule : proposal.PreferredSchedule;
-            linkedBooking.Price = req.ConfirmedPrice > 0 ? req.ConfirmedPrice : proposal.EstimatedRate;
+            linkedBooking.Price = resolvedAgreedPrice;
             if (!string.IsNullOrWhiteSpace(req.RateType)) linkedBooking.RateType = req.RateType;
             if (bookingCustId.HasValue) linkedBooking.CustomerId = bookingCustId;
             linkedBooking.UpdatedAt = DateTimeOffset.UtcNow;
@@ -518,7 +541,7 @@ public class CoordinationAgentService
             Category = proposal.Category,
             Location = proposal.Location,
             Schedule = !string.IsNullOrWhiteSpace(req.ConfirmedSchedule) ? req.ConfirmedSchedule : proposal.PreferredSchedule,
-            Price = req.ConfirmedPrice > 0 ? req.ConfirmedPrice : proposal.EstimatedRate,
+            Price = resolvedAgreedPrice,
             RateType = !string.IsNullOrWhiteSpace(req.RateType) ? req.RateType : proposal.RateType,
             Notes = proposal.Notes,
             Status = "Upcoming",
@@ -679,14 +702,165 @@ public class CoordinationAgentService
     }
 
     /// <summary>
-    /// Allows a provider to submit a counter-bid / updated quote.
+    /// Evaluates a rebid against the provider's standard hourly rate and issues cognitive warnings if pricing is out of balance.
+    /// </summary>
+    public async Task<RebidEvaluationResult> EvaluateRebidAsync(EvaluateRebidRequest req, CancellationToken ct = default)
+    {
+        var isCustomer = string.Equals(req.SenderRole, "customer", StringComparison.OrdinalIgnoreCase);
+        var booking = await _dbContext.Bookings.FirstOrDefaultAsync(b => b.BookingReference == req.BookingReference, ct);
+        var proposal = booking == null
+            ? await _dbContext.Proposals.FirstOrDefaultAsync(p => p.ProposalReference == req.BookingReference, ct)
+            : null;
+
+        var providerId = booking?.ProviderId ?? proposal?.ProviderId;
+        var providerName = booking?.ProviderName ?? proposal?.ProviderName ?? "Provider";
+        var serviceTitle = booking?.ServiceTitle ?? proposal?.ServiceTitle ?? "Service";
+
+        // 1. Resolve standard hourly rate from ProviderProfile, proposal, or booking
+        decimal standardRate = 0m;
+        if (providerId.HasValue)
+        {
+            var profile = await _dbContext.Providers.FirstOrDefaultAsync(p => p.UserId == providerId.Value, ct);
+            if (profile != null && profile.HourlyRate > 0)
+            {
+                standardRate = profile.HourlyRate;
+            }
+        }
+
+        if (standardRate == 0m && !string.IsNullOrWhiteSpace(providerName))
+        {
+            var profile = await _dbContext.Providers
+                .Include(p => p.User)
+                .FirstOrDefaultAsync(p => p.User != null && p.User.FullName.ToLower() == providerName.ToLower(), ct);
+            if (profile != null && profile.HourlyRate > 0)
+            {
+                standardRate = profile.HourlyRate;
+            }
+        }
+
+        if (standardRate == 0m)
+        {
+            if (proposal != null && proposal.EstimatedRate > 0) standardRate = proposal.EstimatedRate;
+            else if (booking != null && booking.Price > 0) standardRate = booking.Price;
+            else standardRate = 2500m; // Default benchmark rate
+        }
+
+        // 2. Compute variance
+        var proposedPrice = req.ProposedPrice;
+        double variancePct = standardRate > 0
+            ? (double)Math.Round(((proposedPrice - standardRate) / standardRate) * 100, 1)
+            : 0;
+
+        bool hasWarning = false;
+        string? warningMessage = null;
+        string advisoryType = "Balanced";
+
+        if (!isCustomer)
+        {
+            // PROVIDER REBID: Check if higher than standard hourly rate
+            if (proposedPrice > standardRate)
+            {
+                hasWarning = true;
+                advisoryType = "RateHigherThanBenchmark";
+                warningMessage = $"Your registered profile hourly rate is Rs. {standardRate:N0}/hr. This proposal rebid (Rs. {proposedPrice:N0}/hr) is {variancePct:+0.0}% higher than your actual rate. This higher rate may lower your chance of customer acceptance.";
+            }
+        }
+        else
+        {
+            // CUSTOMER REBID: Check if lower than provider standard rate
+            if (proposedPrice < standardRate)
+            {
+                hasWarning = true;
+                advisoryType = "RateLowerThanBenchmark";
+                var discountPct = Math.Abs(variancePct);
+                warningMessage = $"Warning: Your offered price of Rs. {proposedPrice:N0} is {discountPct:0.0}% lower than {providerName}'s actual rate of Rs. {standardRate:N0}/hr. Providers are less likely to accept bids significantly below their benchmark rate.";
+            }
+        }
+
+        // 3. Log to console for terminal evidence
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("\n============================================================");
+        Console.WriteLine("[🤝 TASKBRIDGE AI: AGENT 3 - COORDINATION AGENT: REBID EVALUATION]");
+        Console.WriteLine($"📋 Target Reference: {req.BookingReference} | Service: \"{serviceTitle}\"");
+        Console.WriteLine($"👤 Rebid Submitted By: {(isCustomer ? "CUSTOMER" : "PROVIDER")} ({providerName})");
+        Console.WriteLine($"💰 Standard Benchmark Rate: Rs. {standardRate:N0}/hr");
+        Console.WriteLine($"📊 Proposed Rebid Price:    Rs. {proposedPrice:N0} ({(variancePct >= 0 ? "+" : "")}{variancePct:0.0}%)");
+        if (hasWarning)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"⚠️ AGENT ADVISORY: {warningMessage}");
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("✅ AGENT EVALUATION: Rebid price is balanced and aligned with standard rate.");
+        }
+        Console.WriteLine("============================================================\n");
+        Console.ResetColor();
+
+        return new RebidEvaluationResult
+        {
+            HasAgentWarning = hasWarning,
+            AgentWarning = warningMessage,
+            AgentAdvisoryType = advisoryType,
+            StandardHourlyRate = standardRate,
+            ProposedPrice = proposedPrice,
+            VariancePercentage = variancePct,
+            ProviderName = providerName,
+            ServiceTitle = serviceTitle,
+            SenderRole = isCustomer ? "customer" : "provider"
+        };
+    }
+
+    /// <summary>
+    /// Submits a counter-bid / rebid and evaluates against provider's standard hourly rate.
+    /// </summary>
+    public async Task<CounterBidResultDto> SubmitCounterBidWithEvaluationAsync(ProviderCounterBidRequest req, CancellationToken ct = default)
+    {
+        // 1. Run Coordination Agent evaluation
+        var evalReq = new EvaluateRebidRequest
+        {
+            BookingReference = req.BookingReference,
+            ProposedPrice = req.CounterPrice,
+            SenderRole = req.Sender ?? "provider"
+        };
+        var evaluation = await EvaluateRebidAsync(evalReq, ct);
+
+        // 2. Apply status and price update
+        var updated = await SubmitCounterBidAsync(req, ct);
+
+        return new CounterBidResultDto
+        {
+            Success = updated != null,
+            Booking = updated,
+            Evaluation = evaluation
+        };
+    }
+
+    /// <summary>
+    /// Allows a provider or customer to submit a counter-bid / updated quote.
     /// </summary>
     public async Task<BookingEntity?> SubmitCounterBidAsync(ProviderCounterBidRequest req, CancellationToken ct = default)
     {
         var isCustomer = string.Equals(req.Sender, "customer", StringComparison.OrdinalIgnoreCase);
         var targetStatus = isCustomer ? "CustomerCountered" : "ProviderCountered";
 
-        var booking = await _dbContext.Bookings.FirstOrDefaultAsync(b => b.BookingReference == req.BookingReference, ct);
+        var altRef = req.BookingReference.StartsWith("TB-")
+            ? req.BookingReference.Replace("TB-", "PR-")
+            : req.BookingReference.Replace("PR-", "TB-");
+
+        var booking = await _dbContext.Bookings.FirstOrDefaultAsync(b => 
+            b.BookingReference == req.BookingReference || b.BookingReference == altRef, ct);
+
+        var proposal = await _dbContext.Proposals.FirstOrDefaultAsync(p => 
+            p.ProposalReference == req.BookingReference || p.ProposalReference == altRef ||
+            (booking != null && booking.ProposalId.HasValue && p.Id == booking.ProposalId.Value), ct);
+
+        if (booking == null && proposal == null)
+        {
+            return null;
+        }
+
         if (booking != null)
         {
             if (string.Equals(booking.Status, "In Progress", StringComparison.OrdinalIgnoreCase) ||
@@ -707,11 +881,8 @@ public class CoordinationAgentService
             }
             booking.Status = targetStatus;
             booking.UpdatedAt = DateTimeOffset.UtcNow;
-            await _dbContext.SaveChangesAsync(ct);
-            return booking;
         }
 
-        var proposal = await _dbContext.Proposals.FirstOrDefaultAsync(p => p.ProposalReference == req.BookingReference, ct);
         if (proposal != null)
         {
             proposal.EstimatedRate = req.CounterPrice;
@@ -725,26 +896,31 @@ public class CoordinationAgentService
             }
             proposal.Status = targetStatus;
             proposal.UpdatedAt = DateTimeOffset.UtcNow;
-            await _dbContext.SaveChangesAsync(ct);
-            return new BookingEntity
-            {
-                Id = proposal.Id,
-                BookingReference = proposal.ProposalReference,
-                CustomerId = proposal.CustomerId,
-                CustomerName = proposal.CustomerName,
-                ProviderId = proposal.ProviderId,
-                ProviderName = proposal.ProviderName,
-                ServiceTitle = proposal.ServiceTitle,
-                Category = proposal.Category,
-                Location = proposal.Location,
-                Schedule = proposal.PreferredSchedule,
-                Price = proposal.EstimatedRate,
-                RateType = proposal.RateType,
-                Status = targetStatus
-            };
         }
 
-        return null;
+        await _dbContext.SaveChangesAsync(ct);
+
+        if (booking != null)
+        {
+            return booking;
+        }
+
+        return new BookingEntity
+        {
+            Id = proposal!.Id,
+            BookingReference = proposal.ProposalReference,
+            CustomerId = proposal.CustomerId,
+            CustomerName = proposal.CustomerName,
+            ProviderId = proposal.ProviderId,
+            ProviderName = proposal.ProviderName,
+            ServiceTitle = proposal.ServiceTitle,
+            Category = proposal.Category,
+            Location = proposal.Location,
+            Schedule = proposal.PreferredSchedule,
+            Price = proposal.EstimatedRate,
+            RateType = proposal.RateType,
+            Status = targetStatus
+        };
     }
 
     /// <summary>
@@ -886,10 +1062,11 @@ public class CoordinationAgentService
         var deduped = new List<BookingEntity>();
         var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        // Sort so that 'TB-' (confirmed booking) is preferred over 'PR-' (proposal-stage booking)
+        // Sort so that active, countered, or confirmed bookings take precedence over stale initial requests
         var orderedList = rawList
-            .OrderByDescending(b => b.BookingReference.StartsWith("TB-", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(b => b.Status == "Upcoming" || b.Status == "In Progress" || b.Status == "Completed" || b.Status == "CustomerCountered" || b.Status == "ProviderCountered")
             .ThenByDescending(b => b.UpdatedAt ?? b.CreatedAt)
+            .ThenByDescending(b => b.BookingReference.StartsWith("TB-", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         foreach (var b in orderedList)

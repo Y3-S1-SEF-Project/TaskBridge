@@ -45,22 +45,32 @@ public sealed class NotificationHub : Hub
     /// </summary>
     public async Task RegisterChannel(string? userId, string? userName, string? role)
     {
+        var cleanRole = role?.Trim().ToLowerInvariant();
+
         if (!string.IsNullOrWhiteSpace(userId))
         {
-            await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId.Trim()}");
-            _logger.LogInformation("Client {ConnId} joined channel user_{UserId}", Context.ConnectionId, userId.Trim());
+            var cleanUserId = userId.Trim();
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{cleanUserId}");
+            if (!string.IsNullOrWhiteSpace(cleanRole))
+            {
+                await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{cleanUserId}_{cleanRole}");
+            }
+            _logger.LogInformation("Client {ConnId} joined channel user_{UserId} (role: {Role})", Context.ConnectionId, cleanUserId, cleanRole ?? "all");
         }
 
         if (!string.IsNullOrWhiteSpace(userName))
         {
             var clean = userName.Trim().ToLowerInvariant().Replace(" ", "_");
             await Groups.AddToGroupAsync(Context.ConnectionId, $"name_{clean}");
-            _logger.LogInformation("Client {ConnId} joined channel name_{Clean}", Context.ConnectionId, clean);
+            if (!string.IsNullOrWhiteSpace(cleanRole))
+            {
+                await Groups.AddToGroupAsync(Context.ConnectionId, $"name_{clean}_{cleanRole}");
+            }
+            _logger.LogInformation("Client {ConnId} joined channel name_{Clean} (role: {Role})", Context.ConnectionId, clean, cleanRole ?? "all");
         }
 
-        if (!string.IsNullOrWhiteSpace(role))
+        if (!string.IsNullOrWhiteSpace(cleanRole))
         {
-            var cleanRole = role.Trim().ToLowerInvariant();
             await Groups.AddToGroupAsync(Context.ConnectionId, $"role_{cleanRole}");
             _logger.LogInformation("Client {ConnId} joined channel role_{Role}", Context.ConnectionId, cleanRole);
         }

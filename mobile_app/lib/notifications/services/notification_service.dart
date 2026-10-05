@@ -25,7 +25,8 @@ class NotificationService extends ChangeNotifier {
   int _unreadCount = 0;
   bool _isLoading = false;
 
-  List<NotificationModel> get notifications => List.unmodifiable(_notifications);
+  List<NotificationModel> get notifications =>
+      List.unmodifiable(_notifications);
   int get unreadCount => _unreadCount;
   bool get isLoading => _isLoading;
 
@@ -36,7 +37,8 @@ class NotificationService extends ChangeNotifier {
   }
 
   /// Hook for showing in-app floating banner when a notification arrives while the app is active
-  static void Function(NotificationModel notification)? onInAppNotificationReceived;
+  static void Function(NotificationModel notification)?
+  onInAppNotificationReceived;
 
   static String? _workingBaseUrl;
   static List<String> get _candidateUrls {
@@ -84,7 +86,8 @@ class NotificationService extends ChangeNotifier {
 
   /// Connects to the backend SignalR NotificationHub
   Future<void> connectSignalR() async {
-    if (_hubConnection != null && _hubConnection!.state == HubConnectionState.Connected) {
+    if (_hubConnection != null &&
+        _hubConnection!.state == HubConnectionState.Connected) {
       await _registerChannels();
       return;
     }
@@ -114,7 +117,9 @@ class NotificationService extends ChangeNotifier {
         });
 
         _hubConnection!.onreconnected(({connectionId}) {
-          developer.log('✅ [NotificationSignalR] Reconnected. ConnId: $connectionId');
+          developer.log(
+            '✅ [NotificationSignalR] Reconnected. ConnId: $connectionId',
+          );
           _registerChannels();
         });
 
@@ -136,24 +141,35 @@ class NotificationService extends ChangeNotifier {
     _scheduleReconnect();
   }
 
+  Timer? _reconnectTimer;
   void _scheduleReconnect() {
-    Future.delayed(const Duration(seconds: 8), () {
-      if (_hubConnection == null || _hubConnection!.state != HubConnectionState.Connected) {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(const Duration(seconds: 8), () {
+      if (_hubConnection == null ||
+          _hubConnection!.state != HubConnectionState.Connected) {
         connectSignalR();
       }
     });
   }
 
   Future<void> _registerChannels() async {
-    if (_hubConnection == null || _hubConnection!.state != HubConnectionState.Connected) return;
+    if (_hubConnection == null ||
+        _hubConnection!.state != HubConnectionState.Connected) {
+      return;
+    }
 
     try {
-      await _hubConnection!.invoke('RegisterChannel', args: [
-        _currentUserId ?? '',
-        _currentUserName ?? '',
-        _currentRole ?? 'customer',
-      ]);
-      developer.log('🔔 [NotificationSignalR] Registered channel for user: $_currentUserName ($_currentRole)');
+      await _hubConnection!.invoke(
+        'RegisterChannel',
+        args: [
+          _currentUserId ?? '',
+          _currentUserName ?? '',
+          _currentRole ?? 'customer',
+        ],
+      );
+      developer.log(
+        '🔔 [NotificationSignalR] Registered channel for user: $_currentUserName ($_currentRole)',
+      );
     } catch (e) {
       developer.log('⚠️ [NotificationSignalR] RegisterChannel failed: $e');
     }
@@ -169,6 +185,63 @@ class NotificationService extends ChangeNotifier {
           : jsonDecode(raw.toString());
 
       final notif = NotificationModel.fromJson(json);
+
+      // 1. Role-based filtering if targetRole is explicitly set on notification
+      if (notif.targetRole != null && notif.targetRole!.isNotEmpty) {
+        if (_currentRole != null &&
+            notif.targetRole!.toLowerCase() != _currentRole!.toLowerCase()) {
+          developer.log(
+            '🚫 [NotificationService] Dropped notification "${notif.title}" (targetRole: ${notif.targetRole}) because current role is $_currentRole',
+          );
+          return;
+        }
+      }
+
+      // 2. Filter out notification types that strictly belong to the other role
+      const customerOnlyTypes = {
+        'JobCompleted',
+        'JobStarted',
+        'ProposalAccepted',
+        'ProposalDeclined',
+      };
+      const providerOnlyTypes = {
+        'ProposalReceived',
+        'QuoteAccepted',
+        'RevisionRequested',
+        'PaymentReceived',
+        'JobRevision',
+      };
+
+      if (_currentRole == 'provider' &&
+          customerOnlyTypes.contains(notif.type)) {
+        developer.log(
+          '🚫 [NotificationService] Dropped customer-only notification "${notif.type}" on provider device',
+        );
+        return;
+      }
+
+      if (_currentRole == 'customer' &&
+          providerOnlyTypes.contains(notif.type)) {
+        developer.log(
+          '🚫 [NotificationService] Dropped provider-only notification "${notif.type}" on customer device',
+        );
+        return;
+      }
+
+      // 3. Self-action suppression: if provider completed the job, do not notify the provider who performed it
+      if (_currentRole == 'provider' &&
+          _currentUserName != null &&
+          _currentUserName!.isNotEmpty) {
+        final normName = _currentUserName!.toLowerCase().trim();
+        final normMsg = notif.message.toLowerCase();
+        if (normMsg.startsWith(normName) ||
+            normMsg.contains('$normName finished working')) {
+          developer.log(
+            '🚫 [NotificationService] Suppressed self-sent completion notification on provider device',
+          );
+          return;
+        }
+      }
 
       // Prepend to in-memory notification feed
       _notifications.insert(0, notif);
@@ -191,12 +264,16 @@ class NotificationService extends ChangeNotifier {
       // Trigger In-App Floating Alert
       onInAppNotificationReceived?.call(notif);
     } catch (e) {
-      developer.log('⚠️ [NotificationService] Error parsing incoming notification: $e');
+      developer.log(
+        '⚠️ [NotificationService] Error parsing incoming notification: $e',
+      );
     }
   }
 
   /// REST: Fetch notifications list from PostgreSQL
-  Future<List<NotificationModel>> fetchNotifications({bool unreadOnly = false}) async {
+  Future<List<NotificationModel>> fetchNotifications({
+    bool unreadOnly = false,
+  }) async {
     _isLoading = true;
     _safeNotifyListeners();
 
@@ -207,6 +284,9 @@ class NotificationService extends ChangeNotifier {
     }
     if (_currentUserName != null && _currentUserName!.isNotEmpty) {
       queryParams['userName'] = _currentUserName!;
+    }
+    if (_currentRole != null && _currentRole!.isNotEmpty) {
+      queryParams['role'] = _currentRole!;
     }
     if (unreadOnly) {
       queryParams['unreadOnly'] = 'true';
@@ -219,20 +299,78 @@ class NotificationService extends ChangeNotifier {
     for (final base in _candidateUrls) {
       final uri = Uri.parse('$base/api/notifications$query');
       try {
-        final res = await http.get(uri, headers: headers).timeout(const Duration(seconds: 10));
+        final res = await http
+            .get(uri, headers: headers)
+            .timeout(const Duration(seconds: 10));
         if (res.statusCode == 200) {
           _workingBaseUrl = base;
           final List list = jsonDecode(res.body);
-          _notifications = list
-              .map((item) => NotificationModel.fromJson(item as Map<String, dynamic>))
+          var fetched = list
+              .map(
+                (item) =>
+                    NotificationModel.fromJson(item as Map<String, dynamic>),
+              )
               .toList();
+
+          // Client-side filtering to guarantee role segregation
+          const customerOnlyTypes = {
+            'JobCompleted',
+            'JobStarted',
+            'ProposalAccepted',
+            'ProposalDeclined',
+          };
+          const providerOnlyTypes = {
+            'ProposalReceived',
+            'QuoteAccepted',
+            'RevisionRequested',
+            'PaymentReceived',
+            'JobRevision',
+          };
+
+          if (_currentRole == 'provider') {
+            fetched = fetched.where((n) {
+              if (n.targetRole != null &&
+                  n.targetRole!.isNotEmpty &&
+                  n.targetRole!.toLowerCase() != 'provider') {
+                return false;
+              }
+              if (customerOnlyTypes.contains(n.type)) {
+                return false;
+              }
+              if (_currentUserName != null && _currentUserName!.isNotEmpty) {
+                final normName = _currentUserName!.toLowerCase().trim();
+                final normMsg = n.message.toLowerCase();
+                if (normMsg.startsWith(normName) ||
+                    normMsg.contains('$normName finished working')) {
+                  return false;
+                }
+              }
+              return true;
+            }).toList();
+          } else if (_currentRole == 'customer') {
+            fetched = fetched.where((n) {
+              if (n.targetRole != null &&
+                  n.targetRole!.isNotEmpty &&
+                  n.targetRole!.toLowerCase() != 'customer') {
+                return false;
+              }
+              if (providerOnlyTypes.contains(n.type)) {
+                return false;
+              }
+              return true;
+            }).toList();
+          }
+
+          _notifications = fetched;
           _unreadCount = _notifications.where((n) => !n.isRead).length;
           _isLoading = false;
           _safeNotifyListeners();
           return _notifications;
         }
       } catch (e) {
-        developer.log('⚠️ [NotificationService] fetchNotifications failed on $base: $e');
+        developer.log(
+          '⚠️ [NotificationService] fetchNotifications failed on $base: $e',
+        );
       }
     }
 
@@ -254,7 +392,9 @@ class NotificationService extends ChangeNotifier {
     for (final base in _candidateUrls) {
       final uri = Uri.parse('$base/api/notifications/$id/read');
       try {
-        final res = await http.put(uri, headers: headers).timeout(const Duration(seconds: 8));
+        final res = await http
+            .put(uri, headers: headers)
+            .timeout(const Duration(seconds: 8));
         if (res.statusCode == 200) {
           _workingBaseUrl = base;
           return true;
@@ -276,12 +416,16 @@ class NotificationService extends ChangeNotifier {
     final queryParams = <String, String>{};
     if (_currentUserId != null) queryParams['userId'] = _currentUserId!;
     if (_currentUserName != null) queryParams['userName'] = _currentUserName!;
-    final query = queryParams.isNotEmpty ? '?${Uri(queryParameters: queryParams).query}' : '';
+    final query = queryParams.isNotEmpty
+        ? '?${Uri(queryParameters: queryParams).query}'
+        : '';
 
     for (final base in _candidateUrls) {
       final uri = Uri.parse('$base/api/notifications/mark-all-read$query');
       try {
-        final res = await http.put(uri, headers: headers).timeout(const Duration(seconds: 8));
+        final res = await http
+            .put(uri, headers: headers)
+            .timeout(const Duration(seconds: 8));
         if (res.statusCode == 200) {
           _workingBaseUrl = base;
           return true;
@@ -301,7 +445,9 @@ class NotificationService extends ChangeNotifier {
     for (final base in _candidateUrls) {
       final uri = Uri.parse('$base/api/notifications/$id');
       try {
-        final res = await http.delete(uri, headers: headers).timeout(const Duration(seconds: 8));
+        final res = await http
+            .delete(uri, headers: headers)
+            .timeout(const Duration(seconds: 8));
         if (res.statusCode == 200) {
           _workingBaseUrl = base;
           return true;
@@ -311,9 +457,8 @@ class NotificationService extends ChangeNotifier {
     return false;
   }
 
-  @override
-  void dispose() {
+  void cancelReconnect() {
+    _reconnectTimer?.cancel();
     _hubConnection?.stop();
-    super.dispose();
   }
 }
