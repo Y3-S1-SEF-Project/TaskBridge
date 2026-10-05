@@ -13,6 +13,8 @@ import type {
   AiWorkflowsSummary,
   AiWorkflowTrace,
   AiMonitoringSummary,
+  DisputesSummary,
+  DisputeRecord,
 } from './types';
 
 const API_BASE = '/api/admin';
@@ -457,3 +459,48 @@ export async function fetchAiMonitoring(): Promise<AiMonitoringSummary> {
   const err = await res.json().catch(() => ({}));
   throw new Error(err.message || 'Failed to fetch AI monitoring telemetry.');
 }
+
+export async function fetchAdminDisputes(params?: {
+  status?: string;
+  search?: string;
+}): Promise<DisputesSummary> {
+  const token = getStoredToken();
+  const searchParams = new URLSearchParams();
+  if (params?.search) searchParams.set('search', params.search);
+  if (params?.status && params.status !== 'All') searchParams.set('status', params.status);
+
+  const qs = searchParams.toString();
+  const res = await fetch(`/api/admin/disputes${qs ? `?${qs}` : ''}`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+
+  if (res.ok) return await res.json();
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to fetch disputes.');
+}
+
+export async function resolveAdminDispute(
+  disputeId: string,
+  action: 'Completed' | 'Cancelled' | string,
+  summary: string,
+  adminName?: string
+): Promise<{ success: boolean; dispute: DisputeRecord; bookingStatus: string; message: string }> {
+  const token = getStoredToken();
+  const res = await fetch(`/api/admin/disputes/${encodeURIComponent(disputeId)}/resolve`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      resolutionAction: action,
+      resolutionSummary: summary,
+      adminName: adminName || 'Admin Operations',
+    }),
+  });
+
+  if (res.ok) return await res.json();
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to resolve dispute.');
+}
+

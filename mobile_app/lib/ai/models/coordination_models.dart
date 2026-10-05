@@ -275,6 +275,7 @@ class BookingItem {
           status.toLowerCase() == 'in progress');
   bool get isPendingSignOff => status.toLowerCase() == 'pendingcustomersignoff';
   bool get isRevisionRequested => status.toLowerCase() == 'revisionrequested';
+  bool get isDisputed => status.toLowerCase() == 'disputed';
   bool get isRequested =>
       !isCancelled &&
       !isCompleted &&
@@ -285,7 +286,11 @@ class BookingItem {
           isProviderCountered ||
           isCustomerCountered);
   bool get isOngoing =>
-      (isRequested || isActive || isPendingSignOff || isRevisionRequested) &&
+      (isRequested ||
+          isActive ||
+          isPendingSignOff ||
+          isRevisionRequested ||
+          isDisputed) &&
       !isCancelled &&
       !isCompleted &&
       !isUpcoming;
@@ -506,4 +511,3 @@ class RebidEvaluationResult {
     );
   }
 }
-

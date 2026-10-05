@@ -817,12 +817,20 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
         .toList();
     final upcomingList = _bookings.where((b) => b.isUpcoming).toList();
     final activeList = _bookings
-        .where((b) => b.isActive || b.isPendingSignOff || b.isRevisionRequested)
+        .where(
+          (b) =>
+              (b.isActive ||
+                  b.isPendingSignOff ||
+                  b.isRevisionRequested ||
+                  b.isDisputed) &&
+              !b.isCancelled &&
+              !b.isCompleted,
+        )
         .toList();
 
     // Past jobs: completed bookings, cancelled bookings, AND cancelled/declined proposals
     final completedOrCancelledBookings = _bookings
-        .where((b) => b.isCompleted || b.isCancelled)
+        .where((b) => (b.isCompleted || b.isCancelled) && !b.isDisputed)
         .toList();
     final existingPastBookingRefs = completedOrCancelledBookings
         .map((b) => b.bookingReference)
@@ -1078,6 +1086,10 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
             customLabel = b.status.toLowerCase() == 'declined'
                 ? 'Declined'
                 : 'Cancelled';
+            tagTextCol = Colors.red.shade900;
+            tagBgCol = Colors.red.shade100;
+          } else if (b.isDisputed) {
+            customLabel = 'Under Dispute (Admin Review)';
             tagTextCol = Colors.red.shade900;
             tagBgCol = Colors.red.shade100;
           } else if (b.isPendingSignOff) {

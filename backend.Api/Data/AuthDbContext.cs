@@ -4,6 +4,8 @@ using TaskBridge.Api.Auth;
 using TaskBridge.Api.Notifications;
 using backend.Api.AI;
 
+using TaskBridge.Api.Disputes;
+
 namespace TaskBridge.Api.Data;
 
 public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(options)
@@ -21,6 +23,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<ChatAuditLog> ChatAuditLogs => Set<ChatAuditLog>();
     public DbSet<NotificationEntity> Notifications => Set<NotificationEntity>();
+    public DbSet<DisputeEntity> Disputes => Set<DisputeEntity>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -502,6 +505,42 @@ CREATE INDEX IF NOT EXISTS ix_job_matches_category ON job_matches (""Category"")
 
 ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS ""MatchedProvidersJson"" text NULL;
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS ""TargetRole"" varchar(50) NULL;
+
+CREATE TABLE IF NOT EXISTS disputes (
+    ""Id"" uuid PRIMARY KEY,
+    ""DisputeReference"" varchar(50) NOT NULL,
+    ""BookingId"" uuid NULL,
+    ""BookingReference"" varchar(50) NOT NULL,
+    ""CustomerId"" uuid NULL,
+    ""CustomerName"" varchar(150) NOT NULL,
+    ""CustomerPhone"" varchar(50) NULL,
+    ""CustomerEmail"" varchar(255) NULL,
+    ""ProviderId"" uuid NULL,
+    ""ProviderName"" varchar(150) NOT NULL,
+    ""ServiceTitle"" varchar(200) NOT NULL,
+    ""Category"" varchar(100) NOT NULL,
+    ""FeeAmount"" numeric(12,2) NOT NULL DEFAULT 0,
+    ""ReasonCategory"" varchar(100) NOT NULL,
+    ""Description"" text NOT NULL,
+    ""DesiredResolution"" varchar(100) NOT NULL,
+    ""BeforePhotoUrlsJson"" text NULL,
+    ""AfterPhotoUrlsJson"" text NULL,
+    ""CustomerEvidencePhotoUrlsJson"" text NULL,
+    ""Status"" varchar(50) NOT NULL DEFAULT 'PendingAdminReview',
+    ""ResolutionSummary"" text NULL,
+    ""ResolutionAction"" varchar(50) NULL,
+    ""ResolvedByAdminId"" uuid NULL,
+    ""ResolvedByAdminName"" varchar(150) NULL,
+    ""ResolvedAt"" timestamptz NULL,
+    ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
+    ""UpdatedAt"" timestamptz NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_disputes_ref ON disputes (""DisputeReference"");
+CREATE INDEX IF NOT EXISTS ix_disputes_booking_ref ON disputes (""BookingReference"");
+CREATE INDEX IF NOT EXISTS ix_disputes_customer ON disputes (""CustomerId"");
+CREATE INDEX IF NOT EXISTS ix_disputes_provider ON disputes (""ProviderId"");
+CREATE INDEX IF NOT EXISTS ix_disputes_status ON disputes (""Status"");
 ";
         await Database.ExecuteSqlRawAsync(sql, ct);
     }

@@ -290,3 +290,40 @@ export interface AiWorkflowsSummary {
   workflows: AiWorkflowItem[];
 }
 
+export interface DisputeRecord {
+  id: string;
+  disputeReference: string;
+  bookingId?: string | null;
+  bookingReference: string;
+  customerId?: string | null;
+  customerName: string;
+  customerPhone?: string | null;
+  customerEmail?: string | null;
+  providerId?: string | null;
+  providerName: string;
+  serviceTitle: string;
+  category: string;
+  feeAmount: number;
+  reasonCategory: string;
+  description: string;
+  desiredResolution: string;
+  beforePhotoUrls: string[];
+  afterPhotoUrls: string[];
+  customerEvidencePhotoUrls: string[];
+  status: string; // PendingAdminReview, UnderInvestigation, Resolved, Cancelled
+  resolutionSummary?: string | null;
+  resolutionAction?: string | null;
+  resolvedByAdminName?: string | null;
+  resolvedAt?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface DisputesSummary {
+  totalDisputes: number;
+  pendingCount: number;
+  resolvedCount: number;
+  disputes: DisputeRecord[];
+}
+
+

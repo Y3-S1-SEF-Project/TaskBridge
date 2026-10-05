@@ -15,6 +15,7 @@ import '../../core/theme/app_spacing.dart';
 import 'customer_completion_review_page.dart';
 import 'customer_job_details_page.dart';
 import '../../notifications/widgets/notification_bell_button.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 class CustomerBookingsPage extends StatefulWidget {
   final ValueChanged<int>? onSwitchTab;
@@ -253,6 +254,7 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
   void _handleBookingTap(BookingItem booking) {
     if (booking.status == 'PendingCustomerSignOff' ||
         booking.status == 'RevisionRequested' ||
+        booking.isDisputed ||
         booking.isCompleted) {
       Navigator.push(
         context,
@@ -1432,8 +1434,13 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
           builder: (context, setSheetState) {
             void evaluateCustomerRebidPrice(double currentPrice) {
               if (currentPrice < standardBenchmarkRate) {
-                final pct = (((standardBenchmarkRate - currentPrice) / standardBenchmarkRate) * 100).toStringAsFixed(0);
-                agentWarning = 'Warning: The offered price of Rs. ${currentPrice.toInt()} is $pct% lower than ${booking.providerName}\'s standard rate of Rs. ${standardBenchmarkRate.toInt()}/hr. Providers are less likely to accept bids significantly below their benchmark rate.';
+                final pct =
+                    (((standardBenchmarkRate - currentPrice) /
+                                standardBenchmarkRate) *
+                            100)
+                        .toStringAsFixed(0);
+                agentWarning =
+                    'Warning: The offered price of Rs. ${currentPrice.toInt()} is $pct% lower than ${booking.providerName}\'s standard rate of Rs. ${standardBenchmarkRate.toInt()}/hr. Providers are less likely to accept bids significantly below their benchmark rate.';
                 hasAgentWarning = true;
               } else {
                 agentWarning = null;
@@ -1460,7 +1467,8 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
 
             if (!initializedEval) {
               initializedEval = true;
-              final initPrice = double.tryParse(priceController.text.trim()) ?? booking.price;
+              final initPrice =
+                  double.tryParse(priceController.text.trim()) ?? booking.price;
               evaluateCustomerRebidPrice(initPrice);
             }
 
@@ -2284,6 +2292,9 @@ class _BookingsListView extends StatelessWidget {
             badgeText = b.status.toLowerCase() == 'declined'
                 ? 'Declined by Provider'
                 : 'Cancelled';
+          } else if (b.isDisputed) {
+            badgeColor = Colors.red.shade700;
+            badgeText = 'Disputed (Under Admin Review)';
           } else if (b.status == 'PendingCustomerSignOff') {
             badgeColor = Colors.purple.shade700;
             badgeText = 'Proof Ready (AI Verified)';
@@ -2680,13 +2691,16 @@ class _BookingsListView extends StatelessWidget {
                       ),
                     ],
                     if (b.status == 'PendingCustomerSignOff' ||
-                        b.status == 'RevisionRequested') ...[
+                        b.status == 'RevisionRequested' ||
+                        b.isDisputed) ...[
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.purple.shade700,
+                            backgroundColor: b.isDisputed
+                                ? Colors.red.shade700
+                                : Colors.purple.shade700,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -2703,10 +2717,17 @@ class _BookingsListView extends StatelessWidget {
                             );
                             await onRefresh();
                           },
-                          icon: const Icon(AppIcons.verify, size: 18),
-                          label: const Text(
-                            'Review Proof & Sign-Off',
-                            style: TextStyle(
+                          icon: Icon(
+                            b.isDisputed
+                                ? Iconsax.shield_cross
+                                : AppIcons.verify,
+                            size: 18,
+                          ),
+                          label: Text(
+                            b.isDisputed
+                                ? 'View Dispute / Review'
+                                : 'Review Proof & Sign-Off',
+                            style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
                             ),

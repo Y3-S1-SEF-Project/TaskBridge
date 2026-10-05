@@ -8,6 +8,7 @@ import '../../auth/data/auth_api.dart';
 import '../../auth/data/auth_models.dart';
 import '../../auth/pages/login_page.dart';
 import 'personal_details_page.dart';
+import 'customer_disputes_page.dart';
 import '../../core/services/location_service.dart';
 import '../../core/services/theme_service.dart';
 import '../../core/services/user_mode_service.dart';
@@ -785,21 +786,20 @@ class _ProfilePageState extends State<ProfilePage> {
                     onTap: _openSavedAddresses,
                   ),
                   _SleekMenuTile(
-                    icon: Iconsax.wallet_2,
-                    title: 'Payment methods',
-                    subtitle: 'Cards, payment preferences & history',
-                    iconBgColor: const Color(0xFFEDFAF1),
-                    iconColor: const Color(0xFF16A34A),
-                    onTap: () => _showFeatureNotice('Payment methods'),
-                  ),
-                  _SleekMenuTile(
-                    icon: Iconsax.star,
-                    title: 'My reviews',
-                    subtitle: 'Ratings & feedback given to specialists',
-                    iconBgColor: const Color(0xFFFEF9C3),
-                    iconColor: const Color(0xFFCA8A04),
+                    icon: Iconsax.shield_security,
+                    title: 'My disputes',
+                    subtitle: 'Active disputes, claims & admin resolutions',
+                    iconBgColor: const Color(0xFFFEF2F2),
+                    iconColor: const Color(0xFFDC2626),
                     showDivider: false,
-                    onTap: () => _showFeatureNotice('My reviews'),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CustomerDisputesPage(user: _currentUser),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
