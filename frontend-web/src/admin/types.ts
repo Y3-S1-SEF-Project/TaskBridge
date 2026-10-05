@@ -183,4 +183,35 @@ export interface BookingsSummary {
   items: BookingItem[];
 }
 
+export interface AdminConversation {
+  id: string;
+  bookingReference: string | null;
+  customerId: string;
+  customerName: string;
+  customerPhone?: string | null;
+  customerEmail?: string | null;
+  customerRole?: string;
+  providerId: string;
+  providerName: string;
+  lastMessageAt: string;
+  lastMessageSnippet: string | null;
+  unreadCustomer: number;
+  unreadProvider: number;
+  createdAt: string;
+  isSupportChat: boolean;
+}
+
+export interface AdminChatMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  recipientId: string;
+  messageType: 'Text' | 'Image' | string;
+  content: string;
+  mediaUrl?: string | null;
+  isRead: boolean;
+  createdAt: string;
+  isSupportSender: boolean;
+}
 

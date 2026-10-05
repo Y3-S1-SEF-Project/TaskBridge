@@ -8,6 +8,8 @@ import type {
   CustomersSummary,
   ReviewsSummary,
   BookingsSummary,
+  AdminConversation,
+  AdminChatMessage,
 } from './types';
 
 const API_BASE = '/api/admin';
@@ -344,3 +346,62 @@ export async function fetchBookings(params?: {
   throw new Error(err.message || 'Failed to fetch bookings.');
 }
 
+export async function fetchAdminConversations(): Promise<AdminConversation[]> {
+  const token = getStoredToken();
+  const res = await fetch('/api/chat/admin/conversations', {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+
+  if (res.ok) return await res.json();
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to fetch conversations.');
+}
+
+export async function fetchAdminMessages(conversationId: string): Promise<AdminChatMessage[]> {
+  const token = getStoredToken();
+  const res = await fetch(`/api/chat/admin/conversations/${conversationId}/messages`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+
+  if (res.ok) return await res.json();
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to fetch messages.');
+}
+
+export async function sendAdminMessage(
+  conversationId: string,
+  content: string,
+  messageType = 'Text',
+  mediaUrl?: string | null
+): Promise<AdminChatMessage> {
+  const token = getStoredToken();
+  const res = await fetch('/api/chat/admin/send-message', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      conversationId,
+      content,
+      messageType,
+      mediaUrl: mediaUrl || null,
+    }),
+  });
+
+  if (res.ok) return await res.json();
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to send message.');
+}
+
+export async function deleteAdminMessage(messageId: string): Promise<void> {
+  const token = getStoredToken();
+  const res = await fetch(`/api/chat/admin/messages/${messageId}`, {
+    method: 'DELETE',
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+
+  if (res.ok) return;
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to delete message.');
+}

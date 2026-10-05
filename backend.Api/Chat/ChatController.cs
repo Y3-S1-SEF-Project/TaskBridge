@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using TaskBridge.Api.Auth;
 using TaskBridge.Api.Data;
@@ -15,17 +16,20 @@ public sealed class ChatController : ControllerBase
     private readonly AuthDbContext _db;
     private readonly ChatCrypto _crypto;
     private readonly IProfileImageService _imageService;
+    private readonly IHubContext<ChatHub> _hubContext;
     private readonly ILogger<ChatController> _logger;
 
     public ChatController(
         AuthDbContext db,
         ChatCrypto crypto,
         IProfileImageService imageService,
+        IHubContext<ChatHub> hubContext,
         ILogger<ChatController> logger)
     {
         _db = db;
         _crypto = crypto;
         _imageService = imageService;
+        _hubContext = hubContext;
         _logger = logger;
     }
 
@@ -37,6 +41,10 @@ public sealed class ChatController : ControllerBase
             return Guid.TryParse(val, out var id) ? id : null;
         }
     }
+
+    private bool IsAdmin =>
+        string.Equals(User.FindFirst(ClaimTypes.Role)?.Value, "Admin", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(User.FindFirst(ClaimTypes.Role)?.Value, "SuperAdmin", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Returns conversations for current user filtered by role ('customer' or 'provider').
@@ -228,20 +236,22 @@ public sealed class ChatController : ControllerBase
             .Take(limit)
             .ToListAsync(ct);
 
-        var decryptedMessages = rawMessages.Select(m => new
-        {
-            m.Id,
-            m.ConversationId,
-            m.SenderId,
-            m.SenderName,
-            m.RecipientId,
-            m.MessageType,
-            Content = _crypto.Decrypt(m.EncryptedContent), // Decrypted for authorized recipient
-            m.MediaUrl,
-            m.IsRead,
-            m.CreatedAt,
-            IsEncryptedAtRest = true
-        });
+        var decryptedMessages = rawMessages
+            .Select(m => new
+            {
+                m.Id,
+                m.ConversationId,
+                m.SenderId,
+                m.SenderName,
+                m.RecipientId,
+                m.MessageType,
+                Content = _crypto.Decrypt(m.EncryptedContent), // Decrypted for authorized recipient
+                m.MediaUrl,
+                m.IsRead,
+                m.CreatedAt,
+                IsEncryptedAtRest = true
+            })
+            .Where(m => !m.Content.Contains("Welcome to TaskBridge Live Support"));
 
         return Ok(decryptedMessages);
     }
@@ -349,21 +359,274 @@ public sealed class ChatController : ControllerBase
 
     /// <summary>
     /// Deletes a message by its ID.
+    /// <summary>
+    /// Gets or creates the official TaskBridge Real-time Support Chat conversation for the current user.
+    /// Pinned and undeletable from customer and provider apps.
     /// </summary>
-    [HttpDelete("messages/{id:guid}")]
-    public async Task<IActionResult> DeleteMessage(Guid id, CancellationToken ct = default)
+    [HttpGet("support-conversation")]
+    public async Task<IActionResult> GetOrCreateSupportConversation(CancellationToken ct)
     {
         var userId = CurrentUserId;
         if (userId == null) return Unauthorized();
 
+        var conv = await _db.ChatConversations
+            .FirstOrDefaultAsync(c =>
+                c.CustomerId == userId.Value &&
+                (c.BookingReference == SupportConstants.SupportReference || c.ProviderId == SupportConstants.SupportAgentId),
+                ct);
+
+        if (conv != null)
+        {
+            return Ok(new
+            {
+                conv.Id,
+                conv.BookingReference,
+                conv.CustomerId,
+                conv.CustomerName,
+                conv.ProviderId,
+                conv.ProviderName,
+                conv.LastMessageAt,
+                conv.LastMessageSnippet,
+                UnreadCount = conv.UnreadCustomer,
+                conv.CreatedAt,
+                IsSupportChat = true
+            });
+        }
+
+        var user = await _db.Users.FindAsync(new object[] { userId.Value }, ct);
+        var fullName = user?.FullName ?? "User";
+
+        var newConv = new ChatConversation
+        {
+            Id = Guid.NewGuid(),
+            BookingReference = SupportConstants.SupportReference,
+            CustomerId = userId.Value,
+            CustomerName = fullName,
+            ProviderId = SupportConstants.SupportAgentId,
+            ProviderName = SupportConstants.SupportAgentName,
+            LastMessageAt = DateTime.UtcNow,
+            LastMessageSnippet = null,
+            CreatedAt = DateTime.UtcNow,
+            UnreadCustomer = 0
+        };
+
+        _db.ChatConversations.Add(newConv);
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new
+        {
+            newConv.Id,
+            newConv.BookingReference,
+            newConv.CustomerId,
+            newConv.CustomerName,
+            newConv.ProviderId,
+            newConv.ProviderName,
+            newConv.LastMessageAt,
+            newConv.LastMessageSnippet,
+            UnreadCount = 0,
+            newConv.CreatedAt,
+            IsSupportChat = true
+        });
+    }
+
+    /// <summary>
+    /// Returns all conversations for admin real-time communication & audit console.
+    /// Highlights live support chats and job conversations.
+    /// </summary>
+    [HttpGet("admin/conversations")]
+    public async Task<IActionResult> GetAdminConversations(CancellationToken ct)
+    {
+        if (!IsAdmin) return Forbid();
+
+        var convs = await _db.ChatConversations
+            .AsNoTracking()
+            .Where(c =>
+                // Regular job conversations are always included for audit
+                !(c.BookingReference == SupportConstants.SupportReference ||
+                  c.BookingReference == SupportConstants.ProviderSupportReference ||
+                  c.ProviderId == SupportConstants.SupportAgentId)
+                // Support conversations are ONLY included if the customer/provider has sent at least one message
+                || _db.ChatMessages.Any(m => m.ConversationId == c.Id && m.SenderId == c.CustomerId)
+            )
+            .OrderByDescending(c => c.LastMessageAt)
+            .ToListAsync(ct);
+
+        var userIds = convs.Select(c => c.CustomerId).Distinct().ToList();
+        var users = await _db.Users.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => new { u.FullName, u.Phone, u.Email, u.Role }, ct);
+
+        var result = convs.Select(c =>
+        {
+            var isSupport = c.BookingReference == SupportConstants.SupportReference ||
+                            c.BookingReference == SupportConstants.ProviderSupportReference ||
+                            c.ProviderId == SupportConstants.SupportAgentId;
+
+            users.TryGetValue(c.CustomerId, out var customerUser);
+
+            return new
+            {
+                c.Id,
+                c.BookingReference,
+                c.CustomerId,
+                CustomerName = c.CustomerName,
+                CustomerPhone = customerUser?.Phone,
+                CustomerEmail = customerUser?.Email,
+                CustomerRole = customerUser?.Role ?? "Customer",
+                c.ProviderId,
+                c.ProviderName,
+                c.LastMessageAt,
+                c.LastMessageSnippet,
+                c.UnreadCustomer,
+                c.UnreadProvider,
+                c.CreatedAt,
+                IsSupportChat = isSupport
+            };
+        });
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Returns decrypted chat transcript for admin real-time support and dispute audit.
+    /// </summary>
+    [HttpGet("admin/conversations/{id:guid}/messages")]
+    public async Task<IActionResult> GetAdminMessages(Guid id, CancellationToken ct)
+    {
+        if (!IsAdmin) return Forbid();
+
+        var conv = await _db.ChatConversations.FindAsync(new object[] { id }, ct);
+        if (conv == null) return NotFound(new { error = "Conversation not found." });
+
+        var messages = await _db.ChatMessages
+            .AsNoTracking()
+            .Where(m => m.ConversationId == id)
+            .OrderBy(m => m.CreatedAt)
+            .ToListAsync(ct);
+
+        var adminIds = await _db.Admins.AsNoTracking().Select(a => a.Id).ToListAsync(ct);
+
+        var decrypted = messages.Select(m => new
+        {
+            m.Id,
+            m.ConversationId,
+            m.SenderId,
+            m.SenderName,
+            m.RecipientId,
+            m.MessageType,
+            Content = _crypto.Decrypt(m.EncryptedContent),
+            m.MediaUrl,
+            m.IsRead,
+            m.CreatedAt,
+            IsSupportSender = m.SenderId == SupportConstants.SupportAgentId || adminIds.Contains(m.SenderId)
+        }).Where(m => !m.Content.Contains("Welcome to TaskBridge Live Support"));
+
+        return Ok(decrypted);
+    }
+
+    /// <summary>
+    /// Allows an admin to chat as a real-time support agent with customer or provider.
+    /// Broadcasts through SignalR to conversation, recipient, and admin channel.
+    /// </summary>
+    [HttpPost("admin/send-message")]
+    public async Task<IActionResult> AdminSendMessage(
+        [FromBody] AdminSendMessageRequest request,
+        CancellationToken ct)
+    {
+        if (!IsAdmin) return Forbid();
+        var adminId = CurrentUserId;
+        if (adminId == null) return Unauthorized();
+
+        if (string.IsNullOrWhiteSpace(request.Content))
+            return BadRequest(new { error = "Message content cannot be empty." });
+
+        var conv = await _db.ChatConversations.SingleOrDefaultAsync(c => c.Id == request.ConversationId, ct);
+        if (conv == null) return NotFound(new { error = "Conversation not found." });
+
+        var adminUser = await _db.Admins.FindAsync(new object[] { adminId.Value }, ct);
+        var adminName = adminUser?.FullName ?? "Admin Support";
+
+        var cleanContent = request.Content.Trim();
+        var encrypted = _crypto.Encrypt(cleanContent);
+
+        var recipientId = request.RecipientId != Guid.Empty ? request.RecipientId : conv.CustomerId;
+
+        var message = new ChatMessage
+        {
+            Id = Guid.NewGuid(),
+            ConversationId = conv.Id,
+            SenderId = adminId.Value,
+            SenderName = $"{adminName} (Support Agent)",
+            RecipientId = recipientId,
+            MessageType = "Text",
+            EncryptedContent = encrypted,
+            IsRead = false,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        conv.LastMessageAt = DateTime.UtcNow;
+        conv.LastMessageSnippet = cleanContent.Length > 60 ? cleanContent[..60] + "..." : cleanContent;
+        if (recipientId == conv.CustomerId)
+        {
+            conv.UnreadCustomer++;
+        }
+        else
+        {
+            conv.UnreadProvider++;
+        }
+
+        _db.ChatMessages.Add(message);
+        await _db.SaveChangesAsync(ct);
+
+        var messageDto = new
+        {
+            id = message.Id,
+            conversationId = message.ConversationId,
+            senderId = message.SenderId,
+            senderName = message.SenderName,
+            recipientId = message.RecipientId,
+            messageType = message.MessageType,
+            content = cleanContent,
+            mediaUrl = message.MediaUrl,
+            isRead = message.IsRead,
+            createdAt = message.CreatedAt,
+            isSupportSender = true
+        };
+
+        // Broadcast real-time to the conversation group and recipient's personal group
+        await _hubContext.Clients.Group($"conv_{conv.Id}").SendAsync("ReceiveMessage", messageDto, ct);
+        await _hubContext.Clients.Group($"user_{recipientId}").SendAsync("ReceiveMessage", messageDto, ct);
+        await _hubContext.Clients.Group("admin_support_channel").SendAsync("ReceiveMessage", messageDto, ct);
+
+        return Ok(messageDto);
+    }
+
+    /// <summary>
+    /// Deletes a message by an administrator and synchronizes across all active clients in real-time.
+    /// </summary>
+    [HttpDelete("admin/messages/{id:guid}")]
+    public async Task<IActionResult> AdminDeleteMessage(Guid id, CancellationToken ct)
+    {
+        if (!IsAdmin) return Forbid();
+
         var msg = await _db.ChatMessages.FindAsync(new object[] { id }, ct);
         if (msg == null) return NotFound(new { error = "Message not found." });
 
-        if (msg.SenderId != userId.Value && msg.RecipientId != userId.Value)
-            return Forbid();
-
+        var convId = msg.ConversationId;
         _db.ChatMessages.Remove(msg);
         await _db.SaveChangesAsync(ct);
+
+        await _hubContext.Clients.Group($"conv_{convId}").SendAsync("MessageDeleted", new
+        {
+            conversationId = convId.ToString(),
+            messageId = id.ToString()
+        }, ct);
+
+        await _hubContext.Clients.Group("admin_support_channel").SendAsync("MessageDeleted", new
+        {
+            conversationId = convId.ToString(),
+            messageId = id.ToString()
+        }, ct);
 
         return Ok(new { success = true, id });
     }
@@ -376,3 +639,9 @@ public sealed record FindOrCreateConversationRequest(
 
 public sealed record AdminInquiryRequest(
     string Reason);
+
+public sealed record AdminSendMessageRequest(
+    Guid ConversationId,
+    Guid RecipientId,
+    string Content);
+

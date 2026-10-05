@@ -281,6 +281,26 @@ class ChatService {
     return [];
   }
 
+  /// Fetches or initiates the official TaskBridge Live Support Chat with a real-time admin agent.
+  Future<ChatConversationModel?> fetchSupportConversation() async {
+    try {
+      final headers = await _authHeaders();
+      final base = await _resolveBaseUrl();
+      final uri = Uri.parse('$base/api/chat/support-conversation');
+      final res = await http
+          .get(uri, headers: headers)
+          .timeout(const Duration(seconds: 12));
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        return ChatConversationModel.fromJson(data);
+      }
+    } catch (e) {
+      debugPrint('[ChatService] fetchSupportConversation error: $e');
+    }
+    return null;
+  }
+
   /// Finds an existing conversation or creates a new one between customer & provider.
   Future<ChatConversationModel?> findOrCreateConversation({
     required String providerId,
