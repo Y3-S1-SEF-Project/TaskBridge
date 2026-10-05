@@ -136,8 +136,10 @@ class NotificationService extends ChangeNotifier {
     _scheduleReconnect();
   }
 
+  Timer? _reconnectTimer;
   void _scheduleReconnect() {
-    Future.delayed(const Duration(seconds: 8), () {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(const Duration(seconds: 8), () {
       if (_hubConnection == null || _hubConnection!.state != HubConnectionState.Connected) {
         connectSignalR();
       }
@@ -311,9 +313,8 @@ class NotificationService extends ChangeNotifier {
     return false;
   }
 
-  @override
-  void dispose() {
+  void cancelReconnect() {
+    _reconnectTimer?.cancel();
     _hubConnection?.stop();
-    super.dispose();
   }
 }
