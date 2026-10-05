@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { ReviewsSummary } from '../types';
 import { fetchReviews } from '../api';
+import { AdminSelect } from '../components/AdminSelect';
 
 export const ReviewsView: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -145,8 +146,8 @@ export const ReviewsView: React.FC = () => {
       </div>
 
       <div className="admin-table-card">
-        <div className="admin-toolbar" style={{ padding: '20px 24px 16px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div className="admin-search-box" style={{ flex: '1 1 320px' }}>
+        <div className="admin-toolbar">
+          <div className="admin-search-box" style={{ flex: '1 1 320px', maxWidth: '420px' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -168,17 +169,19 @@ export const ReviewsView: React.FC = () => {
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <select
-              className="admin-filter-select"
+          <div className="admin-filter-group">
+            <AdminSelect
               value={sentimentFilter}
-              onChange={(e) => setSentimentFilter(e.target.value)}
-            >
-              <option value="All">All Sentiments</option>
-              <option value="Positive">Positive</option>
-              <option value="Neutral">Neutral</option>
-              <option value="Negative">Negative</option>
-            </select>
+              onChange={setSentimentFilter}
+              title="Filter by Sentiment"
+              style={{ minWidth: '150px' }}
+              options={[
+                { value: 'All', label: 'All Sentiments' },
+                { value: 'Positive', label: 'Positive' },
+                { value: 'Neutral', label: 'Neutral' },
+                { value: 'Negative', label: 'Negative' },
+              ]}
+            />
 
             {(search || sentimentFilter !== 'All') && (
               <button
@@ -248,16 +251,16 @@ export const ReviewsView: React.FC = () => {
               ) : (
                 filtered.map(r => (
                   <tr key={r.reviewGuid}>
-                    <td><span className="admin-inquiry-code">{r.id}</span></td>
-                    <td><strong>{r.customerName}</strong></td>
-                    <td>{r.providerName}</td>
-                    <td>{r.service}</td>
-                    <td>
+                    <td data-label="Review ID"><span className="admin-inquiry-code">{r.id}</span></td>
+                    <td data-label="Reviewer"><strong>{r.customerName}</strong></td>
+                    <td data-label="Provider">{r.providerName}</td>
+                    <td data-label="Trade">{r.service}</td>
+                    <td data-label="Rating">
                       <span style={{ fontWeight: 700, color: r.rating >= 4 ? '#256b4a' : '#c81e1e' }}>
                         {'★'.repeat(Math.max(1, Math.min(5, r.rating)))}
                       </span>
                     </td>
-                    <td style={{ maxWidth: '360px', whiteSpace: 'normal' }}>
+                    <td data-label="Customer Feedback" style={{ maxWidth: '360px', whiteSpace: 'normal' }}>
                       <p style={{ margin: 0, fontSize: '13px', color: '#141f19' }}>"{r.comment}"</p>
                       <span style={{ fontSize: '11px', color: '#8a9990' }}>
                         {new Date(r.createdAt).toLocaleDateString(undefined, {
@@ -267,7 +270,7 @@ export const ReviewsView: React.FC = () => {
                         })}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Sentiment">
                       <span className={`admin-badge ${
                         r.sentiment === 'Positive' ? 'status-resolved' :
                         r.sentiment === 'Neutral' ? 'priority-normal' : 'priority-high'

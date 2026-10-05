@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { BookingItem, BookingsSummary } from '../types';
 import { fetchBookings } from '../api';
+import { AdminSelect } from '../components/AdminSelect';
 
 export const BookingsView: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -161,7 +162,7 @@ export const BookingsView: React.FC = () => {
       )}
 
       <div className="admin-table-card">
-        <div className="admin-toolbar" style={{ padding: '20px 24px 16px' }}>
+        <div className="admin-toolbar">
           <div className="admin-search-box">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="8" />
@@ -175,17 +176,19 @@ export const BookingsView: React.FC = () => {
             />
           </div>
 
-          <select
-            className="admin-filter-select"
+          <AdminSelect
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="All">All Statuses</option>
-            <option value="In Progress">In Progress</option>
-            <option value="Confirmed">Confirmed</option>
-            <option value="Completed">Completed</option>
-            <option value="Cancelled">Cancelled</option>
-          </select>
+            onChange={setStatusFilter}
+            title="Filter by Status"
+            style={{ minWidth: '150px' }}
+            options={[
+              { value: 'All', label: 'All Statuses' },
+              { value: 'In Progress', label: 'In Progress' },
+              { value: 'Confirmed', label: 'Confirmed' },
+              { value: 'Completed', label: 'Completed' },
+              { value: 'Cancelled', label: 'Cancelled' },
+            ]}
+          />
         </div>
 
         <div className="admin-table-container">
@@ -220,10 +223,10 @@ export const BookingsView: React.FC = () => {
                   const effectivePrice = b.finalPrice ?? b.price;
                   return (
                     <tr key={b.id}>
-                      <td>
+                      <td data-label="Booking ID">
                         <span className="admin-inquiry-code">{b.bookingReference}</span>
                       </td>
-                      <td>
+                      <td data-label="Service">
                         <strong>{b.serviceTitle}</strong>
                         {b.category && (
                           <div style={{ fontSize: '11.5px', color: '#64736a', marginTop: '2px' }}>
@@ -231,21 +234,21 @@ export const BookingsView: React.FC = () => {
                           </div>
                         )}
                       </td>
-                      <td>{b.customerName}</td>
-                      <td>{b.providerName}</td>
-                      <td style={{ maxWidth: '240px', fontSize: '12.5px' }}>{b.scheduledWindow}</td>
-                      <td>
+                      <td data-label="Customer">{b.customerName}</td>
+                      <td data-label="Provider">{b.providerName}</td>
+                      <td data-label="Schedule" style={{ fontSize: '12.5px' }}>{b.scheduledWindow}</td>
+                      <td data-label="Total Amount">
                         <strong>LKR {effectivePrice.toLocaleString()}</strong>
                         <div style={{ fontSize: '11px', color: '#64736a' }}>
                           {b.rateType || 'Hourly'}
                         </div>
                       </td>
-                      <td>
+                      <td data-label="Status">
                         <span className={`admin-badge ${getStatusBadgeClass(b.status)}`}>
                           {b.status}
                         </span>
                       </td>
-                      <td className="actions-col">
+                      <td data-label="Actions" className="actions-col">
                         <button
                           type="button"
                           className="admin-btn admin-btn-secondary"
