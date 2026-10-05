@@ -102,11 +102,11 @@ export const SettingsView: React.FC = () => {
 
             <div className="admin-form-group">
               <label className="admin-form-label">Primary LLM Provider Engine</label>
-              <select className="admin-form-select" defaultValue="gemini-1.5">
-                <option value="gemini-1.5">Google Gemini 1.5 Pro / Flash Multi-modal</option>
-                <option value="gemini-experimental">Gemini Experimental Fallback Cluster</option>
+              <select className="admin-form-select" defaultValue="openai-gpt-4o-mini">
+                <option value="openai-gpt-4o-mini">OpenAI (gpt-4o-mini & gpt-4o-mini Vision)</option>
+                <option value="openai-fallback">OpenAI Rule-Based Fallback Cluster</option>
               </select>
-              <span style={{ fontSize: '11.5px', color: '#8a9990' }}>Underlying foundation model for task parsing and vision verification.</span>
+              <span style={{ fontSize: '11.5px', color: '#8a9990' }}>Underlying foundation model for task parsing, semantic matching, and vision verification.</span>
             </div>
           </div>
         </div>

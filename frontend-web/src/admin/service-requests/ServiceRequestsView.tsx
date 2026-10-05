@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { ServiceRequestItem, ServiceRequestsSummary } from '../types';
 import { fetchServiceRequests } from '../api';
+import { AdminSelect } from '../components/AdminSelect';
 
 export const ServiceRequestsView: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -180,24 +181,24 @@ export const ServiceRequestsView: React.FC = () => {
 
       {/* Table Card with Real Data & Dynamic Filters */}
       <div className="admin-table-card">
-        <div className="admin-toolbar" style={{ padding: '20px 24px 16px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="admin-toolbar">
           {/* Live Search with Scope Selector */}
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flex: '1 1 340px' }}>
-            <select
-              className="admin-filter-select"
+          <div className="admin-search-group">
+            <AdminSelect
+              className="admin-search-scope"
               value={searchBy}
-              onChange={(e) => setSearchBy(e.target.value)}
-              title="Select search target"
-              style={{ minWidth: '145px', fontWeight: 500 }}
-            >
-              <option value="customer">Customer Name</option>
-              <option value="all">All Fields</option>
-              <option value="provider">Provider Name</option>
-              <option value="reference">Reference ID</option>
-              <option value="service">Service Title</option>
-            </select>
+              onChange={setSearchBy}
+              title="Search Target"
+              options={[
+                { value: 'customer', label: 'Customer Name' },
+                { value: 'all', label: 'All Fields' },
+                { value: 'provider', label: 'Provider Name' },
+                { value: 'reference', label: 'Reference ID' },
+                { value: 'service', label: 'Service Title' },
+              ]}
+            />
 
-            <div className="admin-search-box" style={{ flex: 1, minWidth: '220px' }}>
+            <div className="admin-search-box">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -206,14 +207,14 @@ export const ServiceRequestsView: React.FC = () => {
                 type="text"
                 placeholder={
                   searchBy === 'customer'
-                    ? 'Search customer name (e.g. Pahan Alwis)...'
+                    ? 'Search customer...'
                     : searchBy === 'provider'
-                    ? 'Search assigned provider...'
+                    ? 'Search provider...'
                     : searchBy === 'reference'
-                    ? 'Search reference ID (e.g. PR-9908)...'
+                    ? 'Search ref ID...'
                     : searchBy === 'service'
-                    ? 'Search service title...'
-                    : 'Search reference, customer, provider, service...'
+                    ? 'Search service...'
+                    : 'Search requests...'
                 }
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -231,45 +232,46 @@ export const ServiceRequestsView: React.FC = () => {
           </div>
 
           {/* Filters Row */}
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <div className="admin-filter-group">
             {/* Category Filter */}
-            <select
-              className="admin-filter-select"
+            <AdminSelect
               value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-            >
-              <option value="All">All Categories ({summary.availableCategories.length})</option>
-              {summary.availableCategories.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
+              onChange={setFilterCategory}
+              title="Filter by Category"
+              options={[
+                { value: 'All', label: `All Categories (${summary.availableCategories.length})` },
+                ...summary.availableCategories.map((cat) => ({ value: cat, label: cat })),
+              ]}
+            />
 
             {/* Status Filter */}
-            <select
-              className="admin-filter-select"
+            <AdminSelect
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-            >
-              <option value="All">All Statuses</option>
-              <option value="Completed">Completed</option>
-              <option value="Accepted">Accepted</option>
-              <option value="In Progress">In Progress</option>
-              <option value="Pending">Pending</option>
-              <option value="Cancelled">Cancelled</option>
-              <option value="Declined">Declined</option>
-            </select>
+              onChange={setFilterStatus}
+              title="Filter by Status"
+              options={[
+                { value: 'All', label: 'All Statuses' },
+                { value: 'Completed', label: 'Completed' },
+                { value: 'Accepted', label: 'Accepted' },
+                { value: 'In Progress', label: 'In Progress' },
+                { value: 'Pending', label: 'Pending' },
+                { value: 'Cancelled', label: 'Cancelled' },
+                { value: 'Declined', label: 'Declined' },
+              ]}
+            />
 
             {/* Urgency Filter */}
-            <select
-              className="admin-filter-select"
+            <AdminSelect
               value={filterUrgency}
-              onChange={(e) => setFilterUrgency(e.target.value)}
-            >
-              <option value="All">All Urgency</option>
-              <option value="Immediate">Immediate (&lt;24h)</option>
-              <option value="Scheduled">Scheduled</option>
-              <option value="Flexible">Flexible</option>
-            </select>
+              onChange={setFilterUrgency}
+              title="Filter by Urgency"
+              options={[
+                { value: 'All', label: 'All Urgency' },
+                { value: 'Immediate', label: 'Immediate (<24h)' },
+                { value: 'Scheduled', label: 'Scheduled' },
+                { value: 'Flexible', label: 'Flexible' },
+              ]}
+            />
 
             {(search || filterCategory !== 'All' || filterStatus !== 'All' || filterUrgency !== 'All') && (
               <button
@@ -347,48 +349,48 @@ export const ServiceRequestsView: React.FC = () => {
               ) : (
                 filteredItems.map((req) => (
                   <tr key={req.id}>
-                    <td>
+                    <td data-label="Reference ID">
                       <span className="admin-inquiry-code">{req.reference}</span>
                       {req.linkedBookingReference && req.linkedBookingReference !== req.reference && (
                         <div style={{ fontSize: '11px', color: '#256b4a' }}>Job: {req.linkedBookingReference}</div>
                       )}
                     </td>
-                    <td>
+                    <td data-label="Customer">
                       <strong>{req.customerName}</strong>
                     </td>
-                    <td>
+                    <td data-label="Provider">
                       {req.providerName && req.providerName !== 'Unassigned' ? (
                         <span style={{ fontWeight: 500, color: '#113c2b' }}>{req.providerName}</span>
                       ) : (
                         <span style={{ color: '#8a9990', fontStyle: 'italic' }}>Unassigned</span>
                       )}
                     </td>
-                    <td>
+                    <td data-label="Service">
                       <strong>{req.serviceTitle}</strong>
                     </td>
-                    <td>{req.category}</td>
-                    <td>
+                    <td data-label="Category">{req.category}</td>
+                    <td data-label="Location">
                       <span style={{ fontSize: '13px', color: '#64736a' }}>
                         {req.location || 'Not specified'}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Urgency">
                       <span className={`admin-badge ${getUrgencyBadge(req.urgency)}`}>
                         {req.urgency}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Rate / Price">
                       <strong>LKR {req.price?.toLocaleString()}</strong>
                       <span style={{ fontSize: '11px', color: '#8a9990', marginLeft: '4px' }}>
                         /{req.rateType || 'job'}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Status">
                       <span className={`admin-badge ${getStatusBadge(req.status)}`}>
                         {req.status}
                       </span>
                     </td>
-                    <td style={{ fontSize: '12.5px', color: '#64736a', whiteSpace: 'nowrap' }}>
+                    <td data-label="Requested" style={{ fontSize: '12.5px', color: '#64736a' }}>
                       {new Date(req.createdAt).toLocaleDateString(undefined, {
                         month: 'short',
                         day: 'numeric',
@@ -396,7 +398,7 @@ export const ServiceRequestsView: React.FC = () => {
                         minute: '2-digit',
                       })}
                     </td>
-                    <td className="actions-col">
+                    <td data-label="Actions" className="actions-col">
                       <button
                         type="button"
                         className="admin-btn admin-btn-secondary"
@@ -445,53 +447,57 @@ export const ServiceRequestsView: React.FC = () => {
               </button>
             </div>
 
-            <div className="admin-modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+            <div className="admin-modal-body" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
               {/* Header Box */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: '#f5f8f6', borderRadius: '12px', border: '1px solid #e3ebe6' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#f5f8f6', borderRadius: '10px', border: '1px solid #e3ebe6' }}>
                 <div>
-                  <h3 style={{ margin: '0 0 4px 0', fontSize: '17px', color: '#141f19' }}>
+                  <h3 style={{ margin: '0 0 2px 0', fontSize: '16px', color: '#141f19' }}>
                     {selectedRequest.serviceTitle}
                   </h3>
-                  <div style={{ fontSize: '13px', color: '#64736a' }}>
+                  <div style={{ fontSize: '12.5px', color: '#64736a' }}>
                     Category: <strong>{selectedRequest.category}</strong>
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <span className={`admin-badge ${getStatusBadge(selectedRequest.status)}`} style={{ fontSize: '13px', padding: '6px 12px' }}>
+                  <span className={`admin-badge ${getStatusBadge(selectedRequest.status)}`} style={{ fontSize: '12px', padding: '4px 10px' }}>
                     {selectedRequest.status}
                   </span>
-                  <div style={{ fontSize: '11.5px', color: '#8a9990', marginTop: '4px' }}>
+                  <div style={{ fontSize: '11px', color: '#8a9990', marginTop: '2px' }}>
                     Urgency: {selectedRequest.urgency}
                   </div>
                 </div>
               </div>
 
-              {/* Info Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              {/* Info Grid: Responsive cards (2 rows on mobile) */}
+              <div className="admin-modal-info-grid">
                 <div className="admin-cred-box">
-                  <div style={{ fontWeight: 600, fontSize: '13px', color: '#113c2b', marginBottom: '8px' }}>Customer Information</div>
+                  <div style={{ fontWeight: 600, fontSize: '12.5px', color: '#113c2b', marginBottom: '4px' }}>Customer Information</div>
                   <div className="admin-cred-row">
                     <span className="admin-cred-label">Name:</span>
                     <span style={{ fontWeight: 600 }}>{selectedRequest.customerName}</span>
                   </div>
                   {selectedRequest.customerId && (
-                    <div className="admin-cred-row">
+                    <div className="admin-cred-block">
                       <span className="admin-cred-label">User ID:</span>
-                      <span style={{ fontFamily: 'monospace', fontSize: '11px' }}>{selectedRequest.customerId}</span>
+                      <div className="admin-cred-code" title="User ID">
+                        {selectedRequest.customerId}
+                      </div>
                     </div>
                   )}
                 </div>
 
                 <div className="admin-cred-box">
-                  <div style={{ fontWeight: 600, fontSize: '13px', color: '#113c2b', marginBottom: '8px' }}>Assigned Provider</div>
+                  <div style={{ fontWeight: 600, fontSize: '12.5px', color: '#113c2b', marginBottom: '4px' }}>Assigned Provider</div>
                   <div className="admin-cred-row">
                     <span className="admin-cred-label">Provider:</span>
                     <span style={{ fontWeight: 600 }}>{selectedRequest.providerName || 'Unassigned'}</span>
                   </div>
                   {selectedRequest.providerId && (
-                    <div className="admin-cred-row">
+                    <div className="admin-cred-block">
                       <span className="admin-cred-label">Provider ID:</span>
-                      <span style={{ fontFamily: 'monospace', fontSize: '11px' }}>{selectedRequest.providerId}</span>
+                      <div className="admin-cred-code" title="Provider ID">
+                        {selectedRequest.providerId}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -499,7 +505,7 @@ export const ServiceRequestsView: React.FC = () => {
 
               {/* Schedule & Location */}
               <div className="admin-cred-box">
-                <div style={{ fontWeight: 600, fontSize: '13px', color: '#113c2b', marginBottom: '8px' }}>Schedule &amp; Location</div>
+                <div style={{ fontWeight: 600, fontSize: '12.5px', color: '#113c2b', marginBottom: '4px' }}>Schedule &amp; Location</div>
                 <div className="admin-cred-row">
                   <span className="admin-cred-label">Preferred Time:</span>
                   <span>{selectedRequest.preferredSchedule || 'Immediate / Flexible'}</span>
@@ -524,13 +530,13 @@ export const ServiceRequestsView: React.FC = () => {
 
               {/* Customer Notes */}
               {selectedRequest.notes && (
-                <div style={{ padding: '14px', background: '#fafcfb', border: '1px solid #e3ebe6', borderRadius: '10px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#64736a', marginBottom: '4px' }}>Customer Special Notes:</div>
-                  <div style={{ fontSize: '13.5px', color: '#141f19' }}>{selectedRequest.notes}</div>
+                <div style={{ padding: '8px 12px', background: '#fafcfb', border: '1px solid #e3ebe6', borderRadius: '8px' }}>
+                  <div style={{ fontSize: '11.5px', fontWeight: 600, color: '#64736a', marginBottom: '2px' }}>Customer Special Notes:</div>
+                  <div style={{ fontSize: '13px', color: '#141f19' }}>{selectedRequest.notes}</div>
                 </div>
               )}
 
-              <div style={{ fontSize: '12px', color: '#8a9990', textAlign: 'right' }}>
+              <div style={{ fontSize: '11px', color: '#8a9990', textAlign: 'right', marginTop: '2px' }}>
                 Recorded in database at: {new Date(selectedRequest.createdAt).toLocaleString()}
               </div>
             </div>

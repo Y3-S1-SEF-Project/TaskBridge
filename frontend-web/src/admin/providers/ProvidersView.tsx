@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { ProviderItem, ProvidersSummary } from '../types';
 import { fetchProviders, toggleProviderStatus } from '../api';
+import { AdminSelect } from '../components/AdminSelect';
 
 export const ProvidersView: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -175,8 +176,8 @@ export const ProvidersView: React.FC = () => {
 
       {/* Main Table Card */}
       <div className="admin-table-card">
-        <div className="admin-toolbar" style={{ padding: '20px 24px 16px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div className="admin-search-box" style={{ flex: '1 1 300px' }}>
+        <div className="admin-toolbar">
+          <div className="admin-search-box" style={{ flex: '1 1 300px', maxWidth: '420px' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -198,28 +199,28 @@ export const ProvidersView: React.FC = () => {
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <select
-              className="admin-filter-select"
+          <div className="admin-filter-group">
+            <AdminSelect
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-            >
-              <option value="All">All Trades ({summary.availableCategories.length})</option>
-              {summary.availableCategories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
+              onChange={setCategoryFilter}
+              title="Filter by Trade"
+              options={[
+                { value: 'All', label: `All Trades (${summary.availableCategories.length})` },
+                ...summary.availableCategories.map(cat => ({ value: cat, label: cat })),
+              ]}
+            />
 
-            <select
-              className="admin-filter-select"
+            <AdminSelect
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="All">All Statuses</option>
-              <option value="Active">Active</option>
-              <option value="Under Review">Under Review</option>
-              <option value="Suspended">Suspended</option>
-            </select>
+              onChange={setStatusFilter}
+              title="Filter by Status"
+              options={[
+                { value: 'All', label: 'All Statuses' },
+                { value: 'Active', label: 'Active' },
+                { value: 'Under Review', label: 'Under Review' },
+                { value: 'Suspended', label: 'Suspended' },
+              ]}
+            />
 
             {(search || categoryFilter !== 'All' || statusFilter !== 'All') && (
               <button
@@ -292,18 +293,18 @@ export const ProvidersView: React.FC = () => {
               ) : (
                 filtered.map(p => (
                   <tr key={p.id}>
-                    <td>
+                    <td data-label="Provider">
                       <strong>{p.name}</strong>
                       <div style={{ fontSize: '11.5px', color: '#8a9990' }}>{p.id}</div>
                     </td>
-                    <td>{p.category}</td>
-                    <td>{p.phone}</td>
-                    <td>{p.location}</td>
-                    <td>
+                    <td data-label="Category">{p.category}</td>
+                    <td data-label="Contact">{p.phone}</td>
+                    <td data-label="Area">{p.location}</td>
+                    <td data-label="Rating">
                       <span style={{ fontWeight: 600, color: '#256b4a' }}>★ {p.rating.toFixed(1)}</span>
                     </td>
-                    <td><strong>{p.completedJobs}</strong></td>
-                    <td>
+                    <td data-label="Jobs Done"><strong>{p.completedJobs}</strong></td>
+                    <td data-label="KYC Verification">
                       <span className={`admin-badge ${
                         p.kycStatus === 'Verified' ? 'status-resolved' :
                         p.kycStatus === 'Pending Review' ? 'status-waiting' : 'priority-high'
@@ -311,7 +312,7 @@ export const ProvidersView: React.FC = () => {
                         {p.kycStatus}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Account">
                       <span className={`admin-badge ${
                         p.accountStatus === 'Active' ? 'status-resolved' :
                         p.accountStatus === 'Under Review' ? 'status-open' : 'priority-high'
@@ -319,7 +320,7 @@ export const ProvidersView: React.FC = () => {
                         {p.accountStatus}
                       </span>
                     </td>
-                    <td className="actions-col">
+                    <td data-label="Actions" className="actions-col">
                       <div style={{ display: 'inline-flex', gap: '6px' }}>
                         <button
                           type="button"

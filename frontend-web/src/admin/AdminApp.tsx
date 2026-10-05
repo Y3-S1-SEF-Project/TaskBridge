@@ -29,6 +29,7 @@ export const AdminApp: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(() => getStoredAdminUser());
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
@@ -133,12 +134,21 @@ export const AdminApp: React.FC = () => {
     <div className="admin-shell">
       <AdminSidebar
         currentTab={currentTab}
-        onSelectTab={(tab) => setCurrentTab(tab)}
+        onSelectTab={(tab) => {
+          setCurrentTab(tab);
+          setMobileMenuOpen(false);
+        }}
         currentUser={currentUser}
         onLogout={handleLogout}
+        isOpen={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
       />
       <div className="admin-main">
-        <AdminHeader currentTab={currentTab} currentUser={currentUser} />
+        <AdminHeader
+          currentTab={currentTab}
+          currentUser={currentUser}
+          onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
+        />
         {renderContent()}
       </div>
     </div>

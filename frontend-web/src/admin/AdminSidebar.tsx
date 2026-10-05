@@ -6,6 +6,8 @@ interface SidebarProps {
   onSelectTab: (tab: string) => void;
   currentUser: AdminUser;
   onLogout: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 export const AdminSidebar: React.FC<SidebarProps> = ({
@@ -13,14 +15,39 @@ export const AdminSidebar: React.FC<SidebarProps> = ({
   onSelectTab,
   currentUser,
   onLogout,
+  isOpen = false,
+  onClose,
 }) => {
   return (
-    <aside className="admin-sidebar">
-      {/* Brand */}
-      <div className="admin-brand">
-        <h1 className="admin-brand-title">TASKBRIDGE</h1>
-        <div className="admin-brand-subtitle">OPERATIONS CONSOLE</div>
-      </div>
+    <>
+      {/* Mobile Backdrop Overlay */}
+      {isOpen && (
+        <div
+          className="admin-sidebar-backdrop"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside className={`admin-sidebar ${isOpen ? 'mobile-open' : ''}`}>
+        {/* Brand */}
+        <div className="admin-brand">
+          <div>
+            <h1 className="admin-brand-title">TASKBRIDGE</h1>
+            <div className="admin-brand-subtitle">OPERATIONS CONSOLE</div>
+          </div>
+          {onClose && (
+            <button
+              type="button"
+              className="admin-sidebar-close-btn"
+              onClick={onClose}
+              aria-label="Close navigation menu"
+              title="Close Menu"
+            >
+              ✕
+            </button>
+          )}
+        </div>
 
       {/* OPERATIONS */}
       <div className="admin-nav-group">
@@ -272,5 +299,6 @@ export const AdminSidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
     </aside>
+  </>
   );
 };

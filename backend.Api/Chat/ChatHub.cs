@@ -32,6 +32,15 @@ public sealed class ChatHub : Hub
             await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId}");
         }
 
+        // If the connected user is an Admin, add them to the admin support channel
+        var role = Context.User?.FindFirst(ClaimTypes.Role)?.Value;
+        if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(role, "SuperAdmin", StringComparison.OrdinalIgnoreCase))
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, "admin_support_channel");
+            _logger.LogInformation("SignalR ChatHub: Admin {UserId} joined admin_support_channel", userId);
+        }
+
         await base.OnConnectedAsync();
     }
 
@@ -76,6 +85,9 @@ public sealed class ChatHub : Hub
         }
 
         var senderName = Context.User?.FindFirst(ClaimTypes.Name)?.Value ?? "User";
+        var role = Context.User?.FindFirst(ClaimTypes.Role)?.Value;
+        var isAdmin = string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase) ||
+                      string.Equals(role, "SuperAdmin", StringComparison.OrdinalIgnoreCase);
 
         var conv = await _db.ChatConversations.SingleOrDefaultAsync(c => c.Id == conversationId);
         if (conv == null)
@@ -83,8 +95,8 @@ public sealed class ChatHub : Hub
             throw new HubException("Conversation not found.");
         }
 
-        // Verify sender is a participant
-        if (conv.CustomerId != senderId && conv.ProviderId != senderId)
+        // Verify sender is a participant or an authorized admin
+        if (!isAdmin && conv.CustomerId != senderId && conv.ProviderId != senderId)
         {
             throw new HubException("You are not a participant in this conversation.");
         }
@@ -98,7 +110,7 @@ public sealed class ChatHub : Hub
             Id = Guid.NewGuid(),
             ConversationId = conversationId,
             SenderId = senderId,
-            SenderName = senderName,
+            SenderName = isAdmin ? "TaskBridge Support Agent" : senderName,
             RecipientId = recipientId,
             MessageType = string.IsNullOrWhiteSpace(messageType) ? "Text" : messageType,
             EncryptedContent = encrypted,
@@ -119,8 +131,41 @@ public sealed class ChatHub : Hub
             conv.UnreadCustomer++;
         }
 
+        var isSupport = conv.BookingReference == SupportConstants.SupportReference ||
+                        conv.BookingReference == SupportConstants.ProviderSupportReference ||
+                        conv.ProviderId == SupportConstants.SupportAgentId;
+
+        bool isFirstSupportMsg = false;
+        if (isSupport && !isAdmin)
+        {
+            isFirstSupportMsg = !await _db.ChatMessages.AnyAsync(m => m.ConversationId == conversationId && m.SenderId == senderId);
+        }
+
         _db.ChatMessages.Add(message);
         await _db.SaveChangesAsync();
+
+        if (isFirstSupportMsg)
+        {
+            var customerUser = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == conv.CustomerId);
+            await Clients.Group("admin_support_channel").SendAsync("NewSupportConversation", new
+            {
+                conv.Id,
+                conv.BookingReference,
+                conv.CustomerId,
+                CustomerName = conv.CustomerName,
+                CustomerPhone = customerUser?.Phone,
+                CustomerEmail = customerUser?.Email,
+                CustomerRole = customerUser?.Role ?? "Customer",
+                conv.ProviderId,
+                conv.ProviderName,
+                LastMessageAt = message.CreatedAt,
+                LastMessageSnippet = cleanContent,
+                UnreadCustomer = 0,
+                UnreadProvider = 1,
+                conv.CreatedAt,
+                IsSupportChat = true
+            });
+        }
 
         var messageDto = new
         {
@@ -133,12 +178,16 @@ public sealed class ChatHub : Hub
             content = cleanContent, // Deliver decrypted to live connected socket
             mediaUrl = message.MediaUrl,
             isRead = message.IsRead,
-            createdAt = message.CreatedAt
+            createdAt = message.CreatedAt,
+            isSupportSender = isAdmin
         };
 
         // Broadcast to conversation group and directly to recipient's personal group
         await Clients.Group($"conv_{conversationId}").SendAsync("ReceiveMessage", messageDto);
         await Clients.Group($"user_{recipientId}").SendAsync("ReceiveMessage", messageDto);
+
+        // Always broadcast to admin support channel so admins see real-time updates
+        await Clients.Group("admin_support_channel").SendAsync("ReceiveMessage", messageDto);
     }
 
     /// <summary>
@@ -207,12 +256,17 @@ public sealed class ChatHub : Hub
             !Guid.TryParse(messageIdStr, out var msgId) ||
             !Guid.TryParse(conversationIdStr, out var convId)) return;
 
+        var role = Context.User?.FindFirst(ClaimTypes.Role)?.Value;
+        var isAdmin = string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase) ||
+                      string.Equals(role, "SuperAdmin", StringComparison.OrdinalIgnoreCase);
+
         var msg = await _db.ChatMessages.FindAsync(msgId);
-        if (msg != null && (msg.SenderId == userId || msg.RecipientId == userId))
+        if (msg != null && (msg.SenderId == userId || msg.RecipientId == userId || isAdmin))
         {
             _db.ChatMessages.Remove(msg);
             await _db.SaveChangesAsync();
             await Clients.Group($"conv_{convId}").SendAsync("MessageDeleted", new { conversationId = conversationIdStr, messageId = messageIdStr });
+            await Clients.Group("admin_support_channel").SendAsync("MessageDeleted", new { conversationId = conversationIdStr, messageId = messageIdStr });
         }
     }
 }
