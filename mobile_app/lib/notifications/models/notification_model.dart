@@ -4,6 +4,7 @@ class NotificationModel {
   final String id;
   final String? userId;
   final String? userName;
+  final String? targetRole;
   final String title;
   final String message;
   final String type;
@@ -17,6 +18,7 @@ class NotificationModel {
     required this.id,
     this.userId,
     this.userName,
+    this.targetRole,
     required this.title,
     required this.message,
     required this.type,
@@ -31,6 +33,7 @@ class NotificationModel {
     String? id,
     String? userId,
     String? userName,
+    String? targetRole,
     String? title,
     String? message,
     String? type,
@@ -44,6 +47,7 @@ class NotificationModel {
       id: id ?? this.id,
       userId: userId ?? this.userId,
       userName: userName ?? this.userName,
+      targetRole: targetRole ?? this.targetRole,
       title: title ?? this.title,
       message: message ?? this.message,
       type: type ?? this.type,
@@ -60,6 +64,7 @@ class NotificationModel {
       id: json['id']?.toString() ?? '',
       userId: json['userId']?.toString(),
       userName: json['userName']?.toString(),
+      targetRole: json['targetRole']?.toString(),
       title: json['title']?.toString() ?? 'Notification',
       message: json['message']?.toString() ?? '',
       type: json['type']?.toString() ?? 'General',
@@ -79,6 +84,7 @@ class NotificationModel {
     'id': id,
     'userId': userId,
     'userName': userName,
+    'targetRole': targetRole,
     'title': title,
     'message': message,
     'type': type,

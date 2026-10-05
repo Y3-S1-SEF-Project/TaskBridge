@@ -136,6 +136,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
             entity.HasIndex(x => x.CreatedAt);
             entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
             entity.Property(x => x.Type).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.TargetRole).HasMaxLength(50);
         });
 
         model.Entity<JobMatchEntity>(entity =>
@@ -500,6 +501,7 @@ CREATE INDEX IF NOT EXISTS ix_job_matches_service_req ON job_matches (""ServiceR
 CREATE INDEX IF NOT EXISTS ix_job_matches_category ON job_matches (""Category"");
 
 ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS ""MatchedProvidersJson"" text NULL;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS ""TargetRole"" varchar(50) NULL;
 ";
         await Database.ExecuteSqlRawAsync(sql, ct);
     }

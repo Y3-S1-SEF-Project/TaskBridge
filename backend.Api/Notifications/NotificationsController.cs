@@ -31,6 +31,7 @@ public sealed class NotificationsController : ControllerBase
     public async Task<IActionResult> GetNotifications(
         [FromQuery] Guid? userId,
         [FromQuery] string? userName,
+        [FromQuery] string? role,
         [FromQuery] bool? unreadOnly,
         [FromQuery] int limit = 50,
         CancellationToken ct = default)
@@ -53,6 +54,12 @@ public sealed class NotificationsController : ControllerBase
             else if (!string.IsNullOrEmpty(resolvedUserName))
             {
                 query = query.Where(n => n.UserName != null && n.UserName.ToLower() == resolvedUserName);
+            }
+
+            if (!string.IsNullOrWhiteSpace(role))
+            {
+                var cleanRole = role.Trim().ToLowerInvariant();
+                query = query.Where(n => n.TargetRole == null || n.TargetRole == "" || n.TargetRole.ToLower() == cleanRole);
             }
 
             if (unreadOnly == true)
@@ -82,6 +89,7 @@ public sealed class NotificationsController : ControllerBase
     public async Task<IActionResult> GetUnreadCount(
         [FromQuery] Guid? userId,
         [FromQuery] string? userName,
+        [FromQuery] string? role,
         CancellationToken ct = default)
     {
         try
@@ -102,6 +110,12 @@ public sealed class NotificationsController : ControllerBase
             else if (!string.IsNullOrEmpty(resolvedUserName))
             {
                 query = query.Where(n => n.UserName != null && n.UserName.ToLower() == resolvedUserName);
+            }
+
+            if (!string.IsNullOrWhiteSpace(role))
+            {
+                var cleanRole = role.Trim().ToLowerInvariant();
+                query = query.Where(n => n.TargetRole == null || n.TargetRole == "" || n.TargetRole.ToLower() == cleanRole);
             }
 
             var count = await query.CountAsync(ct);
@@ -232,6 +246,7 @@ public sealed class NotificationsController : ControllerBase
             Id = entity.Id,
             UserId = entity.UserId,
             UserName = entity.UserName,
+            TargetRole = entity.TargetRole,
             Title = entity.Title,
             Message = entity.Message,
             Type = entity.Type,

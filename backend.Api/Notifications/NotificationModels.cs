@@ -6,6 +6,7 @@ public sealed class CreateNotificationDto
 {
     public Guid? UserId { get; set; }
     public string? UserName { get; set; }
+    public string? TargetRole { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
     public string Type { get; set; } = "General";
@@ -24,6 +25,9 @@ public sealed class NotificationResponseDto
 
     [JsonPropertyName("userName")]
     public string? UserName { get; set; }
+
+    [JsonPropertyName("targetRole")]
+    public string? TargetRole { get; set; }
 
     [JsonPropertyName("title")]
     public string Title { get; set; } = string.Empty;

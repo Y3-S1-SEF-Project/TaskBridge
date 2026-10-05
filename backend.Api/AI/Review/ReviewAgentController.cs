@@ -98,6 +98,7 @@ public class ReviewAgentController : ControllerBase
                 {
                     UserId = comp.ProviderId,
                     UserName = comp.ProviderName,
+                    TargetRole = "provider",
                     Title = "Job Approved & Completed!",
                     Message = $"{comp.CustomerName} approved completion of #{comp.BookingReference} ({comp.ServiceTitle}).",
                     Type = "PaymentReceived",
@@ -129,6 +130,7 @@ public class ReviewAgentController : ControllerBase
                 {
                     UserId = comp.ProviderId,
                     UserName = comp.ProviderName,
+                    TargetRole = "provider",
                     Title = "Revision Requested",
                     Message = $"{comp.CustomerName} requested a revision on #{comp.BookingReference}: {request.Reason}",
                     Type = "JobRevision",

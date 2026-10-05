@@ -27,6 +27,7 @@ public sealed class NotificationService : INotificationService
             Id = Guid.NewGuid(),
             UserId = dto.UserId,
             UserName = dto.UserName,
+            TargetRole = dto.TargetRole,
             Title = dto.Title,
             Message = dto.Message,
             Type = dto.Type,
@@ -42,20 +43,42 @@ public sealed class NotificationService : INotificationService
 
         var response = MapToResponse(entity);
 
-        // Dispatch via SignalR to target user (multi-group deduplicated delivery)
+        // Dispatch via SignalR to target user (role-scoped group delivery to prevent notifying the wrong role)
         try
         {
             var targetGroups = new List<string>();
 
-            if (dto.UserId.HasValue && dto.UserId != Guid.Empty)
+            if (!string.IsNullOrWhiteSpace(dto.TargetRole))
             {
-                targetGroups.Add($"user_{dto.UserId.Value}");
-            }
+                var cleanRole = dto.TargetRole.Trim().ToLowerInvariant();
+                if (dto.UserId.HasValue && dto.UserId != Guid.Empty)
+                {
+                    targetGroups.Add($"user_{dto.UserId.Value}_{cleanRole}");
+                }
 
-            if (!string.IsNullOrWhiteSpace(dto.UserName))
+                if (!string.IsNullOrWhiteSpace(dto.UserName))
+                {
+                    var clean = dto.UserName.Trim().ToLowerInvariant().Replace(" ", "_");
+                    targetGroups.Add($"name_{clean}_{cleanRole}");
+                }
+
+                if (targetGroups.Count == 0)
+                {
+                    targetGroups.Add($"role_{cleanRole}");
+                }
+            }
+            else
             {
-                var clean = dto.UserName.Trim().ToLowerInvariant().Replace(" ", "_");
-                targetGroups.Add($"name_{clean}");
+                if (dto.UserId.HasValue && dto.UserId != Guid.Empty)
+                {
+                    targetGroups.Add($"user_{dto.UserId.Value}");
+                }
+
+                if (!string.IsNullOrWhiteSpace(dto.UserName))
+                {
+                    var clean = dto.UserName.Trim().ToLowerInvariant().Replace(" ", "_");
+                    targetGroups.Add($"name_{clean}");
+                }
             }
 
             if (targetGroups.Count > 0)
@@ -84,6 +107,7 @@ public sealed class NotificationService : INotificationService
         {
             UserId = providerId,
             UserName = providerName,
+            TargetRole = "provider",
             Title = "New Job Proposal",
             Message = $"{customerName} sent you a proposal for {serviceTitle} (Rs. {rate:F0})",
             Type = "ProposalReceived",
@@ -105,6 +129,7 @@ public sealed class NotificationService : INotificationService
         {
             UserId = customerId,
             UserName = customerName,
+            TargetRole = "customer",
             Title = "Proposal Accepted!",
             Message = $"{providerName} accepted your request for {serviceTitle}! Booking #{bookingReference} is confirmed.",
             Type = "ProposalAccepted",
@@ -126,6 +151,7 @@ public sealed class NotificationService : INotificationService
         {
             UserId = providerId,
             UserName = providerName,
+            TargetRole = "provider",
             Title = "Quote Accepted!",
             Message = $"{customerName} accepted your quote for {serviceTitle}! Booking #{bookingReference} is confirmed.",
             Type = "QuoteAccepted",
@@ -147,6 +173,7 @@ public sealed class NotificationService : INotificationService
         {
             UserId = customerId,
             UserName = customerName,
+            TargetRole = "customer",
             Title = "Proposal Update",
             Message = $"{providerName} was unable to accept the proposal for {serviceTitle} (#{proposalReference}).",
             Type = "ProposalDeclined",
@@ -169,6 +196,7 @@ public sealed class NotificationService : INotificationService
         {
             UserId = customerId,
             UserName = customerName,
+            TargetRole = "customer",
             Title = "New Counter-Offer Received",
             Message = $"{providerName} submitted an updated quote of Rs. {newRate:F0} for {serviceTitle}.",
             Type = "CounterBid",
@@ -191,6 +219,7 @@ public sealed class NotificationService : INotificationService
         {
             UserId = providerId,
             UserName = providerName,
+            TargetRole = "provider",
             Title = "New Offer from Customer",
             Message = $"{customerName} sent an updated offer of Rs. {newRate:F0} for {serviceTitle} (#{bookingReference}).",
             Type = "CounterBid",
@@ -212,6 +241,7 @@ public sealed class NotificationService : INotificationService
         {
             UserId = customerId,
             UserName = customerName,
+            TargetRole = "customer",
             Title = "Job In Progress",
             Message = $"{providerName} has arrived on-site and started work on #{bookingReference}.",
             Type = "JobStarted",
@@ -234,6 +264,7 @@ public sealed class NotificationService : INotificationService
         {
             UserId = customerId,
             UserName = customerName,
+            TargetRole = "customer",
             Title = "Job Completed",
             Message = $"{providerName} finished working on {serviceTitle}! Tap to verify photos, review, and complete payment.",
             Type = "JobCompleted",
@@ -281,6 +312,7 @@ public sealed class NotificationService : INotificationService
             Id = entity.Id,
             UserId = entity.UserId,
             UserName = entity.UserName,
+            TargetRole = entity.TargetRole,
             Title = entity.Title,
             Message = entity.Message,
             Type = entity.Type,
