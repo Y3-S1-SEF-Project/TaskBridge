@@ -1,8 +1,11 @@
+using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using TaskBridge.Api.Admin;
 using TaskBridge.Api.Auth;
 using TaskBridge.Api.Data;
@@ -32,8 +35,49 @@ builder.Services.AddHttpClient<IOtpSender, NotifySmsSender>(client => client.Tim
 builder.Services.AddHttpClient<backend.Api.AI.PlanningAgentService>(client => client.Timeout = TimeSpan.FromSeconds(25));
 builder.Services.AddHttpClient<backend.Api.AI.MatchingAgentService>(client => client.Timeout = TimeSpan.FromSeconds(25));
 builder.Services.AddHttpClient<backend.Api.AI.CoordinationAgentService>(client => client.Timeout = TimeSpan.FromSeconds(25));
+builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddHttpClient<backend.Api.AI.ReviewAgentService>(client => client.Timeout = TimeSpan.FromSeconds(45));
-builder.Services.AddAuthentication("Session").AddScheme<AuthenticationSchemeOptions, SessionAuthenticationHandler>("Session", null);
+
+var jwtKey = builder.Configuration["Jwt:Key"] ?? "TaskBridge_SuperSecret_Jwt_Security_Key_2026_SEF_SLIIT!";
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "TaskBridgeApi";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "TaskBridgeApp";
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        ValidateIssuer = true,
+        ValidIssuer = jwtIssuer,
+        ValidateAudience = true,
+        ValidAudience = jwtAudience,
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero
+    };
+
+    // Enables token extraction from query string for SignalR WebSockets (/hubs/chat)
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
+});
 builder.Services.AddAuthorization();
 builder.Services.AddRateLimiter(options =>
 {

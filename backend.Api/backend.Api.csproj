@@ -9,6 +9,7 @@
   <ItemGroup>
     <PackageReference Include="AWSSDK.S3" Version="4.0.103.3" />
     <PackageReference Include="CloudinaryDotNet" Version="1.29.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
   </ItemGroup>

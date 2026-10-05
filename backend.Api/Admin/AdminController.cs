@@ -11,7 +11,8 @@ namespace TaskBridge.Api.Admin;
 [Route("api/admin")]
 public sealed class AdminController(
     AuthDbContext db,
-    IPasswordHasher<AdminUser> hasher) : ControllerBase
+    IPasswordHasher<AdminUser> hasher,
+    JwtTokenService jwt) : ControllerBase
 {
     // Authenticates Admin / SuperAdmin credentials from dedicated 'admins' table
     [HttpPost("auth/login")]
@@ -32,7 +33,7 @@ public sealed class AdminController(
         if (verifyResult == PasswordVerificationResult.Failed)
             return Unauthorized(new { error = "Invalid administrator credentials." });
 
-        var token = AuthCrypto.Token();
+        var token = jwt.GenerateAdminToken(admin);
         admin.SessionToken = token;
         admin.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
