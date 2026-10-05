@@ -205,18 +205,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats }) => {
               {stats.recentInquiries.length > 0 ? (
                 stats.recentInquiries.map((inq) => (
                   <tr key={inq.inquiryNumber}>
-                    <td>
+                    <td data-label="Inquiry">
                       <span className="admin-inquiry-code">{inq.inquiryNumber}</span>
                     </td>
-                    <td>{inq.customer}</td>
-                    <td>{inq.issue}</td>
-                    <td>{inq.provider}</td>
-                    <td>
+                    <td data-label="Customer">{inq.customer}</td>
+                    <td data-label="Issue">{inq.issue}</td>
+                    <td data-label="Provider">{inq.provider}</td>
+                    <td data-label="Priority">
                       <span className={`admin-badge ${getPriorityClass(inq.priority)}`}>
                         {inq.priority}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Status">
                       <span className={`admin-badge ${getStatusClass(inq.status)}`}>
                         {inq.status}
                       </span>

@@ -10,6 +10,7 @@ public sealed class AuthService(
     IPasswordHasher<AppUser> hasher,
     IEmailOtpSender emailSender,
     IProfileImageService imageService,
+    JwtTokenService jwt,
     ILogger<AuthService> logger)
 {
     public async Task<ChallengeResponse> Register(RegisterRequest request, CancellationToken ct)
@@ -93,7 +94,7 @@ public sealed class AuthService(
         user.EmailOtp = null;
         user.EmailOtpExpiresAt = null;
 
-        var token = AuthCrypto.Token();
+        var token = jwt.GenerateUserToken(user);
         user.SessionToken = token;
         user.UpdatedAt = DateTimeOffset.UtcNow;
 
@@ -179,7 +180,7 @@ public sealed class AuthService(
             throw new AuthProblem(403, "Please verify your email address. A new code was sent to your email.");
         }
 
-        var token = AuthCrypto.Token();
+        var token = jwt.GenerateUserToken(user);
         user.SessionToken = token;
         user.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);

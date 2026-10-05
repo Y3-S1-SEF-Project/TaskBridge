@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { CustomerItem, CustomersSummary } from '../types';
 import { fetchCustomers } from '../api';
+import { AdminSelect } from '../components/AdminSelect';
 
 export const CustomersView: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -140,8 +141,8 @@ export const CustomersView: React.FC = () => {
       </div>
 
       <div className="admin-table-card">
-        <div className="admin-toolbar" style={{ padding: '20px 24px 16px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div className="admin-search-box" style={{ flex: '1 1 320px' }}>
+        <div className="admin-toolbar">
+          <div className="admin-search-box" style={{ flex: '1 1 320px', maxWidth: '420px' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -163,17 +164,19 @@ export const CustomersView: React.FC = () => {
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <select
-              className="admin-filter-select"
+          <div className="admin-filter-group">
+            <AdminSelect
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="All">All Statuses</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-              <option value="Flagged">Flagged</option>
-            </select>
+              onChange={setStatusFilter}
+              title="Filter by Status"
+              style={{ minWidth: '150px' }}
+              options={[
+                { value: 'All', label: 'All Statuses' },
+                { value: 'Active', label: 'Active' },
+                { value: 'Inactive', label: 'Inactive' },
+                { value: 'Flagged', label: 'Flagged' },
+              ]}
+            />
 
             {(search || statusFilter !== 'All') && (
               <button
@@ -245,27 +248,27 @@ export const CustomersView: React.FC = () => {
               ) : (
                 filtered.map(c => (
                   <tr key={c.id}>
-                    <td>
+                    <td data-label="Customer">
                       <strong>{c.name}</strong>
                       <div style={{ fontSize: '11.5px', color: '#8a9990' }}>{c.id}</div>
                     </td>
-                    <td>{c.email}</td>
-                    <td>{c.phone}</td>
-                    <td>{c.district}</td>
-                    <td><strong>{c.bookingsCount}</strong></td>
-                    <td><strong>LKR {c.totalSpent.toLocaleString()}</strong></td>
-                    <td>
+                    <td data-label="Email">{c.email}</td>
+                    <td data-label="Phone">{c.phone}</td>
+                    <td data-label="District">{c.district}</td>
+                    <td data-label="Bookings"><strong>{c.bookingsCount}</strong></td>
+                    <td data-label="Total Spent"><strong>LKR {c.totalSpent.toLocaleString()}</strong></td>
+                    <td data-label="Status">
                       <span className={`admin-badge ${c.status === 'Active' ? 'status-resolved' : c.status === 'Flagged' ? 'priority-high' : 'priority-normal'}`}>
                         {c.status}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Joined">
                       {new Date(c.joinedDate).toLocaleDateString(undefined, {
                         month: 'short',
                         year: 'numeric',
                       })}
                     </td>
-                    <td className="actions-col">
+                    <td data-label="Actions" className="actions-col">
                       <button
                         type="button"
                         className="admin-btn admin-btn-secondary"

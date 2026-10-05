@@ -56,17 +56,30 @@ class _ActiveChatPageState extends State<ActiveChatPage> {
 
   Future<void> _loadUserAndMessages() async {
     _currentUser = await AuthApi.getCachedUser();
-    await _chatService.initSignalR();
-    await _chatService.joinConversation(widget.conversationId);
-    await _chatService.markAsRead(widget.conversationId);
 
-    final msgs = await _chatService.fetchMessages(widget.conversationId);
-    if (mounted) {
-      setState(() {
-        _messages = msgs;
-        _isLoading = false;
-      });
-      _scrollToBottom();
+    // 1. Fetch messages immediately so user doesn't wait on SignalR handshake
+    _chatService.fetchMessages(widget.conversationId).then((msgs) {
+      if (mounted) {
+        setState(() {
+          _messages = msgs;
+          _isLoading = false;
+        });
+        _scrollToBottom();
+      }
+    }).catchError((e) {
+      debugPrint('[ActiveChatPage] Fetch messages error: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    });
+
+    // 2. Connect SignalR and join conversation in parallel
+    try {
+      await _chatService.initSignalR();
+      await _chatService.joinConversation(widget.conversationId);
+      await _chatService.markAsRead(widget.conversationId);
+    } catch (e) {
+      debugPrint('[ActiveChatPage] SignalR sync notice: $e');
     }
 
     // Listen for live messages
@@ -377,45 +390,130 @@ class _ActiveChatPageState extends State<ActiveChatPage> {
             ),
             Divider(height: 1, color: p.border),
 
+            // Support Welcome Container (top center)
+            if (widget.bookingReference == 'SUPPORT' ||
+                widget.bookingReference == 'SUPPORT-PROVIDER' ||
+                widget.recipientId == '00000000-0000-0000-0000-000000000001')
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+                child: Center(
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: p.surface,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: const Color(0xFF2E7D32).withValues(alpha: 0.25),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFE8F5E9),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.support_agent_rounded,
+                                size: 16,
+                                color: Color(0xFF2E7D32),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'TaskBridge Live Support Desk',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                                color: Color(0xFF1B5E20),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'A real-time support agent from our administration team is connected to assist you. Send us your questions or inquiries anytime!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: p.textSecondary,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
             // Messages List
             Expanded(
               child: _isLoading
                   ? Center(child: CircularProgressIndicator(color: p.primary))
-                  : _messages.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.chat_bubble_outline,
-                            size: 48,
-                            color: p.textSecondary.withValues(alpha: 0.5),
+                  : () {
+                      final displayMessages = _messages.where((m) {
+                        return !m.content.contains('Welcome to TaskBridge Live Support');
+                      }).toList();
+
+                      if (displayMessages.isEmpty) {
+                        final isSupport = widget.bookingReference == 'SUPPORT' ||
+                            widget.bookingReference == 'SUPPORT-PROVIDER' ||
+                            widget.recipientId == '00000000-0000-0000-0000-000000000001';
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                isSupport ? Icons.support_agent_rounded : Icons.chat_bubble_outline,
+                                size: 48,
+                                color: p.textSecondary.withValues(alpha: 0.5),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                isSupport
+                                    ? 'No messages yet.\nType a message below to chat with our live agent!'
+                                    : 'No messages yet.\nSay hello to start the conversation!',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: p.textSecondary,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'No messages yet.\nSay hello to start the conversation!',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: p.textSecondary,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      itemCount: _messages.length,
-                      itemBuilder: (context, index) {
-                        final msg = _messages[index];
-                        final isMe = msg.isSender(myId);
-                        return _buildMessageBubble(msg, isMe, p);
-                      },
-                    ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        itemCount: displayMessages.length,
+                        itemBuilder: (context, index) {
+                          final msg = displayMessages[index];
+                          final isMe = msg.isSender(myId);
+                          return _buildMessageBubble(msg, isMe, p);
+                        },
+                      );
+                    }(),
             ),
 
             // Selected Image Preview Thumbnail

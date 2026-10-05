@@ -45,21 +45,34 @@ class _ProviderChatPageState extends State<ProviderChatPage> {
 
   Future<void> _loadConversations() async {
     final user = await AuthApi.getCachedUser();
-    final convs = await _chatService.fetchConversations(role: 'provider');
+    final results = await Future.wait([
+      _chatService.fetchConversations(role: 'provider'),
+      _chatService.fetchSupportConversation(),
+    ]);
+    final convs = results[0] as List<ChatConversationModel>;
+    final supportConv = results[1] as ChatConversationModel?;
+
     if (mounted) {
       final myId = user?.id ?? '';
       // Ensure only chats where the user is acting as a provider are shown
-      // Customer-mode chats are strictly excluded from provider mode
+      // Customer-mode chats and support references are excluded from standard list
       final providerConvs = convs.where((c) {
+        if (c.bookingReference == 'SUPPORT' ||
+            c.bookingReference == 'SUPPORT-PROVIDER' ||
+            c.providerId == '00000000-0000-0000-0000-000000000001') {
+          return false;
+        }
         if (myId.isNotEmpty) {
           return c.customerId != myId;
         }
         return true;
       }).toList();
 
+      final allConvs = <ChatConversationModel>[?supportConv, ...providerConvs];
+
       setState(() {
-        _conversations = providerConvs;
-        _filteredConversations = providerConvs;
+        _conversations = allConvs;
+        _filteredConversations = allConvs;
         _isLoading = false;
       });
     }
@@ -93,6 +106,7 @@ class _ProviderChatPageState extends State<ProviderChatPage> {
     required String customerId,
     required String customerName,
     String? bookingRef,
+    String? subtitle,
   }) {
     Navigator.of(context)
         .push(
@@ -101,9 +115,11 @@ class _ProviderChatPageState extends State<ProviderChatPage> {
               conversationId: conversationId,
               recipientId: customerId,
               recipientName: customerName,
-              subtitle: bookingRef != null
-                  ? 'Booking #$bookingRef'
-                  : 'Customer Inquiry',
+              subtitle:
+                  subtitle ??
+                  (bookingRef != null
+                      ? 'Booking #$bookingRef'
+                      : 'Customer Inquiry'),
               bookingReference: bookingRef,
             ),
           ),
@@ -282,21 +298,42 @@ class _ProviderChatPageState extends State<ProviderChatPage> {
                               Divider(height: 1, indent: 72, color: p.border),
                           itemBuilder: (context, index) {
                             final conv = _filteredConversations[index];
-                            final name = conv.customerName.isNotEmpty
-                                ? conv.customerName
-                                : 'Customer';
+                            final isSupport =
+                                conv.bookingReference == 'SUPPORT' ||
+                                conv.bookingReference == 'SUPPORT-PROVIDER' ||
+                                conv.providerId ==
+                                    '00000000-0000-0000-0000-000000000001';
+                            final name = isSupport
+                                ? 'TaskBridge Support 🛡️'
+                                : (conv.customerName.isNotEmpty
+                                      ? conv.customerName
+                                      : 'Customer');
                             final initial = name.isNotEmpty
                                 ? name[0].toUpperCase()
                                 : 'C';
                             final unread = conv.unreadCount;
 
                             return InkWell(
-                              onTap: () => _openChatDetail(
-                                conversationId: conv.id,
-                                customerId: conv.customerId,
-                                customerName: name,
-                                bookingRef: conv.bookingReference,
-                              ),
+                              onTap: () {
+                                if (isSupport) {
+                                  _openChatDetail(
+                                    conversationId: conv.id,
+                                    customerId:
+                                        '00000000-0000-0000-0000-000000000001',
+                                    customerName: 'TaskBridge Support Agent',
+                                    subtitle:
+                                        'Live Support Desk • Real-time Agent',
+                                    bookingRef: 'SUPPORT',
+                                  );
+                                } else {
+                                  _openChatDetail(
+                                    conversationId: conv.id,
+                                    customerId: conv.customerId,
+                                    customerName: name,
+                                    bookingRef: conv.bookingReference,
+                                  );
+                                }
+                              },
                               borderRadius: BorderRadius.circular(
                                 AppRadius.r12,
                               ),
@@ -307,18 +344,51 @@ class _ProviderChatPageState extends State<ProviderChatPage> {
                                 ),
                                 child: Row(
                                   children: [
-                                    CircleAvatar(
-                                      radius: 26,
-                                      backgroundColor: p.primary,
-                                      child: Text(
-                                        initial,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 18,
+                                    if (isSupport)
+                                      Container(
+                                        width: 52,
+                                        height: 52,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          gradient: const LinearGradient(
+                                            colors: [
+                                              Color(0xFF1B5E20),
+                                              Color(0xFF2E7D32),
+                                            ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: const Color(
+                                                0xFF2E7D32,
+                                              ).withValues(alpha: 0.35),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 3),
+                                            ),
+                                          ],
+                                        ),
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.support_agent_rounded,
+                                            color: Colors.white,
+                                            size: 28,
+                                          ),
+                                        ),
+                                      )
+                                    else
+                                      CircleAvatar(
+                                        radius: 26,
+                                        backgroundColor: p.primary,
+                                        child: Text(
+                                          initial,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 18,
+                                          ),
                                         ),
                                       ),
-                                    ),
                                     const SizedBox(width: 14),
 
                                     // Customer details
@@ -332,16 +402,64 @@ class _ProviderChatPageState extends State<ProviderChatPage> {
                                                 MainAxisAlignment.spaceBetween,
                                             children: [
                                               Expanded(
-                                                child: Text(
-                                                  name,
-                                                  style: TextStyle(
-                                                    fontSize: 15,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: p.textPrimary,
-                                                  ),
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
+                                                child: Row(
+                                                  children: [
+                                                    Flexible(
+                                                      child: Text(
+                                                        name,
+                                                        style: TextStyle(
+                                                          fontSize: 15,
+                                                          fontWeight:
+                                                              FontWeight.w700,
+                                                          color: p.textPrimary,
+                                                        ),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
+                                                    ),
+                                                    if (isSupport) ...[
+                                                      const SizedBox(width: 6),
+                                                      Container(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 6,
+                                                              vertical: 2,
+                                                            ),
+                                                        decoration: BoxDecoration(
+                                                          color:
+                                                              const Color(
+                                                                0xFF2E7D32,
+                                                              ).withValues(
+                                                                alpha: 0.15,
+                                                              ),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                6,
+                                                              ),
+                                                          border: Border.all(
+                                                            color:
+                                                                const Color(
+                                                                  0xFF2E7D32,
+                                                                ).withValues(
+                                                                  alpha: 0.3,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        child: const Text(
+                                                          'Official',
+                                                          style: TextStyle(
+                                                            fontSize: 10,
+                                                            fontWeight:
+                                                                FontWeight.w700,
+                                                            color: Color(
+                                                              0xFF2E7D32,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ],
                                                 ),
                                               ),
                                               Text(
@@ -361,7 +479,17 @@ class _ProviderChatPageState extends State<ProviderChatPage> {
                                             ],
                                           ),
                                           const SizedBox(height: 2),
-                                          if (conv.bookingReference != null)
+                                          if (isSupport)
+                                            const Text(
+                                              'Live Agent Desk • Real-time Assistance',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Color(0xFF2E7D32),
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            )
+                                          else if (conv.bookingReference !=
+                                              null)
                                             Text(
                                               'Booking #${conv.bookingReference}',
                                               style: TextStyle(
@@ -399,7 +527,9 @@ class _ProviderChatPageState extends State<ProviderChatPage> {
                                           vertical: 3,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: p.primary,
+                                          color: isSupport
+                                              ? const Color(0xFF2E7D32)
+                                              : p.primary,
                                           borderRadius: BorderRadius.circular(
                                             12,
                                           ),

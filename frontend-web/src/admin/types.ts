@@ -154,3 +154,139 @@ export interface ReviewsSummary {
   items: ReviewItem[];
 }
 
+export interface BookingItem {
+  id: string;
+  bookingReference: string;
+  serviceTitle: string;
+  category: string;
+  customerName: string;
+  customerId: string | null;
+  providerName: string;
+  providerId: string | null;
+  scheduledWindow: string;
+  location: string;
+  price: number;
+  rateType: string;
+  finalPrice: number | null;
+  status: string;
+  durationMinutes: number | null;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface BookingsSummary {
+  activeJobsCount: number;
+  scheduledTodayCount: number;
+  totalWorkFunds: number;
+  formattedWorkFunds: string;
+  completedJobsCount: number;
+  items: BookingItem[];
+}
+
+export interface AdminConversation {
+  id: string;
+  bookingReference: string | null;
+  customerId: string;
+  customerName: string;
+  customerPhone?: string | null;
+  customerEmail?: string | null;
+  customerRole?: string;
+  providerId: string;
+  providerName: string;
+  lastMessageAt: string;
+  lastMessageSnippet: string | null;
+  unreadCustomer: number;
+  unreadProvider: number;
+  createdAt: string;
+  isSupportChat: boolean;
+}
+
+export interface AdminChatMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  recipientId: string;
+  messageType: 'Text' | 'Image' | string;
+  content: string;
+  mediaUrl?: string | null;
+  isRead: boolean;
+  createdAt: string;
+  isSupportSender: boolean;
+}
+
+export interface AiWorkflowItem {
+  id: string;
+  name: string;
+  agentType: string;
+  triggerEvent: string;
+  latencyMs: number;
+  tokensUsed: number;
+  status: string;
+  model: string;
+  timestamp: string;
+  createdAt: string;
+}
+
+export interface AiWorkflowTraceStep {
+  stepNumber: number;
+  title: string;
+  description: string;
+  durationMs: number;
+  status: string;
+}
+
+export interface AiWorkflowTrace {
+  id: string;
+  name: string;
+  agentType: string;
+  model: string;
+  triggerEvent: string;
+  status: string;
+  latencyMs: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  estimatedCostUsd: number;
+  guardrailStatus: string;
+  inputPayload: string;
+  outputPayload: string;
+  steps: AiWorkflowTraceStep[];
+  createdAt: string;
+}
+
+export interface AgentTelemetryItem {
+  name: string;
+  role: string;
+  model: string;
+  status: string;
+  capacity: string;
+  requestsToday: number;
+  avgLatencyMs: number;
+}
+
+export interface TokenDistributionItem {
+  label: string;
+  percentage: number;
+  color: string;
+}
+
+export interface AiMonitoringSummary {
+  modelInferenceSuccess: string;
+  totalTokensToday: number;
+  estimatedCostToday: string;
+  p95Latency: string;
+  guardrailInterceptions: number;
+  agents: AgentTelemetryItem[];
+  tokenDistribution: TokenDistributionItem[];
+}
+
+export interface AiWorkflowsSummary {
+  activeAgents: number;
+  executionsToday: number;
+  autonomousCompletionRate: string;
+  averageLatency: string;
+  humanReviewFallbacks: number;
+  workflows: AiWorkflowItem[];
+}
+

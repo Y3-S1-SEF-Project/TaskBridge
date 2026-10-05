@@ -4,9 +4,14 @@ import type { AdminUser } from './types';
 interface HeaderProps {
   currentTab: string;
   currentUser: AdminUser;
+  onToggleMobileMenu?: () => void;
 }
 
-export const AdminHeader: React.FC<HeaderProps> = ({ currentTab, currentUser }) => {
+export const AdminHeader: React.FC<HeaderProps> = ({
+  currentTab,
+  currentUser,
+  onToggleMobileMenu,
+}) => {
   const getTabLabel = (tab: string) => {
     switch (tab) {
       case 'dashboard': return 'Dashboard';
@@ -38,12 +43,28 @@ export const AdminHeader: React.FC<HeaderProps> = ({ currentTab, currentUser }) 
 
   return (
     <header className="admin-topbar">
-      <div className="admin-breadcrumb">
-        <span>Workspace</span>
-        <span>/</span>
-        <span>Overview</span>
-        <span>/</span>
-        <span className="current">{getTabLabel(currentTab)}</span>
+      <div className="admin-topbar-left">
+        <button
+          type="button"
+          className="admin-hamburger-btn"
+          onClick={onToggleMobileMenu}
+          aria-label="Toggle Navigation Menu"
+          title="Open Menu"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+
+        <div className="admin-breadcrumb">
+          <span className="admin-breadcrumb-parent">Workspace</span>
+          <span className="admin-breadcrumb-sep">/</span>
+          <span className="admin-breadcrumb-parent">Overview</span>
+          <span className="admin-breadcrumb-sep">/</span>
+          <span className="current">{getTabLabel(currentTab)}</span>
+        </div>
       </div>
 
       <div className="admin-topbar-actions">
