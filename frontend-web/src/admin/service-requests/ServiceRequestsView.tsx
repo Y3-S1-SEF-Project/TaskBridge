@@ -447,53 +447,57 @@ export const ServiceRequestsView: React.FC = () => {
               </button>
             </div>
 
-            <div className="admin-modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+            <div className="admin-modal-body" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
               {/* Header Box */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: '#f5f8f6', borderRadius: '12px', border: '1px solid #e3ebe6' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#f5f8f6', borderRadius: '10px', border: '1px solid #e3ebe6' }}>
                 <div>
-                  <h3 style={{ margin: '0 0 4px 0', fontSize: '17px', color: '#141f19' }}>
+                  <h3 style={{ margin: '0 0 2px 0', fontSize: '16px', color: '#141f19' }}>
                     {selectedRequest.serviceTitle}
                   </h3>
-                  <div style={{ fontSize: '13px', color: '#64736a' }}>
+                  <div style={{ fontSize: '12.5px', color: '#64736a' }}>
                     Category: <strong>{selectedRequest.category}</strong>
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <span className={`admin-badge ${getStatusBadge(selectedRequest.status)}`} style={{ fontSize: '13px', padding: '6px 12px' }}>
+                  <span className={`admin-badge ${getStatusBadge(selectedRequest.status)}`} style={{ fontSize: '12px', padding: '4px 10px' }}>
                     {selectedRequest.status}
                   </span>
-                  <div style={{ fontSize: '11.5px', color: '#8a9990', marginTop: '4px' }}>
+                  <div style={{ fontSize: '11px', color: '#8a9990', marginTop: '2px' }}>
                     Urgency: {selectedRequest.urgency}
                   </div>
                 </div>
               </div>
 
-              {/* Info Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              {/* Info Grid: Responsive cards (2 rows on mobile) */}
+              <div className="admin-modal-info-grid">
                 <div className="admin-cred-box">
-                  <div style={{ fontWeight: 600, fontSize: '13px', color: '#113c2b', marginBottom: '8px' }}>Customer Information</div>
+                  <div style={{ fontWeight: 600, fontSize: '12.5px', color: '#113c2b', marginBottom: '4px' }}>Customer Information</div>
                   <div className="admin-cred-row">
                     <span className="admin-cred-label">Name:</span>
                     <span style={{ fontWeight: 600 }}>{selectedRequest.customerName}</span>
                   </div>
                   {selectedRequest.customerId && (
-                    <div className="admin-cred-row">
+                    <div className="admin-cred-block">
                       <span className="admin-cred-label">User ID:</span>
-                      <span style={{ fontFamily: 'monospace', fontSize: '11px' }}>{selectedRequest.customerId}</span>
+                      <div className="admin-cred-code" title="User ID">
+                        {selectedRequest.customerId}
+                      </div>
                     </div>
                   )}
                 </div>
 
                 <div className="admin-cred-box">
-                  <div style={{ fontWeight: 600, fontSize: '13px', color: '#113c2b', marginBottom: '8px' }}>Assigned Provider</div>
+                  <div style={{ fontWeight: 600, fontSize: '12.5px', color: '#113c2b', marginBottom: '4px' }}>Assigned Provider</div>
                   <div className="admin-cred-row">
                     <span className="admin-cred-label">Provider:</span>
                     <span style={{ fontWeight: 600 }}>{selectedRequest.providerName || 'Unassigned'}</span>
                   </div>
                   {selectedRequest.providerId && (
-                    <div className="admin-cred-row">
+                    <div className="admin-cred-block">
                       <span className="admin-cred-label">Provider ID:</span>
-                      <span style={{ fontFamily: 'monospace', fontSize: '11px' }}>{selectedRequest.providerId}</span>
+                      <div className="admin-cred-code" title="Provider ID">
+                        {selectedRequest.providerId}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -501,7 +505,7 @@ export const ServiceRequestsView: React.FC = () => {
 
               {/* Schedule & Location */}
               <div className="admin-cred-box">
-                <div style={{ fontWeight: 600, fontSize: '13px', color: '#113c2b', marginBottom: '8px' }}>Schedule &amp; Location</div>
+                <div style={{ fontWeight: 600, fontSize: '12.5px', color: '#113c2b', marginBottom: '4px' }}>Schedule &amp; Location</div>
                 <div className="admin-cred-row">
                   <span className="admin-cred-label">Preferred Time:</span>
                   <span>{selectedRequest.preferredSchedule || 'Immediate / Flexible'}</span>
@@ -526,13 +530,13 @@ export const ServiceRequestsView: React.FC = () => {
 
               {/* Customer Notes */}
               {selectedRequest.notes && (
-                <div style={{ padding: '14px', background: '#fafcfb', border: '1px solid #e3ebe6', borderRadius: '10px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#64736a', marginBottom: '4px' }}>Customer Special Notes:</div>
-                  <div style={{ fontSize: '13.5px', color: '#141f19' }}>{selectedRequest.notes}</div>
+                <div style={{ padding: '8px 12px', background: '#fafcfb', border: '1px solid #e3ebe6', borderRadius: '8px' }}>
+                  <div style={{ fontSize: '11.5px', fontWeight: 600, color: '#64736a', marginBottom: '2px' }}>Customer Special Notes:</div>
+                  <div style={{ fontSize: '13px', color: '#141f19' }}>{selectedRequest.notes}</div>
                 </div>
               )}
 
-              <div style={{ fontSize: '12px', color: '#8a9990', textAlign: 'right' }}>
+              <div style={{ fontSize: '11px', color: '#8a9990', textAlign: 'right', marginTop: '2px' }}>
                 Recorded in database at: {new Date(selectedRequest.createdAt).toLocaleString()}
               </div>
             </div>
