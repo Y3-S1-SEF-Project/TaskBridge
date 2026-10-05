@@ -331,3 +331,57 @@ public class DeclineProposalRequest
     [JsonPropertyName("reason")]
     public string? Reason { get; set; }
 }
+
+public class EvaluateRebidRequest
+{
+    [JsonPropertyName("bookingReference")]
+    public string BookingReference { get; set; } = string.Empty;
+
+    [JsonPropertyName("proposedPrice")]
+    public decimal ProposedPrice { get; set; }
+
+    [JsonPropertyName("senderRole")]
+    public string SenderRole { get; set; } = "provider"; // "provider" or "customer"
+}
+
+public class RebidEvaluationResult
+{
+    [JsonPropertyName("hasAgentWarning")]
+    public bool HasAgentWarning { get; set; }
+
+    [JsonPropertyName("agentWarning")]
+    public string? AgentWarning { get; set; }
+
+    [JsonPropertyName("agentAdvisoryType")]
+    public string AgentAdvisoryType { get; set; } = "Balanced"; // "RateHigherThanBenchmark", "RateLowerThanBenchmark", "Balanced"
+
+    [JsonPropertyName("standardHourlyRate")]
+    public decimal StandardHourlyRate { get; set; }
+
+    [JsonPropertyName("proposedPrice")]
+    public decimal ProposedPrice { get; set; }
+
+    [JsonPropertyName("variancePercentage")]
+    public double VariancePercentage { get; set; }
+
+    [JsonPropertyName("providerName")]
+    public string ProviderName { get; set; } = string.Empty;
+
+    [JsonPropertyName("serviceTitle")]
+    public string ServiceTitle { get; set; } = string.Empty;
+
+    [JsonPropertyName("senderRole")]
+    public string SenderRole { get; set; } = "provider";
+}
+
+public class CounterBidResultDto
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; } = true;
+
+    [JsonPropertyName("booking")]
+    public BookingEntity? Booking { get; set; }
+
+    [JsonPropertyName("evaluation")]
+    public RebidEvaluationResult Evaluation { get; set; } = new();
+}

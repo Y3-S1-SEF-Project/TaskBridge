@@ -137,10 +137,18 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
           final baseKey = b.bookingReference
               .replaceFirst('TB-', '')
               .replaceFirst('PR-', '');
-          // If TB- exists, prefer TB- over PR-
-          if (!bookingMap.containsKey(baseKey) ||
-              b.bookingReference.startsWith('TB-')) {
+          if (!bookingMap.containsKey(baseKey)) {
             bookingMap[baseKey] = b;
+          } else {
+            final existing = bookingMap[baseKey]!;
+            if (b.isUpcoming || b.isActive || b.isCompleted || b.isCancelled) {
+              bookingMap[baseKey] = b;
+            } else if (b.isCustomerCountered || b.isProviderCountered) {
+              bookingMap[baseKey] = b;
+            } else if (!existing.isCustomerCountered &&
+                !existing.isProviderCountered) {
+              bookingMap[baseKey] = b;
+            }
           }
         }
 
@@ -160,8 +168,11 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
   }
 
   Future<void> _acceptJob(BookingItem booking) async {
-    final isProposal = booking.bookingReference.startsWith('PR-');
-    final success = isProposal
+    final isProposalOrCountered = booking.bookingReference.startsWith('PR-') ||
+        booking.isRequested ||
+        booking.isCustomerCountered ||
+        booking.isProviderCountered;
+    final success = isProposalOrCountered
         ? await CoordinationApi.acceptProposal(
             proposalReference: booking.bookingReference,
             price: booking.price,
@@ -177,7 +188,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            isProposal
+            isProposalOrCountered
                 ? 'Proposal #${booking.bookingReference} accepted! Appointment confirmed.'
                 : 'Job #${booking.bookingReference} moved to Active Jobs!',
           ),
@@ -239,6 +250,11 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
       text: 'Specialist revised quotation with full labor, tools, and testing.',
     );
 
+    String? agentWarning;
+    bool hasAgentWarning = false;
+    double standardBenchmarkRate = booking.price > 0 ? booking.price : 2500.0;
+    bool initializedEval = false;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -250,6 +266,40 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            void evaluateRebidPrice(double currentPrice) {
+              if (currentPrice > standardBenchmarkRate) {
+                final pct = (((currentPrice - standardBenchmarkRate) / standardBenchmarkRate) * 100).toStringAsFixed(0);
+                agentWarning = 'Your standard profile rate is Rs. ${standardBenchmarkRate.toInt()}/hr. This proposal rebid (Rs. ${currentPrice.toInt()}/hr) is +$pct% higher than your actual rate. This higher rate may lower your chance of customer acceptance.';
+                hasAgentWarning = true;
+              } else {
+                agentWarning = null;
+                hasAgentWarning = false;
+              }
+              setSheetState(() {});
+
+              CoordinationApi.evaluateRebid(
+                bookingReference: booking.bookingReference,
+                proposedPrice: currentPrice,
+                senderRole: 'provider',
+              ).then((res) {
+                if (res != null) {
+                  setSheetState(() {
+                    hasAgentWarning = res.hasAgentWarning;
+                    agentWarning = res.agentWarning;
+                    if (res.standardHourlyRate > 0) {
+                      standardBenchmarkRate = res.standardHourlyRate;
+                    }
+                  });
+                }
+              });
+            }
+
+            if (!initializedEval) {
+              initializedEval = true;
+              final initPrice = double.tryParse(priceController.text.trim()) ?? booking.price;
+              evaluateRebidPrice(initPrice);
+            }
+
             return Padding(
               padding: EdgeInsets.only(
                 left: AppSpacing.s20,
@@ -460,6 +510,12 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
                     TextField(
                       controller: priceController,
                       keyboardType: TextInputType.number,
+                      onChanged: (val) {
+                        final p = double.tryParse(val.trim());
+                        if (p != null) {
+                          evaluateRebidPrice(p);
+                        }
+                      },
                       decoration: InputDecoration(
                         prefixText: 'Rs. ',
                         suffixText: rateType.toLowerCase() == 'hourly'
@@ -479,6 +535,57 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
                         ),
                       ),
                     ),
+                    if (hasAgentWarning && agentWarning != null) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.amber.shade700.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.psychology_rounded,
+                              size: 20,
+                              color: Colors.amber.shade800,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '🤖 Coordination Agent Advisory',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.amber.shade900,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    agentWarning!,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      height: 1.35,
+                                      fontWeight: FontWeight.w500,
+                                      color: palette.text,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 14),
 
                     // Arrival Time field with interactive time picker

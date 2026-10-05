@@ -114,10 +114,19 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
           final baseKey = b.bookingReference
               .replaceFirst('TB-', '')
               .replaceFirst('PR-', '');
-          // If TB- exists, prefer TB- over PR-
-          if (!bookingMap.containsKey(baseKey) ||
-              b.bookingReference.startsWith('TB-')) {
+          if (!bookingMap.containsKey(baseKey)) {
             bookingMap[baseKey] = b;
+          } else {
+            final existing = bookingMap[baseKey]!;
+            if (b.isUpcoming || b.isActive || b.isCompleted || b.isCancelled) {
+              bookingMap[baseKey] = b;
+            } else if (b.isCustomerCountered || b.isProviderCountered) {
+              bookingMap[baseKey] = b;
+            } else if (!existing.isCustomerCountered &&
+                !existing.isProviderCountered &&
+                b.bookingReference.startsWith('TB-')) {
+              bookingMap[baseKey] = b;
+            }
           }
         }
         final dedupedBookings = bookingMap.values.toList();

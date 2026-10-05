@@ -287,7 +287,27 @@ public class CoordinationAgentController : ControllerBase
     }
 
     /// <summary>
-    /// Submits a provider counter-bid or updated quote.
+    /// Evaluates a rebid against the provider's standard hourly rate before submission.
+    /// </summary>
+    [HttpPost("rebid/evaluate")]
+    public async Task<IActionResult> EvaluateRebid(
+        [FromBody] EvaluateRebidRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var evaluation = await _coordinationService.EvaluateRebidAsync(request, ct);
+            return Ok(evaluation);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error evaluating rebid");
+            return StatusCode(500, new { message = "An error occurred while evaluating rebid." });
+        }
+    }
+
+    /// <summary>
+    /// Submits a counter-bid / re-bid with Coordination Agent cognitive evaluation.
     /// </summary>
     [HttpPost("counter-bid")]
     public async Task<IActionResult> SubmitCounterBid(
@@ -296,12 +316,13 @@ public class CoordinationAgentController : ControllerBase
     {
         try
         {
-            var updated = await _coordinationService.SubmitCounterBidAsync(request, ct);
-            if (updated == null)
+            var result = await _coordinationService.SubmitCounterBidWithEvaluationAsync(request, ct);
+            if (!result.Success || result.Booking == null)
             {
                 return NotFound(new { message = "Booking request not found." });
             }
 
+            var updated = result.Booking;
             var isCustomer = string.Equals(request.Sender, "customer", StringComparison.OrdinalIgnoreCase);
 
             if (isCustomer)
@@ -329,7 +350,17 @@ public class CoordinationAgentController : ControllerBase
                     ct);
             }
 
-            return Ok(new { success = true, booking = updated });
+            return Ok(new
+            {
+                success = true,
+                booking = updated,
+                hasAgentWarning = result.Evaluation.HasAgentWarning,
+                agentWarning = result.Evaluation.AgentWarning,
+                agentAdvisoryType = result.Evaluation.AgentAdvisoryType,
+                standardRate = result.Evaluation.StandardHourlyRate,
+                counterPrice = result.Evaluation.ProposedPrice,
+                variancePercentage = result.Evaluation.VariancePercentage
+            });
         }
         catch (Exception ex)
         {

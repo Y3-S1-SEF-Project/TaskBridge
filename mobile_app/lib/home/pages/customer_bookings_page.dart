@@ -123,18 +123,32 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
 
         final combinedMap = <String, BookingItem>{};
 
-        // 1. Add all proposals first (accepted proposals are mapped to Upcoming)
+        // 1. Add all proposals first (accepted proposals mapped to Upcoming)
         for (final p in filteredProposals) {
-          combinedMap[p.bookingReference] = p;
+          final baseKey = p.bookingReference
+              .replaceFirst('TB-', '')
+              .replaceFirst('PR-', '');
+          combinedMap[baseKey] = p;
         }
 
         // 2. Add / overwrite with authoritative bookings from the bookings table
         for (final b in filteredBookings) {
-          final altRef = b.bookingReference.startsWith('TB-')
-              ? b.bookingReference.replaceFirst('TB-', 'PR-')
-              : b.bookingReference.replaceFirst('PR-', 'TB-');
-          combinedMap.remove(altRef);
-          combinedMap[b.bookingReference] = b;
+          final baseKey = b.bookingReference
+              .replaceFirst('TB-', '')
+              .replaceFirst('PR-', '');
+          if (!combinedMap.containsKey(baseKey)) {
+            combinedMap[baseKey] = b;
+          } else {
+            final existing = combinedMap[baseKey]!;
+            if (b.isUpcoming || b.isActive || b.isCompleted || b.isCancelled) {
+              combinedMap[baseKey] = b;
+            } else if (b.isCustomerCountered || b.isProviderCountered) {
+              combinedMap[baseKey] = b;
+            } else if (!existing.isCustomerCountered &&
+                !existing.isProviderCountered) {
+              combinedMap[baseKey] = b;
+            }
+          }
         }
 
         final combined = combinedMap.values.toList()
@@ -1400,6 +1414,11 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
           'Customer proposed counter-offer with updated budget and preferred time.',
     );
 
+    String? agentWarning;
+    bool hasAgentWarning = false;
+    double standardBenchmarkRate = booking.price > 0 ? booking.price : 2500.0;
+    bool initializedEval = false;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1411,6 +1430,40 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            void evaluateCustomerRebidPrice(double currentPrice) {
+              if (currentPrice < standardBenchmarkRate) {
+                final pct = (((standardBenchmarkRate - currentPrice) / standardBenchmarkRate) * 100).toStringAsFixed(0);
+                agentWarning = 'Warning: The offered price of Rs. ${currentPrice.toInt()} is $pct% lower than ${booking.providerName}\'s standard rate of Rs. ${standardBenchmarkRate.toInt()}/hr. Providers are less likely to accept bids significantly below their benchmark rate.';
+                hasAgentWarning = true;
+              } else {
+                agentWarning = null;
+                hasAgentWarning = false;
+              }
+              setSheetState(() {});
+
+              CoordinationApi.evaluateRebid(
+                bookingReference: booking.bookingReference,
+                proposedPrice: currentPrice,
+                senderRole: 'customer',
+              ).then((res) {
+                if (res != null) {
+                  setSheetState(() {
+                    hasAgentWarning = res.hasAgentWarning;
+                    agentWarning = res.agentWarning;
+                    if (res.standardHourlyRate > 0) {
+                      standardBenchmarkRate = res.standardHourlyRate;
+                    }
+                  });
+                }
+              });
+            }
+
+            if (!initializedEval) {
+              initializedEval = true;
+              final initPrice = double.tryParse(priceController.text.trim()) ?? booking.price;
+              evaluateCustomerRebidPrice(initPrice);
+            }
+
             return Padding(
               padding: EdgeInsets.only(
                 left: AppSpacing.s20,
@@ -1621,6 +1674,12 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                     TextField(
                       controller: priceController,
                       keyboardType: TextInputType.number,
+                      onChanged: (val) {
+                        final p = double.tryParse(val.trim());
+                        if (p != null) {
+                          evaluateCustomerRebidPrice(p);
+                        }
+                      },
                       decoration: InputDecoration(
                         prefixText: 'Rs. ',
                         suffixText: rateType.toLowerCase() == 'hourly'
@@ -1640,6 +1699,57 @@ class _CustomerBookingsPageState extends State<CustomerBookingsPage>
                         ),
                       ),
                     ),
+                    if (hasAgentWarning && agentWarning != null) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.amber.shade700.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.psychology_rounded,
+                              size: 20,
+                              color: Colors.amber.shade800,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '🤖 Coordination Agent Advisory',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.amber.shade900,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    agentWarning!,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      height: 1.35,
+                                      fontWeight: FontWeight.w500,
+                                      color: palette.text,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 14),
 
                     // Preferred Attendance Time with time picker & chips
