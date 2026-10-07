@@ -103,11 +103,16 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
         final provId = widget.user.id.toLowerCase();
 
         final filteredBookings = list.where((b) {
-          if (b.providerId != null && b.providerId!.toLowerCase() == provId) {
-            return true;
+          if (provId.isNotEmpty &&
+              b.providerId != null &&
+              b.providerId!.isNotEmpty) {
+            return b.providerId!.toLowerCase() == provId;
           }
-          final bProv = b.providerName.trim().toLowerCase();
-          return bProv.contains(provName) || provName.contains(bProv);
+          if (provName.isNotEmpty) {
+            final bProv = b.providerName.trim().toLowerCase();
+            return bProv.isNotEmpty && bProv == provName;
+          }
+          return false;
         }).toList();
 
         final filteredProposals = propList
@@ -116,12 +121,16 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
               if (s == 'accepted' || s == 'declined' || s == 'cancelled') {
                 return false;
               }
-              if (p.providerId != null &&
-                  p.providerId!.toLowerCase() == provId) {
-                return true;
+              if (provId.isNotEmpty &&
+                  p.providerId != null &&
+                  p.providerId!.isNotEmpty) {
+                return p.providerId!.toLowerCase() == provId;
               }
-              final pProv = p.providerName.trim().toLowerCase();
-              return pProv.contains(provName) || provName.contains(pProv);
+              if (provName.isNotEmpty) {
+                final pProv = p.providerName.trim().toLowerCase();
+                return pProv.isNotEmpty && pProv == provName;
+              }
+              return false;
             })
             .map((p) => p.toBookingItem())
             .toList();
@@ -168,7 +177,8 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
   }
 
   Future<void> _acceptJob(BookingItem booking) async {
-    final isProposalOrCountered = booking.bookingReference.startsWith('PR-') ||
+    final isProposalOrCountered =
+        booking.bookingReference.startsWith('PR-') ||
         booking.isRequested ||
         booking.isCustomerCountered ||
         booking.isProviderCountered;
@@ -268,8 +278,13 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
           builder: (context, setSheetState) {
             void evaluateRebidPrice(double currentPrice) {
               if (currentPrice > standardBenchmarkRate) {
-                final pct = (((currentPrice - standardBenchmarkRate) / standardBenchmarkRate) * 100).toStringAsFixed(0);
-                agentWarning = 'Your standard profile rate is Rs. ${standardBenchmarkRate.toInt()}/hr. This proposal rebid (Rs. ${currentPrice.toInt()}/hr) is +$pct% higher than your actual rate. This higher rate may lower your chance of customer acceptance.';
+                final pct =
+                    (((currentPrice - standardBenchmarkRate) /
+                                standardBenchmarkRate) *
+                            100)
+                        .toStringAsFixed(0);
+                agentWarning =
+                    'Your standard profile rate is Rs. ${standardBenchmarkRate.toInt()}/hr. This proposal rebid (Rs. ${currentPrice.toInt()}/hr) is +$pct% higher than your actual rate. This higher rate may lower your chance of customer acceptance.';
                 hasAgentWarning = true;
               } else {
                 agentWarning = null;
@@ -296,7 +311,8 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
 
             if (!initializedEval) {
               initializedEval = true;
-              final initPrice = double.tryParse(priceController.text.trim()) ?? booking.price;
+              final initPrice =
+                  double.tryParse(priceController.text.trim()) ?? booking.price;
               evaluateRebidPrice(initPrice);
             }
 
