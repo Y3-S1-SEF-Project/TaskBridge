@@ -36,6 +36,11 @@ public class ServiceRequestsController : ControllerBase
             return BadRequest(new { message = "Service request description or prompt cannot be empty." });
         }
 
+        if (dto.Description.Length > 5000)
+        {
+            return BadRequest(new { message = "Service request description cannot exceed 5000 characters." });
+        }
+
         try
         {
             // Resolve Customer ID from authenticated session or DTO
