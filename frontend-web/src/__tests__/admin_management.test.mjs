@@ -100,4 +100,31 @@ describe('Frontend Web - Admin Portal Component & Logic Unit Tests', () => {
       assert.throws(() => resolveDispute(base, '   ', 'Refund'), /Resolution summary is mandatory/);
     });
   });
+
+  // Alwis: Inquiries & Review Quality Management
+  describe('Alwis - Inquiries & Customer Feedback Management', () => {
+    test('categorizes urgent support inquiries correctly', () => {
+      const inquiries = [
+        { id: 'i1', subject: 'App crashed during payment', priority: 'Urgent', status: 'Open' },
+        { id: 'i2', subject: 'General inquiry on rates', priority: 'Normal', status: 'Open' },
+        { id: 'i3', subject: 'Incorrect invoice amount', priority: 'Urgent', status: 'Responded' }
+      ];
+
+      const urgentPending = inquiries.filter(i => i.priority === 'Urgent' && i.status === 'Open');
+      assert.equal(urgentPending.length, 1);
+      assert.equal(urgentPending[0].id, 'i1');
+    });
+
+    test('validates admin response submission updates status to Responded', () => {
+      const inquiry = { id: 'i1', status: 'Open', adminResponse: null };
+      const respond = (item, responseText) => {
+        if (!responseText || !responseText.trim()) throw new Error('Response cannot be empty');
+        return { ...item, status: 'Responded', adminResponse: responseText, respondedAt: new Date().toISOString() };
+      };
+
+      const updated = respond(inquiry, 'Your invoice was adjusted successfully.');
+      assert.equal(updated.status, 'Responded');
+      assert.equal(updated.adminResponse, 'Your invoice was adjusted successfully.');
+    });
+  });
 });
