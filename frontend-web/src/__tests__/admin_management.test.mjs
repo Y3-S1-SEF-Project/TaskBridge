@@ -33,4 +33,32 @@ describe('Frontend Web - Admin Portal Component & Logic Unit Tests', () => {
       assert.equal(getStatusBadge('Cancelled'), 'badge-danger');
     });
   });
+
+  // Kavindu: Providers Management & Search Logic
+  describe('Kavindu - Provider Verification & Search Flow', () => {
+    test('filters providers by verified status and category', () => {
+      const providers = [
+        { id: 'p1', name: 'Kamal Perera', category: 'Gardening', isVerified: true, rating: 4.8 },
+        { id: 'p2', name: 'Nimal Silva', category: 'Plumbing', isVerified: false, rating: 3.5 },
+        { id: 'p3', name: 'Sunil Shantha', category: 'Gardening', isVerified: true, rating: 4.9 },
+      ];
+
+      const verifiedGardening = providers.filter(p => p.isVerified && p.category === 'Gardening');
+      assert.equal(verifiedGardening.length, 2);
+      assert.ok(verifiedGardening.every(p => p.isVerified));
+    });
+
+    test('sorts matched providers by highest rating descending', () => {
+      const providers = [
+        { name: 'Provider A', rating: 4.2 },
+        { name: 'Provider B', rating: 4.9 },
+        { name: 'Provider C', rating: 4.7 }
+      ];
+
+      const sorted = [...providers].sort((a, b) => b.rating - a.rating);
+      assert.equal(sorted[0].name, 'Provider B');
+      assert.equal(sorted[1].name, 'Provider C');
+      assert.equal(sorted[2].name, 'Provider A');
+    });
+  });
 });
