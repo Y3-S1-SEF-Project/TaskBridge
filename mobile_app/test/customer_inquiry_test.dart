@@ -34,5 +34,31 @@ void main() {
       expect(inquiry.attachmentUrls.isNotEmpty, isTrue);
       expect(inquiry.priority, 'Normal');
     });
+
+    test(
+      'InquiryModel handles null attachment arrays safely without crashing',
+      () {
+        final jsonMap = {
+          'id': 'inq-102',
+          'inquiryReference': 'INQ-9900',
+          'userName': 'Kusum Silva',
+          'userRole': 'Customer',
+          'subject': 'App Feedback',
+          'category': 'Feedback / Suggestion',
+          'message': 'Great app experience so far!',
+          'priority': 'Normal',
+          'status': 'Responded',
+          'adminResponse': 'Thank you for your valuable feedback!',
+          'createdAt': '2026-10-03T09:00:00Z',
+        };
+
+        final inquiry = InquiryModel.fromJson(jsonMap);
+
+        expect(inquiry.attachmentUrls, isEmpty);
+        expect(inquiry.attachmentUrls.isEmpty, isTrue);
+        expect(inquiry.isResponded, isTrue);
+        expect(inquiry.adminResponse, isNotNull);
+      },
+    );
   });
 }
