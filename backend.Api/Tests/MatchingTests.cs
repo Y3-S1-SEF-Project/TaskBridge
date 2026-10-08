@@ -111,4 +111,81 @@ public class MatchingTests
         Assert.False(string.IsNullOrWhiteSpace(updatedRequest.MatchedProvidersJson));
         Assert.NotNull(updatedRequest.UpdatedAt);
     }
+
+    [Fact]
+    public async Task MatchingAgent_FiltersInactiveProviders()
+    {
+        // TC-AI-MATCH-02: Inactive provider exclusion (Bug fix verification)
+        using var db = CreateInMemoryDbContext();
+        var customerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+
+        // Seed inactive provider
+        var inactiveUser = new TaskBridge.Api.Auth.AppUser
+        {
+            Id = Guid.NewGuid(),
+            FullName = "Inactive Electrician",
+            Email = "inactive@taskbridge.com",
+            Phone = "+94770000001",
+            PasswordHash = "hash"
+        };
+        await db.Users.AddAsync(inactiveUser);
+
+        var inactiveProvider = new TaskBridge.Api.Auth.ProviderProfile
+        {
+            Id = Guid.NewGuid(),
+            UserId = inactiveUser.Id,
+            Category = "Electrical",
+            Skills = "Wiring",
+            ServiceAreas = "Colombo",
+            HourlyRate = 2000m,
+            Rating = 5.0,
+            ReviewCount = 10,
+            IsActive = false // INACTIVE
+        };
+        await db.Providers.AddAsync(inactiveProvider);
+        await db.SaveChangesAsync();
+
+        var config = new ConfigurationBuilder().Build();
+        var service = new MatchingAgentService(db, new HttpClient(), config, NullLogger<MatchingAgentService>.Instance);
+
+        var matchingRequest = new MatchingRequest
+        {
+            ServiceRequestId = requestId.ToString(),
+            CustomerUserId = customerId.ToString(),
+            CustomerName = "Test Customer",
+            JobPlan = new JobPlanDetails
+            {
+                ServiceTitle = "Wiring fix",
+                Category = "Electrical",
+                Location = "Colombo",
+                Budget = 3000m
+            }
+        };
+
+        var response = await service.MatchProvidersAsync(matchingRequest);
+        Assert.NotNull(response);
+        Assert.DoesNotContain(response.MatchedProviders, p => p.ProviderId == inactiveProvider.Id);
+    }
+
+    [Fact]
+    public async Task MatchingAgent_ConformsToOutputSchema()
+    {
+        // TC-AI-SCH-02: Matching Output Schema
+        using var db = CreateInMemoryDbContext();
+        var config = new ConfigurationBuilder().Build();
+        var service = new MatchingAgentService(db, new HttpClient(), config, NullLogger<MatchingAgentService>.Instance);
+
+        var response = await service.MatchProvidersAsync(new MatchingRequest
+        {
+            ServiceRequestId = Guid.NewGuid().ToString(),
+            CustomerUserId = Guid.NewGuid().ToString(),
+            CustomerName = "Schema Test",
+            JobPlan = new JobPlanDetails { ServiceTitle = "Fan Repair", Category = "Electrical", Location = "Colombo" }
+        });
+
+        Assert.NotNull(response);
+        Assert.NotNull(response.MatchedProviders);
+        Assert.True(response.Success);
+    }
 }
