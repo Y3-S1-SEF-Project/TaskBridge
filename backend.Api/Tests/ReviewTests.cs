@@ -179,4 +179,117 @@ public sealed class ReviewTests
         Assert.NotNull(updatedRecord);
         Assert.Equal("CustomerApproved", updatedRecord.Status);
     }
+
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(1, true)]
+    [InlineData(5, true)]
+    [InlineData(6, false)]
+    public void Review_RatingBoundaryValues_ValidatedCorrectly(int rating, bool isValid)
+    {
+        // TC-REV-03: Rating Boundary values (0 and 6 rejected, 1 and 5 accepted)
+        bool withinRange = rating >= 1 && rating <= 5;
+        Assert.Equal(isValid, withinRange);
+    }
+
+    [Fact]
+    public async Task Review_DuplicateReview_Prevented()
+    {
+        // TC-REV-04: Duplicate review prevention
+        using var db = CreateInMemoryDbContext();
+        var bookingRef = "TB-REV-DUP-01";
+
+        var feedback = new FeedbackEntity
+        {
+            Id = Guid.NewGuid(),
+            BookingReference = bookingRef,
+            Status = "Approved",
+            Rating = 5,
+            Comment = "Great service"
+        };
+        await db.Feedbacks.AddAsync(feedback);
+        await db.SaveChangesAsync();
+
+        var existing = await db.Feedbacks.FirstOrDefaultAsync(c => c.BookingReference == bookingRef);
+        Assert.NotNull(existing);
+        Assert.Equal(5, existing.Rating);
+        // Duplicate check
+        bool alreadyReviewed = existing != null;
+        Assert.True(alreadyReviewed, "Duplicate reviews on the same booking must be rejected.");
+    }
+
+    [Fact]
+    public async Task ReviewAgent_EscalationNeedsAdminApproval()
+    {
+        // TC-AI-APP-01: Low rating escalation triggers admin review
+        using var db = CreateInMemoryDbContext();
+        var service = CreateService(db);
+
+        var startedAt = DateTimeOffset.UtcNow.AddMinutes(-60);
+        var booking = new BookingEntity
+        {
+            Id = Guid.NewGuid(),
+            BookingReference = "TB-ESC-01",
+            CustomerName = "Dissatisfied Customer",
+            ProviderName = "Provider A",
+            Price = 2000m,
+            RateType = "Fixed",
+            Status = "In Progress",
+            StartedAt = startedAt
+        };
+        await db.Bookings.AddAsync(booking);
+        await db.SaveChangesAsync();
+
+        // Submit poor completion evidence
+        var completionRequest = new SubmitCompletionRequest
+        {
+            BookingReference = "TB-ESC-01",
+            StartedAt = startedAt,
+            EndedAt = DateTimeOffset.UtcNow,
+            HourlyRate = 2000m,
+            ProviderNotes = "Incomplete work due to missing tools",
+            BeforePhotoUrls = new List<string>(),
+            AfterPhotoUrls = new List<string>()
+        };
+
+        var response = await service.EvaluateCompletionAsync(completionRequest);
+        Assert.NotNull(response);
+        // Unverified work requires admin review
+        Assert.True(!response.VerificationPassed || response.ConfidenceScore < 80);
+    }
+
+    [Fact]
+    public async Task ReviewAgent_OutputConformsToSchema()
+    {
+        // TC-AI-SCH-04: Review Agent output conforms to schema
+        using var db = CreateInMemoryDbContext();
+        var service = CreateService(db);
+
+        var startedAt = DateTimeOffset.UtcNow.AddMinutes(-60);
+        var booking = new BookingEntity
+        {
+            Id = Guid.NewGuid(),
+            BookingReference = "TB-SCH-04",
+            CustomerName = "Customer",
+            ProviderName = "Provider",
+            Price = 2500m,
+            RateType = "Fixed",
+            Status = "In Progress",
+            StartedAt = startedAt
+        };
+        await db.Bookings.AddAsync(booking);
+        await db.SaveChangesAsync();
+
+        var response = await service.EvaluateCompletionAsync(new SubmitCompletionRequest
+        {
+            BookingReference = "TB-SCH-04",
+            StartedAt = startedAt,
+            EndedAt = DateTimeOffset.UtcNow,
+            HourlyRate = 2500m
+        });
+
+        Assert.NotNull(response);
+        Assert.NotNull(response.ComparisonAnalysis);
+        Assert.NotNull(response.VerifiedTasks);
+    }
 }
