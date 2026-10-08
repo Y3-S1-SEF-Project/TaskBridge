@@ -61,4 +61,43 @@ describe('Frontend Web - Admin Portal Component & Logic Unit Tests', () => {
       assert.equal(sorted[2].name, 'Provider A');
     });
   });
+
+  // Dadallage: Disputes & Bookings Mediation Flow
+  describe('Dadallage - Disputes Mediation & Lifecycle Flow', () => {
+    test('computes total dispute claim amount across open cases', () => {
+      const disputes = [
+        { id: 'd1', ref: 'DSP-01', claimAmount: 5000, status: 'Open' },
+        { id: 'd2', ref: 'DSP-02', claimAmount: 3500, status: 'Open' },
+        { id: 'd3', ref: 'DSP-03', claimAmount: 8000, status: 'Resolved' }
+      ];
+
+      const totalOpenClaims = disputes
+        .filter(d => d.status === 'Open')
+        .reduce((sum, d) => sum + d.claimAmount, 0);
+
+      assert.equal(totalOpenClaims, 8500);
+    });
+
+    test('validates resolution transition triggers required admin notes', () => {
+      const resolveDispute = (dispute, resolutionSummary, action) => {
+        if (!resolutionSummary || resolutionSummary.trim().length < 5) {
+          throw new Error('Resolution summary is mandatory (min 5 chars).');
+        }
+        return {
+          ...dispute,
+          status: 'Resolved',
+          resolutionSummary,
+          resolutionAction: action,
+          resolvedAt: new Date().toISOString()
+        };
+      };
+
+      const base = { id: 'd1', status: 'Open' };
+      const resolved = resolveDispute(base, 'Refund processed after provider agreement', 'Refund');
+      assert.equal(resolved.status, 'Resolved');
+      assert.equal(resolved.resolutionAction, 'Refund');
+
+      assert.throws(() => resolveDispute(base, '   ', 'Refund'), /Resolution summary is mandatory/);
+    });
+  });
 });
