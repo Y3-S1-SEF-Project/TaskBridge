@@ -568,7 +568,33 @@ export async function fetchVerifications(params?: { status?: string; search?: st
     const res = await fetch(`/api/admin/verifications?${query.toString()}`, {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     });
-    if (res.ok) return await res.json();
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        total: data.totalVerifications ?? data.total ?? (data.items?.length ?? 0),
+        pendingCount: data.pendingCount ?? 0,
+        approvedCount: data.approvedCount ?? 0,
+        rejectedCount: data.rejectedCount ?? 0,
+        unverifiedCount: data.unverifiedCount ?? 0,
+        items: (data.items ?? []).map((it: any) => ({
+          ...it,
+          providerProfileId: it.providerId ?? it.providerProfileId ?? it.userId,
+          providerId: it.providerId ?? it.providerProfileId ?? it.userId,
+          city: it.location ?? it.city ?? 'Colombo',
+          phoneNumber: it.phone ?? it.phoneNumber ?? 'N/A',
+          phone: it.phone ?? it.phoneNumber ?? 'N/A',
+          verificationDocumentType: it.documentType ?? it.verificationDocumentType ?? 'National ID',
+          documentType: it.documentType ?? it.verificationDocumentType ?? 'National ID',
+          verificationDocumentUrl: it.documentUrl ?? it.verificationDocumentUrl,
+          documentUrl: it.documentUrl ?? it.verificationDocumentUrl,
+          verificationSubmittedAt: it.submittedAt ?? it.verificationSubmittedAt,
+          submittedAt: it.submittedAt ?? it.verificationSubmittedAt,
+          verificationStatus: it.status ?? it.verificationStatus ?? 'Unverified',
+          status: it.status ?? it.verificationStatus ?? 'Unverified',
+          isVerified: it.status?.toLowerCase() === 'approved' || it.isVerified === true,
+        })),
+      };
+    }
   } catch {}
 
   return { total: 0, pendingCount: 0, approvedCount: 0, rejectedCount: 0, unverifiedCount: 0, items: [] };

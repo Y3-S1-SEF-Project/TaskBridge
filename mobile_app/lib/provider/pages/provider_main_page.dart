@@ -4,6 +4,7 @@ import '../../auth/data/auth_models.dart';
 import '../../core/services/user_mode_service.dart';
 import '../../chat/services/chat_service.dart';
 import '../../home/pages/home_page.dart';
+import '../../notifications/services/notification_service.dart';
 import '../widgets/provider_bottom_nav.dart';
 import 'provider_chat_page.dart';
 import 'provider_dashboard_page.dart';
@@ -33,6 +34,31 @@ class _ProviderMainPageState extends State<ProviderMainPage> {
     super.initState();
     _currentUser = widget.user;
     UserModeService.setMode(UserMode.provider);
+    NotificationService.verificationStatusChangeNotifier.addListener(_onVerificationChanged);
+  }
+
+  @override
+  void dispose() {
+    NotificationService.verificationStatusChangeNotifier.removeListener(_onVerificationChanged);
+    super.dispose();
+  }
+
+  void _onVerificationChanged() async {
+    final status = NotificationService.verificationStatusChangeNotifier.value;
+    if (status != null && mounted) {
+      setState(() {
+        _currentUser = _currentUser.copyWith(
+          isVerified: status,
+          verificationStatus: status ? 'Approved' : 'Rejected',
+        );
+      });
+      final fresh = await widget.api.restore();
+      if (fresh != null && mounted) {
+        setState(() {
+          _currentUser = fresh;
+        });
+      }
+    }
   }
 
   void _switchToCustomer() async {

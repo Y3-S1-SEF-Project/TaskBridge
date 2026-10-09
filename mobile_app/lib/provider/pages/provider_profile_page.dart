@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
@@ -11,6 +12,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../notifications/services/notification_service.dart';
 import 'provider_setup_page.dart';
 
 class ProviderProfilePage extends StatefulWidget {
@@ -34,6 +36,7 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
   List<FeedbackModel> _feedbacks = [];
   bool _isLoadingFeedbacks = false;
   bool _isProviderMode = true;
+  Timer? _verificationPollTimer;
 
   Future<void> _handleSwitchToCustomer() async {
     if (!_isProviderMode) return;
@@ -47,6 +50,99 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
     super.initState();
     _currentUser = widget.user;
     _loadFeedbacks();
+    _syncLatestProfile();
+
+    NotificationService.verificationStatusChangeNotifier.addListener(_onVerificationStatusChanged);
+    _startPeriodicVerificationCheck();
+  }
+
+  @override
+  void dispose() {
+    _verificationPollTimer?.cancel();
+    NotificationService.verificationStatusChangeNotifier.removeListener(_onVerificationStatusChanged);
+    super.dispose();
+  }
+
+  Future<void> _syncLatestProfile() async {
+    try {
+      final fresh = await widget.api.restore();
+      if (fresh != null && mounted) {
+        final hadChanged = fresh.isVerified != _currentUser.isVerified;
+        setState(() {
+          _currentUser = fresh;
+        });
+        if (hadChanged && fresh.isVerified) {
+          _verificationPollTimer?.cancel();
+          _showVerificationSuccessBanner();
+        }
+      }
+    } catch (_) {}
+  }
+
+  void _startPeriodicVerificationCheck() {
+    if (!_currentUser.isVerified) {
+      _verificationPollTimer?.cancel();
+      _verificationPollTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
+        if (!mounted) return;
+        if (!_currentUser.isVerified) {
+          final fresh = await widget.api.restore();
+          if (fresh != null && mounted) {
+            if (fresh.isVerified != _currentUser.isVerified ||
+                fresh.verificationStatus != _currentUser.verificationStatus) {
+              setState(() {
+                _currentUser = fresh;
+              });
+              if (fresh.isVerified) {
+                _verificationPollTimer?.cancel();
+                _showVerificationSuccessBanner();
+              }
+            }
+          }
+        } else {
+          _verificationPollTimer?.cancel();
+        }
+      });
+    }
+  }
+
+  void _onVerificationStatusChanged() {
+    final status = NotificationService.verificationStatusChangeNotifier.value;
+    if (status != null && mounted) {
+      setState(() {
+        _currentUser = _currentUser.copyWith(
+          isVerified: status,
+          verificationStatus: status ? 'Approved' : 'Rejected',
+        );
+      });
+      _syncLatestProfile();
+      if (status) {
+        _verificationPollTimer?.cancel();
+        _showVerificationSuccessBanner();
+      }
+    }
+  }
+
+  void _showVerificationSuccessBanner() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: const [
+            Icon(Icons.verified_rounded, color: Colors.white, size: 20),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Identity Approved! The Verified Provider badge is now active.',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF15803D),
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _loadFeedbacks() async {

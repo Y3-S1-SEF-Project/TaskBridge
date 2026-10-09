@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using TaskBridge.Api.Auth;
 using TaskBridge.Api.Data;
@@ -12,7 +13,8 @@ namespace TaskBridge.Api.Admin;
 public sealed class AdminController(
     AuthDbContext db,
     IPasswordHasher<AdminUser> hasher,
-    JwtTokenService jwt) : ControllerBase
+    JwtTokenService jwt,
+    IHubContext<TaskBridge.Api.Notifications.NotificationHub> notifHub) : ControllerBase
 {
     // Authenticates Admin / SuperAdmin credentials from dedicated 'admins' table
     [HttpPost("auth/login")]
@@ -609,9 +611,12 @@ public sealed class AdminController(
         [FromQuery] string? status,
         CancellationToken ct)
     {
+        // Only include providers who actually submitted identity documents
         var providers = await db.Providers
             .Include(p => p.User)
             .AsNoTracking()
+            .Where(p => (!string.IsNullOrWhiteSpace(p.VerificationDocumentUrl) && p.VerificationDocumentUrl.Trim() != "") ||
+                        (p.User != null && !string.IsNullOrWhiteSpace(p.User.ProviderVerificationDocumentUrl) && p.User.ProviderVerificationDocumentUrl.Trim() != ""))
             .OrderByDescending(p => p.VerificationSubmittedAt ?? p.CreatedAt)
             .ToListAsync(ct);
 
@@ -625,8 +630,12 @@ public sealed class AdminController(
             var docUrls = !string.IsNullOrWhiteSpace(docUrl)
                 ? docUrl.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList()
                 : new List<string>();
-            var docType = p.VerificationDocumentType ?? (docUrls.Count > 0 ? "National ID" : "Not Provided");
-            var verStatus = p.VerificationStatus ?? (p.IsVerified ? "Approved" : (docUrls.Count > 0 ? "Pending" : "Unverified"));
+            var docType = !string.IsNullOrWhiteSpace(p.VerificationDocumentType) 
+                ? p.VerificationDocumentType 
+                : (docUrls.Count > 0 ? "National ID" : "Not Provided");
+            var verStatus = p.IsVerified 
+                ? "Approved" 
+                : (!string.IsNullOrWhiteSpace(p.VerificationStatus) ? p.VerificationStatus : (docUrls.Count > 0 ? "Pending" : "Unverified"));
 
             list.Add(new ProviderVerificationItemDto(
                 p.Id,
@@ -707,6 +716,48 @@ public sealed class AdminController(
         }
 
         await db.SaveChangesAsync(ct);
+
+        // Real-time SignalR push directly to provider app (no manual app refresh required!)
+        try
+        {
+            var cleanUserId = provider.UserId.ToString();
+            var payload = new
+            {
+                type = isApprove ? "VerificationApproved" : "VerificationRejected",
+                providerId = provider.Id,
+                userId = provider.UserId,
+                isVerified = provider.IsVerified,
+                verificationStatus = provider.VerificationStatus,
+                message = isApprove 
+                    ? "Your identity verification has been approved! The Verified badge is now active on your profile." 
+                    : "Your identity verification was reviewed and rejected."
+            };
+
+            await notifHub.Clients.Group($"user_{cleanUserId}").SendAsync("ProviderVerificationChanged", payload, ct);
+            await notifHub.Clients.Group($"user_{cleanUserId}_provider").SendAsync("ProviderVerificationChanged", payload, ct);
+            await notifHub.Clients.Group("role_provider").SendAsync("ProviderVerificationChanged", payload, ct);
+
+            var notif = new
+            {
+                id = Guid.NewGuid(),
+                userId = provider.UserId,
+                userName = user?.FullName,
+                targetRole = "provider",
+                title = isApprove ? "Identity Verified! 🎉" : "Verification Update",
+                message = payload.message,
+                type = payload.type,
+                referenceId = provider.Id.ToString(),
+                referenceType = "ProviderVerification",
+                createdAt = DateTimeOffset.UtcNow,
+                isRead = false
+            };
+            await notifHub.Clients.Group($"user_{cleanUserId}_provider").SendAsync("ReceiveNotification", notif, ct);
+            await notifHub.Clients.Group($"user_{cleanUserId}").SendAsync("ReceiveNotification", notif, ct);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[AdminController] SignalR notification dispatch notice: {ex.Message}");
+        }
 
         return Ok(new
         {

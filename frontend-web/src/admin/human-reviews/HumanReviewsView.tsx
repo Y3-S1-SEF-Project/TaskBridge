@@ -293,11 +293,11 @@ export const HumanReviewsView: React.FC = () => {
               <p className="admin-metric-note">Declined invalid/unclear document</p>
             </div>
             <div className="admin-metric-card">
-              <p className="admin-metric-label">Total Providers</p>
+              <p className="admin-metric-label">Total Submissions</p>
               <div className="admin-metric-value">
-                {verificationsData.total}
+                {verificationsData.items.filter(it => getDocUrls(it).length > 0).length}
               </div>
-              <p className="admin-metric-note">{verificationsData.unverifiedCount} unsubmitted</p>
+              <p className="admin-metric-note">Document review backlog & history</p>
             </div>
           </div>
 
@@ -311,37 +311,72 @@ export const HumanReviewsView: React.FC = () => {
             marginBottom: '16px'
           }}>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {(['All', 'Pending', 'Approved', 'Rejected', 'Unverified'] as const).map(tab => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setStatusFilter(tab)}
-                  className={`admin-btn ${statusFilter === tab ? 'admin-btn-primary' : 'admin-btn-secondary'}`}
-                  style={{ fontSize: '13px', padding: '6px 14px' }}
-                >
-                  {tab === 'All' ? 'All Providers' : tab}
-                </button>
-              ))}
+              {(['All', 'Pending', 'Approved', 'Rejected'] as const).map(tab => {
+                const isSelected = statusFilter === tab;
+                const label = tab === 'All' ? 'All Submissions' : tab === 'Pending' ? 'Pending Review' : tab;
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setStatusFilter(tab)}
+                    style={{
+                      fontSize: '13px',
+                      padding: '7px 16px',
+                      borderRadius: '8px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      border: isSelected ? '1px solid #256b4a' : '1px solid #cbd5e1',
+                      backgroundColor: isSelected ? '#256b4a' : '#ffffff',
+                      color: isSelected ? '#ffffff' : '#334155',
+                      boxShadow: isSelected ? '0 1px 3px rgba(37,107,74,0.3)' : 'none',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
 
-            <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '8px' }}>
-              <input
-                type="text"
-                placeholder="Search provider name, category, phone..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                style={{
-                  padding: '7px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '13px',
-                  minWidth: '240px'
-                }}
-              />
+            <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <span style={{ position: 'absolute', left: '10px', color: '#64748b', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </span>
+                <input
+                  type="text"
+                  placeholder="Search provider name, category, phone..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  style={{
+                    padding: '8px 14px 8px 34px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    color: '#0f172a',
+                    fontSize: '13px',
+                    minWidth: '280px',
+                    outline: 'none',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                  }}
+                />
+              </div>
               <button
                 type="submit"
-                className="admin-btn admin-btn-secondary"
-                style={{ padding: '7px 14px', fontSize: '13px' }}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  backgroundColor: '#ffffff',
+                  color: '#334155',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}
               >
                 Search
               </button>
@@ -350,275 +385,304 @@ export const HumanReviewsView: React.FC = () => {
 
           {/* Table */}
           <div className="admin-table-card">
-            <h3 className="admin-table-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>Provider Identity Documents (Stored in Cloudflare R2)</span>
-              <span style={{ fontSize: '12px', color: '#64736a', fontWeight: 'normal' }}>
-                {verificationsData.items.length} records matching filter
-              </span>
-            </h3>
+            {(() => {
+              const displayedItems = verificationsData.items.filter(item => getDocUrls(item).length > 0);
+              return (
+                <>
+                  <h3 className="admin-table-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Provider Identity Documents (Stored in Cloudflare R2)</span>
+                    <span style={{ fontSize: '12px', color: '#64736a', fontWeight: 'normal' }}>
+                      {displayedItems.length} records matching filter
+                    </span>
+                  </h3>
 
-            {loading ? (
-              <div style={{ padding: '40px', textAlign: 'center', color: '#64736a' }}>
-                <div style={{ fontSize: '14px', fontWeight: 600 }}>Loading provider verification records...</div>
-              </div>
-            ) : verificationsData.items.length === 0 ? (
-              <div style={{ padding: '48px', textAlign: 'center', color: '#64736a' }}>
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" style={{ margin: '0 auto 12px' }}>
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
-                <div style={{ fontWeight: 600, fontSize: '15px', color: '#1e293b' }}>No verifications found</div>
-                <div style={{ fontSize: '13px', marginTop: '4px' }}>
-                  {statusFilter === 'Pending'
-                    ? 'No pending identity verification submissions at this time.'
-                    : 'Try selecting a different status filter or clear the search query.'}
-                </div>
-              </div>
-            ) : (
-              <div className="admin-table-container">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Provider Details</th>
-                      <th>Category & Location</th>
-                      <th>Document Type</th>
-                      <th>Cloudflare Document</th>
-                      <th>Submitted Date</th>
-                      <th>Status</th>
-                      <th className="actions-col">Review / Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {verificationsData.items.map(item => {
-                      const isPending = item.verificationStatus === 'Pending';
-                      const isApproved = item.verificationStatus === 'Approved' || item.isVerified;
-                      const isRejected = item.verificationStatus === 'Rejected';
+                  {loading ? (
+                    <div style={{ padding: '40px', textAlign: 'center', color: '#64736a' }}>
+                      <div style={{ fontSize: '14px', fontWeight: 600 }}>Loading provider verification records...</div>
+                    </div>
+                  ) : displayedItems.length === 0 ? (
+                    <div style={{ padding: '48px', textAlign: 'center', color: '#64736a' }}>
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" style={{ margin: '0 auto 12px' }}>
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                      </svg>
+                      <div style={{ fontWeight: 600, fontSize: '15px', color: '#1e293b' }}>No verifications found</div>
+                      <div style={{ fontSize: '13px', marginTop: '4px' }}>
+                        {statusFilter === 'Pending'
+                          ? 'No pending identity verification submissions at this time.'
+                          : 'Try selecting a different status filter or clear the search query.'}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="admin-table-container">
+                      <table className="admin-table">
+                        <thead>
+                          <tr>
+                            <th>Provider Details</th>
+                            <th>Category & Location</th>
+                            <th>Document Type</th>
+                            <th>Cloudflare Document</th>
+                            <th>Submitted Date</th>
+                            <th>Status</th>
+                            <th className="actions-col">Review / Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {displayedItems.map(item => {
+                            const docs = getDocUrls(item);
+                            const rawStatus = (item.status || item.verificationStatus || (item.isVerified ? 'Approved' : 'Pending')).toLowerCase();
+                            const isApproved = rawStatus === 'approved' || item.isVerified === true;
+                            const isPending = rawStatus === 'pending' && !isApproved;
+                            const isRejected = rawStatus === 'rejected';
 
-                      return (
-                        <tr key={item.providerProfileId}>
-                          <td>
-                            <div style={{ fontWeight: 700, fontSize: '14px', color: '#0f172a' }}>
-                              {item.fullName || 'Provider'}
-                            </div>
-                            <div style={{ fontSize: '12px', color: '#475569' }}>
-                              {item.businessName || 'Independent'}
-                            </div>
-                            <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>
-                              📞 {item.phoneNumber || 'N/A'} • ✉️ {item.email || 'N/A'}
-                            </div>
-                          </td>
+                            const docType = item.documentType || item.verificationDocumentType || (docs.length > 0 ? 'National ID' : null);
+                            const submittedDate = item.submittedAt || item.verificationSubmittedAt;
+                            const fullName = item.fullName || 'Provider';
+                            const businessName = item.businessName || 'Independent';
+                            const phone = item.phone || item.phoneNumber || 'N/A';
+                            const city = item.city || item.location || 'Colombo';
+                            const targetId = item.providerProfileId || item.providerId || item.userId;
 
-                          <td>
-                            <span className="admin-badge priority-normal" style={{ fontSize: '11.5px' }}>
-                              {item.category || 'General'}
-                            </span>
-                            <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
-                              📍 {item.city || 'Colombo'} • Rs. {item.hourlyRate}/hr
-                            </div>
-                          </td>
+                            return (
+                              <tr key={targetId}>
+                                <td>
+                                  <div style={{ fontWeight: 700, fontSize: '14px', color: '#0f172a' }}>
+                                    {fullName}
+                                  </div>
+                                  <div style={{ fontSize: '12px', color: '#475569' }}>
+                                    {businessName}
+                                  </div>
+                                  <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>
+                                    📞 {phone} • ✉️ {item.email || 'N/A'}
+                                  </div>
+                                </td>
 
-                          <td>
-                            {item.verificationDocumentType ? (
-                              <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                padding: '3px 8px',
-                                borderRadius: '4px',
-                                fontSize: '12px',
-                                fontWeight: 600,
-                                backgroundColor: '#f1f5f9',
-                                color: '#334155'
-                              }}>
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <rect x="3" y="4" width="18" height="16" rx="2" />
-                                  <circle cx="9" cy="10" r="2" />
-                                  <line x1="15" y1="8" x2="17" y2="8" />
-                                  <line x1="15" y1="12" x2="17" y2="12" />
-                                </svg>
-                                {item.verificationDocumentType === 'DrivingLicense' ? 'Driving License' : 'National ID (NIC)'}
-                              </span>
-                            ) : (
-                              <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>
-                                Not uploaded
-                              </span>
-                            )}
-                          </td>
+                                <td>
+                                  <span className="admin-badge priority-normal" style={{ fontSize: '11.5px' }}>
+                                    {item.category || 'General'}
+                                  </span>
+                                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                                    📍 {city} • Rs. {item.hourlyRate}/hr
+                                  </div>
+                                </td>
 
-                          <td>
-                            {(() => {
-                              const docs = getDocUrls(item);
-                              if (docs.length === 0) {
-                                return <span style={{ fontSize: '12px', color: '#94a3b8' }}>None</span>;
-                              }
-                              return (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                                    {docs.map((url, pIdx) => (
-                                      <div
-                                        key={pIdx}
+                                <td>
+                                  {docType ? (
+                                    <span style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      padding: '3px 8px',
+                                      borderRadius: '4px',
+                                      fontSize: '12px',
+                                      fontWeight: 600,
+                                      backgroundColor: '#f1f5f9',
+                                      color: '#334155'
+                                    }}>
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <rect x="3" y="4" width="18" height="16" rx="2" />
+                                        <circle cx="9" cy="10" r="2" />
+                                        <line x1="15" y1="8" x2="17" y2="8" />
+                                        <line x1="15" y1="12" x2="17" y2="12" />
+                                      </svg>
+                                      {docType === 'DrivingLicense' ? 'Driving License' : 'National ID (NIC)'}
+                                    </span>
+                                  ) : (
+                                    <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>
+                                      Not uploaded
+                                    </span>
+                                  )}
+                                </td>
+
+                                <td>
+                                  {docs.length === 0 ? (
+                                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>None</span>
+                                  ) : (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                                        {docs.map((url, pIdx) => (
+                                          <div
+                                            key={pIdx}
+                                            onClick={() => {
+                                              setInspectItem(item);
+                                              setInspectPhotoIndex(pIdx);
+                                            }}
+                                            style={{
+                                              width: '46px',
+                                              height: '34px',
+                                              borderRadius: '5px',
+                                              overflow: 'hidden',
+                                              border: '1px solid #cbd5e1',
+                                              cursor: 'pointer',
+                                              position: 'relative',
+                                              backgroundColor: '#f1f5f9',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                              boxShadow: '0 1px 2px rgba(0,0,0,0.06)'
+                                            }}
+                                            title={`Photo ${pIdx + 1} (${pIdx === 0 ? 'Front' : pIdx === 1 ? 'Back' : 'Proof'}) - Click to inspect`}
+                                          >
+                                            <img
+                                              src={url}
+                                              alt={`Doc ${pIdx + 1}`}
+                                              style={{
+                                                width: '100%',
+                                                height: '100%',
+                                                objectFit: 'cover'
+                                              }}
+                                              onError={(e) => {
+                                                (e.currentTarget as HTMLElement).style.display = 'none';
+                                              }}
+                                            />
+                                            <span style={{
+                                              position: 'absolute',
+                                              bottom: '1px',
+                                              right: '2px',
+                                              backgroundColor: 'rgba(15,23,42,0.75)',
+                                              color: '#ffffff',
+                                              fontSize: '8px',
+                                              fontWeight: 700,
+                                              padding: '0 2px',
+                                              borderRadius: '2px',
+                                              lineHeight: '10px'
+                                            }}>
+                                              {pIdx === 0 ? 'F' : pIdx === 1 ? 'B' : `${pIdx + 1}`}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                      <button
+                                        type="button"
                                         onClick={() => {
                                           setInspectItem(item);
-                                          setInspectPhotoIndex(pIdx);
+                                          setInspectPhotoIndex(0);
                                         }}
                                         style={{
-                                          width: '46px',
-                                          height: '34px',
-                                          borderRadius: '5px',
-                                          overflow: 'hidden',
+                                          padding: '4px 10px',
+                                          fontSize: '11.5px',
+                                          fontWeight: 600,
+                                          borderRadius: '6px',
                                           border: '1px solid #cbd5e1',
+                                          backgroundColor: '#ffffff',
+                                          color: '#334155',
                                           cursor: 'pointer',
-                                          position: 'relative',
-                                          backgroundColor: '#0f172a',
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                                          whiteSpace: 'nowrap'
                                         }}
-                                        title={`Photo ${pIdx + 1} (${pIdx === 0 ? 'Front' : pIdx === 1 ? 'Back' : 'Proof'}) - Click to inspect`}
                                       >
-                                        <img
-                                          src={url}
-                                          alt={`Doc ${pIdx + 1}`}
-                                          style={{
-                                            width: '100%',
-                                            height: '100%',
-                                            objectFit: 'cover'
-                                          }}
-                                          onError={(e) => {
-                                            (e.currentTarget as HTMLElement).style.display = 'none';
-                                          }}
-                                        />
-                                        <span style={{
-                                          position: 'absolute',
-                                          bottom: '1px',
-                                          right: '2px',
-                                          backgroundColor: 'rgba(0,0,0,0.7)',
-                                          color: '#ffffff',
-                                          fontSize: '8px',
-                                          fontWeight: 700,
-                                          padding: '0 2px',
-                                          borderRadius: '2px',
-                                          lineHeight: '10px'
-                                        }}>
-                                          {pIdx === 0 ? 'F' : pIdx === 1 ? 'B' : `${pIdx + 1}`}
-                                        </span>
-                                      </div>
-                                    ))}
+                                        🔍 Inspect ({docs.length})
+                                      </button>
+                                    </div>
+                                  )}
+                                </td>
+
+                                <td style={{ fontSize: '12px', color: '#64748b' }}>
+                                  {submittedDate ? (
+                                    <>
+                                      <div style={{ fontWeight: 600, color: '#334155' }}>{new Date(submittedDate).toLocaleDateString()}</div>
+                                      <div style={{ fontSize: '11px', color: '#64748b' }}>{new Date(submittedDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                    </>
+                                  ) : (
+                                    <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Recently submitted</span>
+                                  )}
+                                </td>
+
+                                <td>
+                                  {isApproved ? (
+                                    <span className="admin-badge status-resolved" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                        <polyline points="20 6 9 17 4 12" />
+                                      </svg>
+                                      Verified
+                                    </span>
+                                  ) : isPending ? (
+                                    <span className="admin-badge status-waiting" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <polyline points="12 6 12 12 16 14" />
+                                      </svg>
+                                      Pending Review
+                                    </span>
+                                  ) : isRejected ? (
+                                    <span className="admin-badge priority-high" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                        <line x1="18" y1="6" x2="6" y2="18" />
+                                        <line x1="6" y1="6" x2="18" y2="18" />
+                                      </svg>
+                                      Rejected
+                                    </span>
+                                  ) : (
+                                    <span className="admin-badge priority-low">
+                                      Under Review
+                                    </span>
+                                  )}
+                                </td>
+
+                                <td className="actions-col">
+                                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                    {!isApproved && (
+                                      <button
+                                        type="button"
+                                        className="admin-btn admin-btn-primary"
+                                        style={{ padding: '5px 12px', fontSize: '12px', fontWeight: 600 }}
+                                        disabled={submittingAction}
+                                        onClick={() => handleAdjudicate(item, 'Approved', 'Approved by administrator.')}
+                                        title="Approve identity and grant verified badge"
+                                      >
+                                        ✓ Approve
+                                      </button>
+                                    )}
+
+                                    {!isRejected && (
+                                      <button
+                                        type="button"
+                                        className="admin-btn admin-btn-secondary"
+                                        style={{
+                                          padding: '5px 12px',
+                                          fontSize: '12px',
+                                          color: '#c81e1e',
+                                          borderColor: '#fecaca',
+                                          backgroundColor: '#ffffff'
+                                        }}
+                                        disabled={submittingAction}
+                                        onClick={() => handleAdjudicate(item, 'Rejected', 'Document unclear or invalid.')}
+                                        title="Reject document or revoke verification"
+                                      >
+                                        ✗ Reject
+                                      </button>
+                                    )}
+
+                                    {isApproved && (
+                                      <span style={{
+                                        fontSize: '12px',
+                                        color: '#166534',
+                                        backgroundColor: '#dcfce7',
+                                        border: '1px solid #bbf7d0',
+                                        borderRadius: '6px',
+                                        fontWeight: 700,
+                                        padding: '4px 10px',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                      }}>
+                                        ✓ Badge Active
+                                      </span>
+                                    )}
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setInspectItem(item);
-                                      setInspectPhotoIndex(0);
-                                    }}
-                                    className="admin-btn admin-btn-secondary"
-                                    style={{ padding: '3px 8px', fontSize: '11px', whiteSpace: 'nowrap' }}
-                                  >
-                                    🔍 Inspect ({docs.length})
-                                  </button>
-                                </div>
-                              );
-                            })()}
-                          </td>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
 
-                          <td style={{ fontSize: '12px', color: '#64748b' }}>
-                            {item.verificationSubmittedAt ? (
-                              <>
-                                <div>{new Date(item.verificationSubmittedAt).toLocaleDateString()}</div>
-                                <div style={{ fontSize: '11px' }}>{new Date(item.verificationSubmittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                              </>
-                            ) : (
-                              '—'
-                            )}
-                          </td>
-
-                          <td>
-                            {isApproved ? (
-                              <span className="admin-badge status-resolved" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                  <polyline points="20 6 9 17 4 12" />
-                                </svg>
-                                Verified
-                              </span>
-                            ) : isPending ? (
-                              <span className="admin-badge status-waiting" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                  <circle cx="12" cy="12" r="10" />
-                                  <polyline points="12 6 12 12 16 14" />
-                                </svg>
-                                Pending Review
-                              </span>
-                            ) : isRejected ? (
-                              <span className="admin-badge priority-high" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                  <line x1="18" y1="6" x2="6" y2="18" />
-                                  <line x1="6" y1="6" x2="18" y2="18" />
-                                </svg>
-                                Rejected
-                              </span>
-                            ) : (
-                              <span className="admin-badge priority-low">
-                                Not Verified
-                              </span>
-                            )}
-                          </td>
-
-                          <td className="actions-col">
-                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                              {!isApproved && item.verificationDocumentUrl && (
-                                <button
-                                  type="button"
-                                  className="admin-btn admin-btn-primary"
-                                  style={{ padding: '4px 10px', fontSize: '12px' }}
-                                  disabled={submittingAction}
-                                  onClick={() => handleAdjudicate(item, 'Approved', 'Approved by administrator.')}
-                                  title="Approve identity and grant verified badge"
-                                >
-                                  ✓ Approve
-                                </button>
-                              )}
-
-                              {!isRejected && (
-                                <button
-                                  type="button"
-                                  className="admin-btn admin-btn-secondary"
-                                  style={{
-                                    padding: '4px 10px',
-                                    fontSize: '12px',
-                                    color: '#c81e1e',
-                                    borderColor: '#fecaca'
-                                  }}
-                                  disabled={submittingAction}
-                                  onClick={() => handleAdjudicate(item, 'Rejected', 'Document unclear or invalid.')}
-                                  title="Reject document or revoke verification"
-                                >
-                                  ✗ Reject
-                                </button>
-                              )}
-
-                              {isApproved && (
-                                <span style={{
-                                  fontSize: '12px',
-                                  color: '#256b4a',
-                                  fontWeight: 600,
-                                  padding: '4px 8px'
-                                }}>
-                                  Active Verified
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            <div className="admin-table-footer">
-              <div>Total {verificationsData.items.length} providers displayed</div>
-            </div>
+                  <div className="admin-table-footer">
+                    <div>Total {displayedItems.length} submitted providers displayed</div>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </>
       ) : (
@@ -956,16 +1020,16 @@ export const HumanReviewsView: React.FC = () => {
                     </div>
                     <div>
                       <span style={{ color: '#64748b' }}>Phone Number:</span>
-                      <strong style={{ display: 'block', color: '#0f172a' }}>{inspectItem.phoneNumber}</strong>
+                      <strong style={{ display: 'block', color: '#0f172a' }}>{inspectItem.phoneNumber || inspectItem.phone || 'N/A'}</strong>
                     </div>
                     <div>
                       <span style={{ color: '#64748b' }}>Location:</span>
-                      <strong style={{ display: 'block', color: '#0f172a' }}>{inspectItem.city || 'Colombo'}</strong>
+                      <strong style={{ display: 'block', color: '#0f172a' }}>{inspectItem.city || inspectItem.location || 'Colombo'}</strong>
                     </div>
                     <div>
                       <span style={{ color: '#64748b' }}>Current Verification Status:</span>
-                      <strong style={{ display: 'block', color: inspectItem.isVerified ? '#256b4a' : '#c81e1e' }}>
-                        {inspectItem.verificationStatus} {inspectItem.isVerified ? '(Badge Active)' : '(Not Verified)'}
+                      <strong style={{ display: 'block', color: (inspectItem.isVerified || inspectItem.status?.toLowerCase() === 'approved' || inspectItem.verificationStatus?.toLowerCase() === 'approved') ? '#256b4a' : '#c81e1e' }}>
+                        {(inspectItem.isVerified || inspectItem.status?.toLowerCase() === 'approved' || inspectItem.verificationStatus?.toLowerCase() === 'approved') ? 'Approved (Badge Active)' : (inspectItem.status?.toLowerCase() === 'rejected' || inspectItem.verificationStatus?.toLowerCase() === 'rejected') ? 'Rejected' : 'Pending Review'}
                       </strong>
                     </div>
                     <div>
@@ -1001,6 +1065,8 @@ export const HumanReviewsView: React.FC = () => {
                         padding: '8px 12px',
                         borderRadius: '6px',
                         border: '1px solid #cbd5e1',
+                        backgroundColor: '#ffffff',
+                        color: '#0f172a',
                         fontSize: '13px',
                         boxSizing: 'border-box'
                       }}
