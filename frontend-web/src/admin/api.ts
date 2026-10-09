@@ -278,6 +278,17 @@ export async function toggleProviderStatus(id: string): Promise<{ id: string; is
   throw new Error(err.message || 'Failed to toggle provider status.');
 }
 
+export async function toggleCustomerStatus(id: string): Promise<{ id: string; isSuspended: boolean }> {
+  const token = getStoredToken();
+  const res = await fetch(`${API_BASE}/customers/${id}/status`, {
+    method: 'PATCH',
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  if (res.ok) return await res.json();
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to toggle customer status.');
+}
+
 export async function fetchCustomers(params?: {
   search?: string;
   status?: string;

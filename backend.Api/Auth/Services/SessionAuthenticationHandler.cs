@@ -35,6 +35,11 @@ public sealed class SessionAuthenticationHandler(
 
         if (user is not null)
         {
+            if (user.LockedUntil.HasValue && user.LockedUntil.Value > DateTimeOffset.UtcNow)
+            {
+                return AuthenticateResult.Fail("Your account has been suspended by TaskBridge Operations.");
+            }
+
             var identity = new ClaimsIdentity([
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email),

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using TaskBridge.Api.Auth;
 using TaskBridge.Api.Data;
+using TaskBridge.Api.Notifications;
 using backend.Api.AI;
 
 namespace TaskBridge.Api.Admin;
@@ -600,8 +601,42 @@ public sealed class AdminController(
 
         provider.IsActive = !provider.IsActive;
         provider.UpdatedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(ct);
 
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == provider.UserId, ct);
+        if (user != null)
+        {
+            if (!provider.IsActive)
+            {
+                user.LockedUntil = DateTimeOffset.UtcNow.AddYears(10);
+                user.SessionToken = null;
+                db.Notifications.Add(new NotificationEntity
+                {
+                    UserId = user.Id,
+                    UserName = user.FullName,
+                    Title = "Account Suspended",
+                    Message = "Your provider account has been temporarily suspended by TaskBridge Operations. Access is locked until administrative review is resolved.",
+                    Type = "System",
+                    TargetRole = "provider",
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            }
+            else
+            {
+                user.LockedUntil = null;
+                db.Notifications.Add(new NotificationEntity
+                {
+                    UserId = user.Id,
+                    UserName = user.FullName,
+                    Title = "Account Reactivated",
+                    Message = "Your provider account has been restored by TaskBridge Operations. You can now accept requests and perform operations.",
+                    Type = "System",
+                    TargetRole = "provider",
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
         return Ok(new { id = provider.Id, isActive = provider.IsActive });
     }
 
@@ -851,6 +886,47 @@ public sealed class AdminController(
             avgLtvStr,
             accountHealth,
             filtered.OrderByDescending(i => i.BookingsCount).ThenByDescending(i => i.JoinedDate).ToList()));
+    }
+
+    [HttpPatch("customers/{id:guid}/status")]
+    public async Task<IActionResult> ToggleCustomerStatus(Guid id, CancellationToken ct)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == id, ct);
+        if (user is null) return NotFound(new { error = "Customer account not found." });
+
+        bool isCurrentlySuspended = user.LockedUntil.HasValue && user.LockedUntil.Value > DateTimeOffset.UtcNow;
+        if (!isCurrentlySuspended)
+        {
+            user.LockedUntil = DateTimeOffset.UtcNow.AddYears(10);
+            user.SessionToken = null;
+            db.Notifications.Add(new NotificationEntity
+            {
+                UserId = user.Id,
+                UserName = user.FullName,
+                Title = "Account Suspended",
+                Message = "Your customer account has been temporarily suspended by TaskBridge Operations. Please contact support.",
+                Type = "System",
+                TargetRole = "customer",
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+        }
+        else
+        {
+            user.LockedUntil = null;
+            db.Notifications.Add(new NotificationEntity
+            {
+                UserId = user.Id,
+                UserName = user.FullName,
+                Title = "Account Reactivated",
+                Message = "Your customer account has been reactivated. You can now log in and place service requests.",
+                Type = "System",
+                TargetRole = "customer",
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+        }
+
+        await db.SaveChangesAsync(ct);
+        return Ok(new { id = user.Id, isSuspended = !isCurrentlySuspended });
     }
 
     // ==================== REVIEWS ====================
