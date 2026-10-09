@@ -619,5 +619,34 @@ export async function adjudicateVerification(
   throw new Error(err.message || 'Failed to adjudicate verification.');
 }
 
+export interface LiveStreamEventItem {
+  id: string;
+  step: number;
+  agent: 'planning' | 'matching' | 'coordination' | 'review';
+  message: string;
+  isHighlight: boolean;
+  latencyMs: number;
+  tokens: number;
+  timestamp: string;
+}
 
+export async function fetchAiLiveStream(): Promise<{ currentStep: number; logs: LiveStreamEventItem[] }> {
+  const token = getStoredToken();
+  try {
+    const res = await fetch(`${API_BASE}/ai/live-stream`, {
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+    if (res.ok) return await res.json();
+  } catch {}
+  return { currentStep: 0, logs: [] };
+}
 
+export async function clearAiLiveStream(): Promise<void> {
+  const token = getStoredToken();
+  try {
+    await fetch(`${API_BASE}/ai/live-stream/clear`, {
+      method: 'POST',
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+  } catch {}
+}
