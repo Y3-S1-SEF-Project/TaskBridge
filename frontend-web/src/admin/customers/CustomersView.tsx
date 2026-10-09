@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { CustomerItem, CustomersSummary } from '../types';
-import { fetchCustomers } from '../api';
+import { fetchCustomers, toggleCustomerStatus } from '../api';
 import { AdminSelect } from '../components/AdminSelect';
 
 export const CustomersView: React.FC = () => {
@@ -17,6 +17,7 @@ export const CustomersView: React.FC = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerItem | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const loadCustomers = useCallback(async () => {
     setLoading(true);
@@ -40,6 +41,25 @@ export const CustomersView: React.FC = () => {
     }, 200);
     return () => clearTimeout(timer);
   }, [loadCustomers]);
+
+  const handleToggleCustomerStatus = async (customer: CustomerItem) => {
+    setTogglingId(customer.userId);
+    try {
+      const res = await toggleCustomerStatus(customer.userId);
+      setSummary(prev => ({
+        ...prev,
+        items: prev.items.map(item =>
+          item.userId === customer.userId
+            ? { ...item, status: res.isSuspended ? 'Suspended' : 'Active' }
+            : item
+        ),
+      }));
+    } catch (err: any) {
+      alert(err.message || 'Failed to update customer status.');
+    } finally {
+      setTogglingId(null);
+    }
+  };
 
   const handleExport = () => {
     if (summary.items.length === 0) return;
@@ -174,7 +194,7 @@ export const CustomersView: React.FC = () => {
                 { value: 'All', label: 'All Statuses' },
                 { value: 'Active', label: 'Active' },
                 { value: 'Inactive', label: 'Inactive' },
-                { value: 'Flagged', label: 'Flagged' },
+                { value: 'Suspended', label: 'Suspended' },
               ]}
             />
 
@@ -258,7 +278,7 @@ export const CustomersView: React.FC = () => {
                     <td data-label="Bookings"><strong>{c.bookingsCount}</strong></td>
                     <td data-label="Total Spent"><strong>LKR {c.totalSpent.toLocaleString()}</strong></td>
                     <td data-label="Status">
-                      <span className={`admin-badge ${c.status === 'Active' ? 'status-resolved' : c.status === 'Flagged' ? 'priority-high' : 'priority-normal'}`}>
+                      <span className={`admin-badge ${c.status === 'Active' ? 'status-resolved' : c.status === 'Suspended' || c.status === 'Flagged' ? 'priority-high' : 'priority-normal'}`}>
                         {c.status}
                       </span>
                     </td>
@@ -269,14 +289,31 @@ export const CustomersView: React.FC = () => {
                       })}
                     </td>
                     <td data-label="Actions" className="actions-col">
-                      <button
-                        type="button"
-                        className="admin-btn admin-btn-secondary"
-                        style={{ padding: '4px 10px', fontSize: '12px' }}
-                        onClick={() => setSelectedCustomer(c)}
-                      >
-                        History
-                      </button>
+                      <div style={{ display: 'inline-flex', gap: '6px' }}>
+                        <button
+                          type="button"
+                          className="admin-btn admin-btn-secondary"
+                          style={{ padding: '4px 10px', fontSize: '12px' }}
+                          onClick={() => setSelectedCustomer(c)}
+                        >
+                          History
+                        </button>
+                        <button
+                          type="button"
+                          className="admin-btn admin-btn-secondary"
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: '11px',
+                            color: c.status !== 'Suspended' ? '#b91c1c' : '#256b4a',
+                            borderColor: c.status !== 'Suspended' ? '#fecaca' : '#bbf7d0',
+                          }}
+                          disabled={togglingId === c.userId}
+                          onClick={() => handleToggleCustomerStatus(c)}
+                          title={c.status !== 'Suspended' ? 'Suspend customer account' : 'Reactivate customer account'}
+                        >
+                          {c.status !== 'Suspended' ? 'Suspend' : 'Activate'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
