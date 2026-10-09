@@ -11,6 +11,7 @@ public interface IProfileImageService
 {
     Task<string> UploadProfilePhotoAsync(IFormFile file, Guid userId, CancellationToken ct);
     Task<string> UploadProofPhotoAsync(IFormFile file, string bookingRef, CancellationToken ct);
+    Task<string> UploadVerificationDocumentAsync(IFormFile file, Guid userId, string docType, CancellationToken ct);
 }
 
 public sealed class R2ImageService : IProfileImageService
@@ -143,6 +144,59 @@ public sealed class R2ImageService : IProfileImageService
 
         var publicImageUrl = $"{_publicUrl}/{key}";
         _logger.LogInformation("Successfully uploaded proof to Cloudflare R2: {Url}", publicImageUrl);
+        return publicImageUrl;
+    }
+
+    public async Task<string> UploadVerificationDocumentAsync(IFormFile file, Guid userId, string docType, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            throw new AuthProblem(400, "Please select an ID or Driving License photo to upload.");
+
+        if (file.Length > 15 * 1024 * 1024)
+            throw new AuthProblem(400, "Verification document image exceeds maximum allowed limit (15MB).");
+
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".heic", ".pdf" };
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (string.IsNullOrEmpty(ext) || !allowedExtensions.Contains(ext))
+            ext = ".jpg";
+
+        var safeType = (docType ?? "id").ToLowerInvariant().Contains("driv") ? "dl" : "nic";
+        var key = $"verifications/user_{userId}_{safeType}_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}{ext}";
+
+        await using var stream = file.OpenReadStream();
+        var contentType = ext switch
+        {
+            ".png" => "image/png",
+            ".webp" => "image/webp",
+            ".heic" => "image/heic",
+            ".pdf" => "application/pdf",
+            _ => "image/jpeg"
+        };
+
+        var putRequest = new PutObjectRequest
+        {
+            BucketName = _bucketName,
+            Key = key,
+            InputStream = stream,
+            ContentType = contentType,
+            Headers =
+            {
+                CacheControl = "public, max-age=31536000, immutable"
+            },
+            DisablePayloadSigning = true
+        };
+
+        _logger.LogInformation("Uploading provider verification document ({Type}) to Cloudflare R2: {Key}...", docType, key);
+        var response = await _s3Client.PutObjectAsync(putRequest, ct);
+
+        if (response.HttpStatusCode != System.Net.HttpStatusCode.OK)
+        {
+            _logger.LogError("R2 verification document upload failed with status {Status}", response.HttpStatusCode);
+            throw new AuthProblem(500, "Failed to upload verification document to Cloudflare R2 storage.");
+        }
+
+        var publicImageUrl = $"{_publicUrl}/{key}";
+        _logger.LogInformation("Successfully uploaded verification document to Cloudflare R2: {Url}", publicImageUrl);
         return publicImageUrl;
     }
 }

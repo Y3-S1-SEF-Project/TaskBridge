@@ -17,6 +17,10 @@ class ProviderItem {
   final double? longitude;
   final String? bio;
   final bool isActive;
+  final bool isVerified;
+  final String? verificationStatus;
+  final String? verificationDocumentType;
+  final String? verificationDocumentUrl;
 
   const ProviderItem({
     required this.id,
@@ -37,6 +41,10 @@ class ProviderItem {
     this.longitude,
     this.bio,
     this.isActive = true,
+    this.isVerified = false,
+    this.verificationStatus,
+    this.verificationDocumentType,
+    this.verificationDocumentUrl,
   });
 
   factory ProviderItem.fromJson(Map<String, dynamic> json) {
@@ -59,11 +67,17 @@ class ProviderItem {
       longitude: (json['longitude'] as num?)?.toDouble(),
       bio: json['bio'] as String?,
       isActive: json['isActive'] as bool? ?? true,
+      isVerified: (json['isVerified'] as bool?) ?? false,
+      verificationStatus: json['verificationStatus'] as String?,
+      verificationDocumentType: json['verificationDocumentType'] as String?,
+      verificationDocumentUrl: json['verificationDocumentUrl'] as String?,
     );
   }
 
   ProviderItem copyWith({
     double? distanceKm,
+    bool? isVerified,
+    String? verificationStatus,
   }) {
     return ProviderItem(
       id: id,
@@ -84,6 +98,10 @@ class ProviderItem {
       longitude: longitude,
       bio: bio,
       isActive: isActive,
+      isVerified: isVerified ?? this.isVerified,
+      verificationStatus: verificationStatus ?? this.verificationStatus,
+      verificationDocumentType: verificationDocumentType,
+      verificationDocumentUrl: verificationDocumentUrl,
     );
   }
 

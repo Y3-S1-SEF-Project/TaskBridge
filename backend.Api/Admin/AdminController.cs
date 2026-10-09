@@ -1,9 +1,11 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using TaskBridge.Api.Auth;
 using TaskBridge.Api.Data;
+using backend.Api.AI;
 
 namespace TaskBridge.Api.Admin;
 
@@ -12,7 +14,8 @@ namespace TaskBridge.Api.Admin;
 public sealed class AdminController(
     AuthDbContext db,
     IPasswordHasher<AdminUser> hasher,
-    JwtTokenService jwt) : ControllerBase
+    JwtTokenService jwt,
+    IHubContext<TaskBridge.Api.Notifications.NotificationHub> notifHub) : ControllerBase
 {
     // Authenticates Admin / SuperAdmin credentials from dedicated 'admins' table
     [HttpPost("auth/login")]
@@ -602,6 +605,172 @@ public sealed class AdminController(
         return Ok(new { id = provider.Id, isActive = provider.IsActive });
     }
 
+    // ==================== IDENTITY & KYC VERIFICATIONS ====================
+    [HttpGet("verifications")]
+    public async Task<ActionResult<VerificationsSummaryDto>> GetVerifications(
+        [FromQuery] string? search,
+        [FromQuery] string? status,
+        CancellationToken ct)
+    {
+        // Only include providers who actually submitted identity documents
+        var providers = await db.Providers
+            .Include(p => p.User)
+            .AsNoTracking()
+            .Where(p => (!string.IsNullOrWhiteSpace(p.VerificationDocumentUrl) && p.VerificationDocumentUrl.Trim() != "") ||
+                        (p.User != null && !string.IsNullOrWhiteSpace(p.User.ProviderVerificationDocumentUrl) && p.User.ProviderVerificationDocumentUrl.Trim() != ""))
+            .OrderByDescending(p => p.VerificationSubmittedAt ?? p.CreatedAt)
+            .ToListAsync(ct);
+
+        var list = new List<ProviderVerificationItemDto>();
+        int idx = 101;
+
+        foreach (var p in providers)
+        {
+            var u = p.User;
+            var docUrl = p.VerificationDocumentUrl ?? u?.ProviderVerificationDocumentUrl;
+            var docUrls = !string.IsNullOrWhiteSpace(docUrl)
+                ? docUrl.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList()
+                : new List<string>();
+            var docType = !string.IsNullOrWhiteSpace(p.VerificationDocumentType) 
+                ? p.VerificationDocumentType 
+                : (docUrls.Count > 0 ? "National ID" : "Not Provided");
+            var verStatus = p.IsVerified 
+                ? "Approved" 
+                : (!string.IsNullOrWhiteSpace(p.VerificationStatus) ? p.VerificationStatus : (docUrls.Count > 0 ? "Pending" : "Unverified"));
+
+            list.Add(new ProviderVerificationItemDto(
+                p.Id,
+                p.UserId,
+                $"PRV-{idx++}",
+                u?.FullName ?? "Specialist",
+                u?.Email ?? "",
+                u?.Phone ?? "No contact",
+                p.Category,
+                u?.Location ?? p.ServiceAreas ?? "Colombo",
+                docType,
+                docUrls.FirstOrDefault() ?? docUrl,
+                verStatus,
+                p.VerificationSubmittedAt,
+                p.VerificationApprovedAt,
+                p.VerificationNotes,
+                p.Rating > 0 ? Math.Round(p.Rating, 1) : 4.8,
+                p.ReviewCount,
+                p.HourlyRate,
+                docUrls));
+        }
+
+        var total = list.Count;
+        var pending = list.Count(i => i.Status.Equals("Pending", StringComparison.OrdinalIgnoreCase));
+        var approved = list.Count(i => i.Status.Equals("Approved", StringComparison.OrdinalIgnoreCase));
+        var rejected = list.Count(i => i.Status.Equals("Rejected", StringComparison.OrdinalIgnoreCase));
+
+        var filtered = list.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(status) && !status.Equals("All", StringComparison.OrdinalIgnoreCase))
+        {
+            filtered = filtered.Where(i => string.Equals(i.Status, status, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var q = search.Trim();
+            filtered = filtered.Where(i =>
+                i.FullName.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                i.Category.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                i.Phone.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                i.ProviderCode.Contains(q, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return Ok(new VerificationsSummaryDto(
+            total,
+            pending,
+            approved,
+            rejected,
+            filtered.ToList()));
+    }
+
+    [HttpPost("verifications/{id:guid}/adjudicate")]
+    public async Task<IActionResult> AdjudicateVerification(
+        Guid id,
+        [FromBody] AdjudicateVerificationRequest req,
+        CancellationToken ct)
+    {
+        var provider = await db.Providers.Include(p => p.User).FirstOrDefaultAsync(p => p.Id == id || p.UserId == id, ct);
+        if (provider is null) return NotFound(new { error = "Provider profile not found." });
+
+        var user = provider.User ?? await db.Users.FindAsync([provider.UserId], ct);
+
+        var isApprove = string.Equals(req.Status, "Approved", StringComparison.OrdinalIgnoreCase);
+        provider.IsVerified = isApprove;
+        provider.VerificationStatus = isApprove ? "Approved" : "Rejected";
+        provider.VerificationNotes = req.Notes;
+        if (isApprove)
+        {
+            provider.VerificationApprovedAt = DateTimeOffset.UtcNow;
+        }
+        provider.UpdatedAt = DateTimeOffset.UtcNow;
+
+        if (user != null)
+        {
+            user.IsVerifiedProvider = isApprove;
+            user.ProviderVerificationStatus = provider.VerificationStatus;
+            user.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        // Real-time SignalR push directly to provider app (no manual app refresh required!)
+        try
+        {
+            var cleanUserId = provider.UserId.ToString();
+            var payload = new
+            {
+                type = isApprove ? "VerificationApproved" : "VerificationRejected",
+                providerId = provider.Id,
+                userId = provider.UserId,
+                isVerified = provider.IsVerified,
+                verificationStatus = provider.VerificationStatus,
+                message = isApprove 
+                    ? "Your identity verification has been approved! The Verified badge is now active on your profile." 
+                    : "Your identity verification was reviewed and rejected."
+            };
+
+            await notifHub.Clients.Group($"user_{cleanUserId}").SendAsync("ProviderVerificationChanged", payload, ct);
+            await notifHub.Clients.Group($"user_{cleanUserId}_provider").SendAsync("ProviderVerificationChanged", payload, ct);
+            await notifHub.Clients.Group("role_provider").SendAsync("ProviderVerificationChanged", payload, ct);
+
+            var notif = new
+            {
+                id = Guid.NewGuid(),
+                userId = provider.UserId,
+                userName = user?.FullName,
+                targetRole = "provider",
+                title = isApprove ? "Identity Verified! 🎉" : "Verification Update",
+                message = payload.message,
+                type = payload.type,
+                referenceId = provider.Id.ToString(),
+                referenceType = "ProviderVerification",
+                createdAt = DateTimeOffset.UtcNow,
+                isRead = false
+            };
+            await notifHub.Clients.Group($"user_{cleanUserId}_provider").SendAsync("ReceiveNotification", notif, ct);
+            await notifHub.Clients.Group($"user_{cleanUserId}").SendAsync("ReceiveNotification", notif, ct);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[AdminController] SignalR notification dispatch notice: {ex.Message}");
+        }
+
+        return Ok(new
+        {
+            success = true,
+            providerId = provider.Id,
+            userId = provider.UserId,
+            isVerified = provider.IsVerified,
+            verificationStatus = provider.VerificationStatus,
+            message = isApprove ? "Provider successfully verified and badge activated." : "Verification rejected."
+        });
+    }
+
     // ==================== CUSTOMERS ====================
     [HttpGet("customers")]
     public async Task<ActionResult<CustomersSummaryDto>> GetCustomers(
@@ -978,19 +1147,27 @@ public sealed class AdminController(
                 FormatRelativeTime(p.CreatedAt, now),
                 p.CreatedAt
             ));
+        }
 
-            // Matching Agent execution
+        // 2b. REAL Matching Agent executions directly from db.JobMatches
+        var matches = await db.JobMatches.AsNoTracking().OrderByDescending(m => m.CreatedAt).Take(20).ToListAsync(ct);
+        foreach (var m in matches)
+        {
+            var matchTitle = !string.IsNullOrWhiteSpace(m.ServiceTitle) ? m.ServiceTitle : m.Category;
+            var latency = m.LatencyMs > 0 ? m.LatencyMs : 1120;
+            var tokens = m.TokensUsed > 0 ? m.TokensUsed : 980;
+
             items.Add(new AiWorkflowItemDto(
-                $"WF-MAT-{p.Id.ToString()[..6].ToUpper()}",
-                $"Semantic Match & Geo-Ranking: {title}",
+                $"WF-MAT-{m.Id.ToString()[..6].ToUpper()}",
+                $"Multi-Criteria Ranking & Semantic Match: {matchTitle}",
                 "Matching Agent",
-                $"Provider Matching {pRef}",
-                1160,
-                980,
+                $"Customer Match Request ({m.CustomerName})",
+                latency,
+                tokens,
                 "Success",
-                "gpt-4o-mini",
-                FormatRelativeTime(p.CreatedAt.AddSeconds(2), now),
-                p.CreatedAt.AddSeconds(2)
+                m.Model ?? "gpt-4o-mini",
+                FormatRelativeTime(m.CreatedAt, now),
+                m.CreatedAt
             ));
         }
 
@@ -1205,51 +1382,93 @@ public sealed class AdminController(
             agentType = "Matching Agent";
             model = "gpt-4o-mini";
 
-            var prop = await db.Proposals.AsNoTracking().FirstOrDefaultAsync(p =>
-                p.Id.ToString().ToUpper().StartsWith(key) ||
-                p.ProposalReference.ToUpper() == key, ct);
+            // Check real JobMatchEntity first
+            var jm = await db.JobMatches.AsNoTracking().FirstOrDefaultAsync(m =>
+                m.Id.ToString().ToUpper().StartsWith(key), ct);
 
-            if (prop is not null)
+            if (jm is not null)
             {
-                recordDate = prop.CreatedAt.AddSeconds(2);
-                name = $"Semantic Match & Geo-Ranking: {prop.ServiceTitle}";
-                triggerEvent = $"Provider Matching {prop.ProposalReference}";
+                recordDate = jm.CreatedAt;
+                name = $"Multi-Criteria Ranking & Semantic Match: {jm.ServiceTitle}";
+                triggerEvent = $"Customer Match Request ({jm.CustomerName})";
                 status = "Success";
-                latencyMs = 1160;
-                promptTokens = 840;
+                latencyMs = jm.LatencyMs > 0 ? jm.LatencyMs : 1120;
+                promptTokens = 720;
                 completionTokens = 260;
 
                 var inputObj = new
                 {
-                    proposalReference = prop.ProposalReference,
-                    category = prop.Category,
-                    serviceTitle = prop.ServiceTitle,
-                    targetLocation = prop.Location,
-                    preferredSchedule = prop.PreferredSchedule
+                    matchId = jm.Id,
+                    customerName = jm.CustomerName,
+                    serviceTitle = jm.ServiceTitle,
+                    category = jm.Category,
+                    location = jm.Location,
+                    candidatePoolSize = jm.CandidatePoolCount
                 };
                 inputPayload = System.Text.Json.JsonSerializer.Serialize(inputObj, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
 
                 var outputObj = new
                 {
-                    matchedProvider = prop.ProviderName,
-                    hourlyRate = prop.EstimatedRate,
-                    matchStatus = prop.Status,
-                    matchScore = 96,
-                    justification = $"Matched verified {prop.Category} specialist ({prop.ProviderName}) based on location proximity to {prop.Location}."
+                    topMatchedProvider = jm.TopMatchedProviderName,
+                    matchScore = $"{jm.TopMatchScore}%",
+                    rationale = jm.TopAiReason,
+                    rankedMatches = !string.IsNullOrWhiteSpace(jm.MatchesJson) ? System.Text.Json.JsonSerializer.Deserialize<object>(jm.MatchesJson) : null
                 };
                 outputPayload = System.Text.Json.JsonSerializer.Serialize(outputObj, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
 
-                steps.Add(new(1, "Geospatial Proximity Filtering", $"Queried provider directory around {prop.Location}", 240, "Success"));
-                steps.Add(new(2, "Skill & Rating Verification", $"Verified skills for category '{prop.Category}'", 320, "Success"));
-                steps.Add(new(3, "OpenAI Ranking Rationale (gpt-4o-mini)", $"Ranked {prop.ProviderName} as primary match", 480, "Success"));
-                steps.Add(new(4, "Dispatch Stream", $"Created match link for proposal {prop.ProposalReference}", 120, "Success"));
+                steps.Add(new(1, "Candidate Pool Filtering", $"Scanned database for active specialists in '{jm.Category}' (Pool: {jm.CandidatePoolCount})", 180, "Success"));
+                steps.Add(new(2, "Geospatial Proximity Calculation", $"Computed distance matrix relative to {jm.Location}", 240, "Success"));
+                steps.Add(new(3, "Multi-Criteria Decision Scoring (MCDA)", $"Scored skills, rating, price, and proximity (Top fit: {jm.TopMatchScore}%)", 420, "Success"));
+                steps.Add(new(4, "OpenAI Rationale Formulation (gpt-4o-mini)", $"Ranked {jm.TopMatchedProviderName} #1: {jm.TopAiReason}", 280, "Success"));
             }
             else
             {
-                name = "Semantic Provider Match";
-                triggerEvent = $"Provider Match {id}";
-                steps.Add(new(1, "Spatial Query", "Queried nearby providers", 280, "Success"));
-                steps.Add(new(2, "Ranking Inference", "Synthesized candidate match score", 650, "Success"));
+                var prop = await db.Proposals.AsNoTracking().FirstOrDefaultAsync(p =>
+                    p.Id.ToString().ToUpper().StartsWith(key) ||
+                    p.ProposalReference.ToUpper() == key, ct);
+
+                if (prop is not null)
+                {
+                    recordDate = prop.CreatedAt.AddSeconds(2);
+                    name = $"Semantic Match & Geo-Ranking: {prop.ServiceTitle}";
+                    triggerEvent = $"Provider Matching {prop.ProposalReference}";
+                    status = "Success";
+                    latencyMs = 1160;
+                    promptTokens = 840;
+                    completionTokens = 260;
+
+                    var inputObj = new
+                    {
+                        proposalReference = prop.ProposalReference,
+                        category = prop.Category,
+                        serviceTitle = prop.ServiceTitle,
+                        targetLocation = prop.Location,
+                        preferredSchedule = prop.PreferredSchedule
+                    };
+                    inputPayload = System.Text.Json.JsonSerializer.Serialize(inputObj, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+                    var outputObj = new
+                    {
+                        matchedProvider = prop.ProviderName,
+                        hourlyRate = prop.EstimatedRate,
+                        matchStatus = prop.Status,
+                        matchScore = 96,
+                        justification = $"Matched verified {prop.Category} specialist ({prop.ProviderName}) based on location proximity to {prop.Location}."
+                    };
+                    outputPayload = System.Text.Json.JsonSerializer.Serialize(outputObj, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+                    steps.Add(new(1, "Geospatial Proximity Filtering", $"Queried provider directory around {prop.Location}", 240, "Success"));
+                    steps.Add(new(2, "Skill & Rating Verification", $"Verified skills for category '{prop.Category}'", 320, "Success"));
+                    steps.Add(new(3, "OpenAI Ranking Rationale (gpt-4o-mini)", $"Ranked {prop.ProviderName} as primary match", 480, "Success"));
+                    steps.Add(new(4, "Dispatch Stream", $"Created match link for proposal {prop.ProposalReference}", 120, "Success"));
+                }
+                else
+                {
+                    name = "Semantic Provider Match";
+                    triggerEvent = $"Provider Match {id}";
+                    steps.Add(new(1, "Spatial Query", "Queried nearby providers", 280, "Success"));
+                    steps.Add(new(2, "Ranking Inference", "Synthesized candidate match score", 650, "Success"));
+                }
             }
         }
         else
@@ -1334,6 +1553,24 @@ public sealed class AdminController(
         ));
     }
 
+    [HttpGet("ai/live-stream")]
+    public IActionResult GetAiLiveStream()
+    {
+        var (step, logs) = AiLivePipeline.GetState();
+        return Ok(new
+        {
+            currentStep = step,
+            logs
+        });
+    }
+
+    [HttpPost("ai/live-stream/clear")]
+    public IActionResult ClearAiLiveStream()
+    {
+        AiLivePipeline.Clear();
+        return Ok(new { success = true });
+    }
+
     [HttpGet("ai/monitoring")]
     public async Task<IActionResult> GetAiMonitoring(CancellationToken ct = default)
     {
@@ -1345,9 +1582,9 @@ public sealed class AdminController(
         var totalBookings = await db.Bookings.CountAsync(ct);
         var failedCompletions = await db.JobCompletions.CountAsync(c => !c.AiVerificationPassed, ct);
 
-        // Calculate real invocations across all 4 agents
+        var totalMatches = await db.JobMatches.CountAsync(ct);
         var planningRequests = totalProposals;
-        var matchingRequests = totalProposals;
+        var matchingRequests = Math.Max(totalProposals, totalMatches);
         var coordinationRequests = totalBookings;
         var reviewRequests = totalCompletions;
         var totalExecutions = planningRequests + matchingRequests + coordinationRequests + reviewRequests;

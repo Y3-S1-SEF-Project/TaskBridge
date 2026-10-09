@@ -53,6 +53,12 @@ public class CoordinationAgentController : ControllerBase
         try
         {
             var booking = await _coordinationService.ConfirmBookingAsync(request, ct);
+
+            // Record to Real-Time AI Live Pipeline for Admin Monitoring
+            AiLivePipeline.RecordEvent(3, "coordination",
+                $"✓ <strong>[Coordination Agent]</strong> Booking <code>{booking.BookingReference}</code> confirmed! Escrow funds pre-authorized for <strong>Rs. {booking.Price:N0}</strong>. Handing off to <strong>Review Agent</strong> ➔",
+                true, 320, 210);
+
             return Ok(new
             {
                 success = true,
@@ -139,6 +145,11 @@ public class CoordinationAgentController : ControllerBase
         {
             var proposal = await _coordinationService.CreateProposalAsync(request, ct);
 
+            // Record to Real-Time AI Live Pipeline for Admin Monitoring
+            AiLivePipeline.RecordEvent(3, "coordination",
+                $"▶ <strong>[Coordination Agent]</strong> Dispatched booking request (Ref: <code>{proposal.ProposalReference}</code>) to provider <strong>{proposal.ProviderName}</strong> for \"{proposal.ServiceTitle}\". Initial Rate: <strong>Rs. {proposal.EstimatedRate:N0}/hr</strong>. Status: <strong>{proposal.Status}</strong>. SignalR push broadcast.",
+                true, 380, 260);
+
             // Notify Provider about the new quotation/proposal
             await _notificationService.NotifyProposalReceivedAsync(
                 proposal.ProviderId,
@@ -219,6 +230,12 @@ public class CoordinationAgentController : ControllerBase
             }
 
             var isCustomer = string.Equals(request.AcceptedByRole, "Customer", StringComparison.OrdinalIgnoreCase);
+            var acceptor = isCustomer ? "Customer" : "Provider";
+
+            // Record to Real-Time AI Live Pipeline for Admin Monitoring
+            AiLivePipeline.RecordEvent(3, "coordination",
+                $"✓ <strong>[Coordination Agent]</strong> <strong>{acceptor}</strong> accepted quote! Booking <code>{booking.BookingReference}</code> confirmed for \"{booking.ServiceTitle}\". Agreed Price: <strong>Rs. {booking.Price:N0}</strong>. Escrow vault locked.",
+                true, 360, 240);
 
             if (isCustomer)
             {
@@ -324,6 +341,13 @@ public class CoordinationAgentController : ControllerBase
 
             var updated = result.Booking;
             var isCustomer = string.Equals(request.Sender, "customer", StringComparison.OrdinalIgnoreCase);
+            var senderLabel = isCustomer ? "Customer" : "Provider";
+            var counterPrice = result.Evaluation?.ProposedPrice ?? request.CounterPrice;
+
+            // Record to Real-Time AI Live Pipeline for Admin Monitoring
+            AiLivePipeline.RecordEvent(3, "coordination",
+                $"⚡ <strong>[Coordination Agent]</strong> Counter-bid evaluated! <strong>{senderLabel}</strong> submitted revised rate: <strong>Rs. {counterPrice:N0}/hr</strong> for \"{updated.ServiceTitle}\". Cognitive negotiation assessment: {(result.Evaluation?.HasAgentWarning == true ? "Advisory Flagged" : "Rate Approved")}. Alert sent to {(isCustomer ? updated.ProviderName : updated.CustomerName)}.",
+                true, 420, 310);
 
             if (isCustomer)
             {

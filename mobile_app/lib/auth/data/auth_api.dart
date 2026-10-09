@@ -330,6 +330,163 @@ class AuthApi {
     return _uploadFile('profile/photo', filePath, userId: userId);
   }
 
+  // Uploads a government ID (NIC or Driving License) photo to Cloudflare R2 for verification.
+  Future<AuthUser> uploadVerificationDocument(
+    String filePath, {
+    String documentType = 'NIC',
+    String? userId,
+  }) async {
+    if (_token == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_tokenKey);
+    }
+
+    final candidates = _candidateUrls;
+    Exception? lastError;
+
+    for (int i = 0; i < candidates.length; i++) {
+      final candidate = candidates[i];
+      final baseUri = Uri.tryParse(candidate);
+      if (baseUri == null || !baseUri.hasAuthority) continue;
+
+      try {
+        final uri = baseUri.resolve('/api/auth/provider/verification-document');
+        final request = http.MultipartRequest('POST', uri);
+
+        if (_token != null && _token!.isNotEmpty) {
+          request.headers['Authorization'] = 'Bearer $_token';
+        }
+        if (userId != null && userId.isNotEmpty) {
+          request.fields['userId'] = userId;
+        }
+        request.fields['documentType'] = documentType;
+
+        final multipartFile = await http.MultipartFile.fromPath(
+          'file',
+          filePath,
+        );
+        request.files.add(multipartFile);
+
+        final isProven = _workingBaseUrl != null || candidates.length == 1;
+        final timeout = isProven
+            ? const Duration(seconds: 40)
+            : const Duration(seconds: 4);
+
+        final streamedResponse = await _client.send(request).timeout(timeout);
+        final response = await http.Response.fromStream(streamedResponse);
+
+        _workingBaseUrl = candidate;
+
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          final json = jsonDecode(response.body) as Map<String, dynamic>;
+          final updatedUser = AuthUser.fromJson(json);
+          if (_token != null) {
+            await _saveSession(_token!, updatedUser);
+          }
+          return updatedUser;
+        } else {
+          String message = 'Failed to upload verification document.';
+          try {
+            final err = jsonDecode(response.body);
+            message =
+                err['detail'] ?? err['title'] ?? err['message'] ?? message;
+          } catch (_) {}
+          throw AuthException(
+            '$message (HTTP ${response.statusCode})',
+            status: response.statusCode,
+          );
+        }
+      } on AuthException {
+        rethrow;
+      } catch (e) {
+        lastError = e is Exception ? e : Exception(e.toString());
+        if (i < candidates.length - 1) continue;
+      }
+    }
+
+    throw AuthException(
+      'Failed to upload verification document: ${lastError ?? "Cannot reach server"}',
+    );
+  }
+
+  // Removes an individual verification document photo
+  Future<AuthUser> removeVerificationDocument(
+    String documentUrl, {
+    String? userId,
+  }) async {
+    if (_token == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_tokenKey);
+    }
+
+    final candidates = _candidateUrls;
+    Exception? lastError;
+
+    for (int i = 0; i < candidates.length; i++) {
+      final candidate = candidates[i];
+      final baseUri = Uri.tryParse(candidate);
+      if (baseUri == null || !baseUri.hasAuthority) continue;
+
+      try {
+        final queryParams = <String, String>{
+          'documentUrl': documentUrl,
+        };
+        if (userId != null && userId.isNotEmpty) {
+          queryParams['userId'] = userId;
+        }
+
+        final uri = baseUri.replace(
+          path: '/api/auth/provider/verification-document',
+          queryParameters: queryParams,
+        );
+
+        final headers = <String, String>{
+          'Content-Type': 'application/json',
+        };
+        if (_token != null && _token!.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $_token';
+        }
+
+        final isProven = _workingBaseUrl != null || candidates.length == 1;
+        final timeout = isProven
+            ? const Duration(seconds: 15)
+            : const Duration(seconds: 4);
+
+        final response = await _client.delete(uri, headers: headers).timeout(timeout);
+
+        _workingBaseUrl = candidate;
+
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          final json = jsonDecode(response.body) as Map<String, dynamic>;
+          final updatedUser = AuthUser.fromJson(json);
+          if (_token != null) {
+            await _saveSession(_token!, updatedUser);
+          }
+          return updatedUser;
+        } else {
+          String message = 'Failed to remove verification document.';
+          try {
+            final err = jsonDecode(response.body);
+            message = err['detail'] ?? err['title'] ?? err['message'] ?? message;
+          } catch (_) {}
+          throw AuthException(
+            '$message (HTTP ${response.statusCode})',
+            status: response.statusCode,
+          );
+        }
+      } on AuthException {
+        rethrow;
+      } catch (e) {
+        lastError = e is Exception ? e : Exception(e.toString());
+        if (i < candidates.length - 1) continue;
+      }
+    }
+
+    throw AuthException(
+      'Failed to remove verification document: ${lastError ?? "Cannot reach server"}',
+    );
+  }
+
   // Sets up or updates the user's provider profile and activates provider mode.
   Future<AuthUser> saveProviderProfile({
     String? category,
@@ -342,6 +499,8 @@ class AuthApi {
     String? bio,
     String? location,
     double? hourlyRate,
+    String? verificationDocumentUrl,
+    String? verificationDocumentType,
   }) async {
     final body = <String, dynamic>{};
     if (category != null) body['category'] = category;
@@ -354,6 +513,12 @@ class AuthApi {
     if (bio != null) body['bio'] = bio;
     if (location != null) body['location'] = location;
     if (hourlyRate != null) body['hourlyRate'] = hourlyRate;
+    if (verificationDocumentUrl != null) {
+      body['verificationDocumentUrl'] = verificationDocumentUrl;
+    }
+    if (verificationDocumentType != null) {
+      body['verificationDocumentType'] = verificationDocumentType;
+    }
 
     final result = await _request('provider/setup', body: body);
     final user = AuthUser.fromJson(result);

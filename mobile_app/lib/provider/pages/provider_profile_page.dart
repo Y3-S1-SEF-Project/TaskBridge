@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
@@ -11,6 +12,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../notifications/services/notification_service.dart';
 import 'provider_setup_page.dart';
 
 class ProviderProfilePage extends StatefulWidget {
@@ -34,6 +36,7 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
   List<FeedbackModel> _feedbacks = [];
   bool _isLoadingFeedbacks = false;
   bool _isProviderMode = true;
+  Timer? _verificationPollTimer;
 
   Future<void> _handleSwitchToCustomer() async {
     if (!_isProviderMode) return;
@@ -47,6 +50,99 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
     super.initState();
     _currentUser = widget.user;
     _loadFeedbacks();
+    _syncLatestProfile();
+
+    NotificationService.verificationStatusChangeNotifier.addListener(_onVerificationStatusChanged);
+    _startPeriodicVerificationCheck();
+  }
+
+  @override
+  void dispose() {
+    _verificationPollTimer?.cancel();
+    NotificationService.verificationStatusChangeNotifier.removeListener(_onVerificationStatusChanged);
+    super.dispose();
+  }
+
+  Future<void> _syncLatestProfile() async {
+    try {
+      final fresh = await widget.api.restore();
+      if (fresh != null && mounted) {
+        final hadChanged = fresh.isVerified != _currentUser.isVerified;
+        setState(() {
+          _currentUser = fresh;
+        });
+        if (hadChanged && fresh.isVerified) {
+          _verificationPollTimer?.cancel();
+          _showVerificationSuccessBanner();
+        }
+      }
+    } catch (_) {}
+  }
+
+  void _startPeriodicVerificationCheck() {
+    if (!_currentUser.isVerified) {
+      _verificationPollTimer?.cancel();
+      _verificationPollTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
+        if (!mounted) return;
+        if (!_currentUser.isVerified) {
+          final fresh = await widget.api.restore();
+          if (fresh != null && mounted) {
+            if (fresh.isVerified != _currentUser.isVerified ||
+                fresh.verificationStatus != _currentUser.verificationStatus) {
+              setState(() {
+                _currentUser = fresh;
+              });
+              if (fresh.isVerified) {
+                _verificationPollTimer?.cancel();
+                _showVerificationSuccessBanner();
+              }
+            }
+          }
+        } else {
+          _verificationPollTimer?.cancel();
+        }
+      });
+    }
+  }
+
+  void _onVerificationStatusChanged() {
+    final status = NotificationService.verificationStatusChangeNotifier.value;
+    if (status != null && mounted) {
+      setState(() {
+        _currentUser = _currentUser.copyWith(
+          isVerified: status,
+          verificationStatus: status ? 'Approved' : 'Rejected',
+        );
+      });
+      _syncLatestProfile();
+      if (status) {
+        _verificationPollTimer?.cancel();
+        _showVerificationSuccessBanner();
+      }
+    }
+  }
+
+  void _showVerificationSuccessBanner() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: const [
+            Icon(Icons.verified_rounded, color: Colors.white, size: 20),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Identity Approved! The Verified Provider badge is now active.',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF15803D),
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _loadFeedbacks() async {
@@ -86,11 +182,12 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
 
   String get _providerTitle {
     final skills = _currentUser.providerSkills;
+    final prefix = _currentUser.isVerified ? 'Verified ' : '';
     if (skills != null && skills.isNotEmpty) {
       final firstSkill = skills.split(RegExp(r'[·,]')).first.trim();
-      return 'Verified $firstSkill specialist';
+      return '$prefix$firstSkill Specialist';
     }
-    return 'Verified service specialist';
+    return '${prefix}Service Specialist';
   }
 
   void _editProviderDetails() async {
@@ -205,17 +302,6 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: palette.border,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -598,15 +684,69 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                           : null,
                     ),
                     const SizedBox(height: 12),
-                    Text(
-                      _currentUser.fullName.isNotEmpty
-                          ? _currentUser.fullName
-                          : 'Kamal Perera',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: palette.text,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            _currentUser.fullName.isNotEmpty
+                                ? _currentUser.fullName
+                                : 'Kamal Perera',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: palette.text,
+                            ),
+                          ),
+                        ),
+                        if (_currentUser.isVerified) ...[
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.verified_rounded,
+                            color: palette.primary,
+                            size: 20,
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _currentUser.isVerified
+                            ? Colors.green.shade50
+                            : (_currentUser.verificationDocumentUrl != null
+                                ? Colors.amber.shade50
+                                : const Color(0xFFF1F5F9)),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: _currentUser.isVerified
+                              ? Colors.green.shade300
+                              : (_currentUser.verificationDocumentUrl != null
+                                  ? Colors.amber.shade300
+                                  : const Color(0xFFCBD5E1)),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Text(
+                        _currentUser.isVerified
+                            ? '✓ Verified Provider'
+                            : (_currentUser.verificationDocumentUrl != null
+                                ? '⏳ Verification In Review'
+                                : 'Not Verified'),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: _currentUser.isVerified
+                              ? Colors.green.shade800
+                              : (_currentUser.verificationDocumentUrl != null
+                                  ? Colors.amber.shade900
+                                  : const Color(0xFF64748B)),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 4),

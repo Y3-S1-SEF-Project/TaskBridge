@@ -72,6 +72,8 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbC
             entity.Property(x => x.Rating).HasDefaultValue(0.0);
             entity.Property(x => x.ReviewCount).HasDefaultValue(0);
             entity.Property(x => x.IsActive).HasDefaultValue(true);
+            entity.Property(x => x.IsVerified).HasDefaultValue(false);
+            entity.Property(x => x.VerificationStatus).HasMaxLength(32).HasDefaultValue("Unverified");
 
             entity.HasOne(x => x.User)
                   .WithOne(x => x.ProviderProfile)

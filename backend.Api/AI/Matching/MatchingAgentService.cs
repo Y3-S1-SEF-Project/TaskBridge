@@ -42,6 +42,11 @@ public class MatchingAgentService
         Console.WriteLine("============================================================\n");
         Console.ResetColor();
 
+        // Record to Real-Time AI Live Pipeline for Admin Monitoring
+        AiLivePipeline.RecordEvent(2, "matching",
+            $"▶ <strong>[Matching Agent]</strong> Customer: <strong>{request.CustomerName ?? "Customer"}</strong>. Received Plan: \"{job.ServiceTitle}\" ({requestedCategory}) in <strong>{requestedLocation}</strong>. Querying candidate pool...",
+            true);
+
         // 1. Fetch active providers from database
         var dbProviders = await _dbContext.Providers
             .Include(p => p.User)
@@ -108,7 +113,11 @@ public class MatchingAgentService
                 ReviewCount = p.ReviewCount,
                 MatchScore = totalScore,
                 ScoreBreakdown = breakdown,
-                AiMatchReason = "Specialized skills and strong service coverage in your area."
+                AiMatchReason = "Specialized skills and strong service coverage in your area.",
+                IsVerified = p.IsVerified,
+                VerificationStatus = p.VerificationStatus ?? (p.IsVerified ? "Approved" : "Unverified"),
+                VerificationDocumentUrl = p.VerificationDocumentUrl,
+                VerificationDocumentType = p.VerificationDocumentType
             });
         }
 
@@ -301,6 +310,11 @@ public class MatchingAgentService
         }
         Console.WriteLine($"[⚡ TASKBRIDGE AI: AGENT 2] Finished in {sw.ElapsedMilliseconds} ms (Tokens: {tokensUsed})\n");
         Console.ResetColor();
+
+        // Record to Real-Time AI Live Pipeline for Admin Monitoring
+        AiLivePipeline.RecordEvent(2, "matching",
+            $"✓ <strong>[Matching Agent]</strong> MCDA scoring completed in {sw.ElapsedMilliseconds}ms across {candidatePool.Count} active providers. Top Match: <strong>{topMatched?.FullName ?? "Provider"}</strong> (Distance: {topMatched?.DistanceKm:F1}km, Rating: {topMatched?.Rating:F1}★, Match Score: <strong>{topMatched?.MatchScore:F1}%</strong>). Rationale: \"{topMatched?.AiMatchReason}\"",
+            true, (int)sw.ElapsedMilliseconds, tokensUsed);
 
         return new MatchingResponse
         {

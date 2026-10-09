@@ -81,6 +81,18 @@ public class MatchedProviderDto
 
     [JsonPropertyName("scoreBreakdown")]
     public ScoreBreakdown ScoreBreakdown { get; set; } = new();
+
+    [JsonPropertyName("isVerified")]
+    public bool IsVerified { get; set; } = false;
+
+    [JsonPropertyName("verificationStatus")]
+    public string VerificationStatus { get; set; } = "Unverified";
+
+    [JsonPropertyName("verificationDocumentUrl")]
+    public string? VerificationDocumentUrl { get; set; }
+
+    [JsonPropertyName("verificationDocumentType")]
+    public string? VerificationDocumentType { get; set; }
 }
 
 public class MatchingResponse

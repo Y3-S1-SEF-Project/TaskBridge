@@ -35,6 +35,9 @@ public sealed class AppUser
     public string? ProviderBio { get; set; }
     public decimal? ProviderEarnings { get; set; } = 0m;
     public decimal? ProviderHourlyRate { get; set; } = 2500m;
+    public bool IsVerifiedProvider { get; set; } = false;
+    public string? ProviderVerificationDocumentUrl { get; set; }
+    public string ProviderVerificationStatus { get; set; } = "Unverified";
 
     public ProviderProfile? ProviderProfile { get; set; }
 }

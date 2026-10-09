@@ -10,6 +10,9 @@ public static class AdminSeeder
 {
     public static async Task SeedSuperAdminAsync(AuthDbContext db, IPasswordHasher<AdminUser> hasher)
     {
+        // Ensure verification columns exist on PostgreSQL providers and users tables FIRST
+        await EnsureVerificationSchemaAsync(db);
+
         try
         {
             // 1. Clean up any admin record that previously existed in the regular users table
@@ -68,10 +71,37 @@ public static class AdminSeeder
                     await db.SaveChangesAsync();
                 }
             }
+
+            // 3. Ensure verification columns exist on PostgreSQL providers and users tables
+            await EnsureVerificationSchemaAsync(db);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[AdminSeeder] Notice: {ex.Message}");
+        }
+    }
+
+    public static async Task EnsureVerificationSchemaAsync(AuthDbContext db)
+    {
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(@"
+                ALTER TABLE providers ADD COLUMN IF NOT EXISTS ""IsVerified"" boolean NOT NULL DEFAULT false;
+                ALTER TABLE providers ADD COLUMN IF NOT EXISTS ""VerificationDocumentUrl"" text;
+                ALTER TABLE providers ADD COLUMN IF NOT EXISTS ""VerificationDocumentType"" text;
+                ALTER TABLE providers ADD COLUMN IF NOT EXISTS ""VerificationStatus"" character varying(32) NOT NULL DEFAULT 'Unverified';
+                ALTER TABLE providers ADD COLUMN IF NOT EXISTS ""VerificationSubmittedAt"" timestamp with time zone;
+                ALTER TABLE providers ADD COLUMN IF NOT EXISTS ""VerificationApprovedAt"" timestamp with time zone;
+                ALTER TABLE providers ADD COLUMN IF NOT EXISTS ""VerificationNotes"" text;
+
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS ""IsVerifiedProvider"" boolean NOT NULL DEFAULT false;
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderVerificationDocumentUrl"" text;
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS ""ProviderVerificationStatus"" character varying(32) NOT NULL DEFAULT 'Unverified';
+            ");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[AdminSeeder] Schema verify notice: {ex.Message}");
         }
     }
 }

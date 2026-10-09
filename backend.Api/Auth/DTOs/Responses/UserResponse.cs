@@ -20,4 +20,8 @@ public sealed record UserResponse(
     string? ProviderBio = null,
     decimal? ProviderEarnings = null,
     decimal? ProviderHourlyRate = null,
-    string Role = "User");
+    string Role = "User",
+    bool IsVerified = false,
+    string VerificationStatus = "Unverified",
+    string? VerificationDocumentUrl = null,
+    string? VerificationDocumentType = null);

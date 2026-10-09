@@ -660,20 +660,13 @@ public class CoordinationAgentService
                 .ToListAsync(ct);
             profileIds.Add(pGuid);
 
-            if (!string.IsNullOrWhiteSpace(providerName))
-            {
-                var pLow = providerName.Trim().ToLowerInvariant();
-                query = query.Where(p => (p.ProviderId.HasValue && profileIds.Contains(p.ProviderId.Value)) || p.ProviderName.ToLower().Contains(pLow));
-            }
-            else
-            {
-                query = query.Where(p => p.ProviderId.HasValue && profileIds.Contains(p.ProviderId.Value));
-            }
+            // Strict provider ID matching
+            query = query.Where(p => p.ProviderId.HasValue && profileIds.Contains(p.ProviderId.Value));
         }
         else if (!string.IsNullOrWhiteSpace(providerName))
         {
             var pLow = providerName.Trim().ToLowerInvariant();
-            query = query.Where(p => p.ProviderName.ToLower().Contains(pLow));
+            query = query.Where(p => p.ProviderName.ToLower() == pLow);
         }
 
         if (!string.IsNullOrWhiteSpace(customerName))
@@ -1028,20 +1021,13 @@ public class CoordinationAgentService
                 .ToListAsync(ct);
             profileIds.Add(provGuid);
 
-            if (!string.IsNullOrWhiteSpace(providerName))
-            {
-                var pLow = providerName.Trim().ToLowerInvariant();
-                query = query.Where(b => (b.ProviderId.HasValue && profileIds.Contains(b.ProviderId.Value)) || b.ProviderName.ToLower().Contains(pLow));
-            }
-            else
-            {
-                query = query.Where(b => b.ProviderId.HasValue && profileIds.Contains(b.ProviderId.Value));
-            }
+            // Strict provider ID matching
+            query = query.Where(b => b.ProviderId.HasValue && profileIds.Contains(b.ProviderId.Value));
         }
         else if (!string.IsNullOrWhiteSpace(providerName))
         {
             var pLow = providerName.Trim().ToLowerInvariant();
-            query = query.Where(b => b.ProviderName.ToLower().Contains(pLow));
+            query = query.Where(b => b.ProviderName.ToLower() == pLow);
         }
 
         if (!string.IsNullOrWhiteSpace(customerName))
