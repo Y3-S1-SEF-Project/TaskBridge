@@ -1518,6 +1518,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
           MaterialPageRoute(
             builder: (_) => ProviderMainPage(user: updated, api: widget.api),
           ),
+          result: updated,
         );
       }
     } catch (e) {
@@ -1533,6 +1534,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
             builder: (_) =>
                 ProviderMainPage(user: fallbackUser, api: widget.api),
           ),
+          result: fallbackUser,
         );
       }
     } finally {
@@ -1591,6 +1593,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
           MaterialPageRoute(
             builder: (_) => ProviderMainPage(user: updated, api: widget.api),
           ),
+          result: updated,
         );
       }
     } catch (e) {

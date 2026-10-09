@@ -51,6 +51,14 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     _currentUser = widget.user;
+    _refreshUserFromCache();
+  }
+
+  Future<void> _refreshUserFromCache() async {
+    final cached = await AuthApi.getCachedUser();
+    if (cached != null && mounted) {
+      setState(() => _currentUser = cached);
+    }
   }
 
   String get _initials {
@@ -372,10 +380,19 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isProviderMode = true);
 
     try {
-      if (!_currentUser!.isProvider) {
-        final hasDetails =
-            (_currentUser!.providerSkills?.trim().isNotEmpty == true) ||
-            (_currentUser!.providerServices?.trim().isNotEmpty == true);
+      // 1. Sync latest user from storage/cache so newly saved provider profile is recognized
+      final cached = await AuthApi.getCachedUser();
+      if (!mounted) return;
+      if (cached != null) {
+        _currentUser = cached;
+      }
+
+      final hasProviderProfile = _currentUser!.isProvider ||
+          (_currentUser!.providerSkills?.trim().isNotEmpty == true) ||
+          (_currentUser!.providerCategory?.trim().isNotEmpty == true) ||
+          (_currentUser!.providerServices?.trim().isNotEmpty == true);
+
+      if (!hasProviderProfile) {
         // First time: navigate to Provider Setup screen P10
         final updated = await Navigator.push<AuthUser>(
           context,
@@ -383,12 +400,15 @@ class _ProfilePageState extends State<ProfilePage> {
             builder: (_) => ProviderSetupPage(
               user: _currentUser!,
               api: widget.api!,
-              isFirstTime: !hasDetails,
+              isFirstTime: true,
             ),
           ),
         );
-        if (updated != null && mounted) {
-          setState(() => _currentUser = updated);
+        if (mounted) {
+          final reloaded = updated ?? await AuthApi.getCachedUser();
+          if (reloaded != null) {
+            setState(() => _currentUser = reloaded);
+          }
         }
       } else {
         // Already a provider: switch directly to Provider Mode!
@@ -402,8 +422,11 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         );
         await UserModeService.setMode(UserMode.customer);
-        if (updated != null && mounted) {
-          setState(() => _currentUser = updated);
+        if (mounted) {
+          final reloaded = updated ?? await AuthApi.getCachedUser();
+          if (reloaded != null) {
+            setState(() => _currentUser = reloaded);
+          }
         }
       }
     } finally {

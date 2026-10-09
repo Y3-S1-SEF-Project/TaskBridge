@@ -43,10 +43,13 @@ class _HomePageState extends State<HomePage> {
   bool _isLoadingLocation = false;
   List<ProviderItem> _nearbyProviders = [];
   bool _isLoadingProviders = true;
+  late AuthUser? _activeUser;
 
   @override
   void initState() {
     super.initState();
+    _activeUser = widget.user;
+    _syncActiveUser();
     UserModeService.setMode(UserMode.customer);
     _initializeLocation();
     _loadNearbyProviders();
@@ -55,6 +58,13 @@ class _HomePageState extends State<HomePage> {
       role: 'customer',
       requestPermissions: true,
     );
+  }
+
+  Future<void> _syncActiveUser() async {
+    final cached = await AuthApi.getCachedUser();
+    if (cached != null && mounted) {
+      setState(() => _activeUser = cached);
+    }
   }
 
   Future<void> _loadNearbyProviders() async {
@@ -204,13 +214,13 @@ class _HomePageState extends State<HomePage> {
     final pages = [
       _buildHomeContent(topCategories, palette),
       CustomerBookingsPage(
-        user: widget.user,
+        user: _activeUser ?? widget.user,
         api: widget.api,
         onSwitchTab: (index) => setState(() => _currentNavIndex = index),
       ),
       const CustomerChatPage(),
       ProfilePage(
-        user: widget.user,
+        user: _activeUser ?? widget.user,
         api: widget.api,
         onBackToHome: () => setState(() => _currentNavIndex = 0),
         onTabChange: (index) => setState(() => _currentNavIndex = index),
