@@ -17,6 +17,7 @@ import type {
   DisputeRecord,
   SupportInquiryRecord,
   InquiriesSummary,
+  VerificationsSummary,
 } from './types';
 
 const API_BASE = '/api/admin';
@@ -556,5 +557,41 @@ export async function deleteAdminInquiry(id: string): Promise<boolean> {
   });
   return res.ok;
 }
+
+export async function fetchVerifications(params?: { status?: string; search?: string }): Promise<VerificationsSummary> {
+  const token = getStoredToken();
+  const query = new URLSearchParams();
+  if (params?.status && params.status !== 'All') query.append('status', params.status);
+  if (params?.search) query.append('search', params.search);
+
+  try {
+    const res = await fetch(`/api/admin/verifications?${query.toString()}`, {
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+    if (res.ok) return await res.json();
+  } catch {}
+
+  return { total: 0, pendingCount: 0, approvedCount: 0, rejectedCount: 0, unverifiedCount: 0, items: [] };
+}
+
+export async function adjudicateVerification(
+  id: string,
+  data: { status: 'Approved' | 'Rejected'; notes?: string }
+): Promise<{ message: string; providerProfileId: string; status: string; isVerified: boolean }> {
+  const token = getStoredToken();
+  const res = await fetch(`/api/admin/verifications/${encodeURIComponent(id)}/adjudicate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (res.ok) return await res.json();
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to adjudicate verification.');
+}
+
 
 

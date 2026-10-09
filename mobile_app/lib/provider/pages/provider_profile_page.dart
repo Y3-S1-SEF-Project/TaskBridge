@@ -86,11 +86,12 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
 
   String get _providerTitle {
     final skills = _currentUser.providerSkills;
+    final prefix = _currentUser.isVerified ? 'Verified ' : '';
     if (skills != null && skills.isNotEmpty) {
       final firstSkill = skills.split(RegExp(r'[·,]')).first.trim();
-      return 'Verified $firstSkill specialist';
+      return '$prefix$firstSkill Specialist';
     }
-    return 'Verified service specialist';
+    return '${prefix}Service Specialist';
   }
 
   void _editProviderDetails() async {
@@ -587,15 +588,69 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                           : null,
                     ),
                     const SizedBox(height: 12),
-                    Text(
-                      _currentUser.fullName.isNotEmpty
-                          ? _currentUser.fullName
-                          : 'Kamal Perera',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: palette.text,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            _currentUser.fullName.isNotEmpty
+                                ? _currentUser.fullName
+                                : 'Kamal Perera',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: palette.text,
+                            ),
+                          ),
+                        ),
+                        if (_currentUser.isVerified) ...[
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.verified_rounded,
+                            color: palette.primary,
+                            size: 20,
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _currentUser.isVerified
+                            ? Colors.green.shade50
+                            : (_currentUser.verificationDocumentUrl != null
+                                ? Colors.amber.shade50
+                                : const Color(0xFFF1F5F9)),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: _currentUser.isVerified
+                              ? Colors.green.shade300
+                              : (_currentUser.verificationDocumentUrl != null
+                                  ? Colors.amber.shade300
+                                  : const Color(0xFFCBD5E1)),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Text(
+                        _currentUser.isVerified
+                            ? '✓ Verified Provider'
+                            : (_currentUser.verificationDocumentUrl != null
+                                ? '⏳ Verification In Review'
+                                : 'Not Verified'),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: _currentUser.isVerified
+                              ? Colors.green.shade800
+                              : (_currentUser.verificationDocumentUrl != null
+                                  ? Colors.amber.shade900
+                                  : const Color(0xFF64748B)),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 4),

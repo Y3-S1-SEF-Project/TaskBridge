@@ -10,4 +10,6 @@ public sealed record ProviderSetupRequest(
     string? Bio,
     string? Location = null,
     decimal? HourlyRate = null,
-    string? Category = null);
+    string? Category = null,
+    string? VerificationDocumentUrl = null,
+    string? VerificationDocumentType = null);

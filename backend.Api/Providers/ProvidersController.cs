@@ -126,7 +126,11 @@ public class ProvidersController : ControllerBase
                     Latitude = pLat,
                     Longitude = pLng,
                     Bio = p.Bio ?? user.ProviderBio ?? "Experienced professional delivering quality services.",
-                    IsActive = p.IsActive
+                    IsActive = p.IsActive,
+                    IsVerified = p.IsVerified,
+                    VerificationStatus = p.VerificationStatus ?? (p.IsVerified ? "Approved" : "Unverified"),
+                    VerificationDocumentUrl = p.VerificationDocumentUrl,
+                    VerificationDocumentType = p.VerificationDocumentType
                 };
             }).ToList();
 
@@ -193,7 +197,11 @@ public class ProvidersController : ControllerBase
             Latitude = pLat,
             Longitude = pLng,
             Bio = p.Bio ?? user.ProviderBio ?? "Experienced professional delivering quality services.",
-            IsActive = p.IsActive
+            IsActive = p.IsActive,
+            IsVerified = p.IsVerified,
+            VerificationStatus = p.VerificationStatus ?? (p.IsVerified ? "Approved" : "Unverified"),
+            VerificationDocumentUrl = p.VerificationDocumentUrl,
+            VerificationDocumentType = p.VerificationDocumentType
         });
     }
 
@@ -225,4 +233,8 @@ public class ProviderDto
     public double? Longitude { get; set; }
     public string? Bio { get; set; }
     public bool IsActive { get; set; }
+    public bool IsVerified { get; set; } = false;
+    public string VerificationStatus { get; set; } = "Unverified";
+    public string? VerificationDocumentUrl { get; set; }
+    public string? VerificationDocumentType { get; set; }
 }

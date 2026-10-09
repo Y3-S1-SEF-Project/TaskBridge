@@ -18,6 +18,16 @@ public sealed class ProviderProfile
     public int ReviewCount { get; set; } = 0;
     public bool IsActive { get; set; } = true;
     public string? Bio { get; set; }
+
+    // Verification & KYC Document Fields
+    public bool IsVerified { get; set; } = false;
+    public string? VerificationDocumentUrl { get; set; }
+    public string? VerificationDocumentType { get; set; } // "National ID" or "Driving License"
+    public string VerificationStatus { get; set; } = "Unverified"; // "Unverified", "Pending", "Approved", "Rejected"
+    public DateTimeOffset? VerificationSubmittedAt { get; set; }
+    public DateTimeOffset? VerificationApprovedAt { get; set; }
+    public string? VerificationNotes { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAt { get; set; }
 }

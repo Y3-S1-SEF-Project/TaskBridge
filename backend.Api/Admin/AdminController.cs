@@ -602,6 +602,123 @@ public sealed class AdminController(
         return Ok(new { id = provider.Id, isActive = provider.IsActive });
     }
 
+    // ==================== IDENTITY & KYC VERIFICATIONS ====================
+    [HttpGet("verifications")]
+    public async Task<ActionResult<VerificationsSummaryDto>> GetVerifications(
+        [FromQuery] string? search,
+        [FromQuery] string? status,
+        CancellationToken ct)
+    {
+        var providers = await db.Providers
+            .Include(p => p.User)
+            .AsNoTracking()
+            .OrderByDescending(p => p.VerificationSubmittedAt ?? p.CreatedAt)
+            .ToListAsync(ct);
+
+        var list = new List<ProviderVerificationItemDto>();
+        int idx = 101;
+
+        foreach (var p in providers)
+        {
+            var u = p.User;
+            var docUrl = p.VerificationDocumentUrl ?? u?.ProviderVerificationDocumentUrl;
+            var docUrls = !string.IsNullOrWhiteSpace(docUrl)
+                ? docUrl.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList()
+                : new List<string>();
+            var docType = p.VerificationDocumentType ?? (docUrls.Count > 0 ? "National ID" : "Not Provided");
+            var verStatus = p.VerificationStatus ?? (p.IsVerified ? "Approved" : (docUrls.Count > 0 ? "Pending" : "Unverified"));
+
+            list.Add(new ProviderVerificationItemDto(
+                p.Id,
+                p.UserId,
+                $"PRV-{idx++}",
+                u?.FullName ?? "Specialist",
+                u?.Email ?? "",
+                u?.Phone ?? "No contact",
+                p.Category,
+                u?.Location ?? p.ServiceAreas ?? "Colombo",
+                docType,
+                docUrls.FirstOrDefault() ?? docUrl,
+                verStatus,
+                p.VerificationSubmittedAt,
+                p.VerificationApprovedAt,
+                p.VerificationNotes,
+                p.Rating > 0 ? Math.Round(p.Rating, 1) : 4.8,
+                p.ReviewCount,
+                p.HourlyRate,
+                docUrls));
+        }
+
+        var total = list.Count;
+        var pending = list.Count(i => i.Status.Equals("Pending", StringComparison.OrdinalIgnoreCase));
+        var approved = list.Count(i => i.Status.Equals("Approved", StringComparison.OrdinalIgnoreCase));
+        var rejected = list.Count(i => i.Status.Equals("Rejected", StringComparison.OrdinalIgnoreCase));
+
+        var filtered = list.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(status) && !status.Equals("All", StringComparison.OrdinalIgnoreCase))
+        {
+            filtered = filtered.Where(i => string.Equals(i.Status, status, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var q = search.Trim();
+            filtered = filtered.Where(i =>
+                i.FullName.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                i.Category.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                i.Phone.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                i.ProviderCode.Contains(q, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return Ok(new VerificationsSummaryDto(
+            total,
+            pending,
+            approved,
+            rejected,
+            filtered.ToList()));
+    }
+
+    [HttpPost("verifications/{id:guid}/adjudicate")]
+    public async Task<IActionResult> AdjudicateVerification(
+        Guid id,
+        [FromBody] AdjudicateVerificationRequest req,
+        CancellationToken ct)
+    {
+        var provider = await db.Providers.Include(p => p.User).FirstOrDefaultAsync(p => p.Id == id || p.UserId == id, ct);
+        if (provider is null) return NotFound(new { error = "Provider profile not found." });
+
+        var user = provider.User ?? await db.Users.FindAsync([provider.UserId], ct);
+
+        var isApprove = string.Equals(req.Status, "Approved", StringComparison.OrdinalIgnoreCase);
+        provider.IsVerified = isApprove;
+        provider.VerificationStatus = isApprove ? "Approved" : "Rejected";
+        provider.VerificationNotes = req.Notes;
+        if (isApprove)
+        {
+            provider.VerificationApprovedAt = DateTimeOffset.UtcNow;
+        }
+        provider.UpdatedAt = DateTimeOffset.UtcNow;
+
+        if (user != null)
+        {
+            user.IsVerifiedProvider = isApprove;
+            user.ProviderVerificationStatus = provider.VerificationStatus;
+            user.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        return Ok(new
+        {
+            success = true,
+            providerId = provider.Id,
+            userId = provider.UserId,
+            isVerified = provider.IsVerified,
+            verificationStatus = provider.VerificationStatus,
+            message = isApprove ? "Provider successfully verified and badge activated." : "Verification rejected."
+        });
+    }
+
     // ==================== CUSTOMERS ====================
     [HttpGet("customers")]
     public async Task<ActionResult<CustomersSummaryDto>> GetCustomers(

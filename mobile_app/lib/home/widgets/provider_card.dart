@@ -92,11 +92,36 @@ class ProviderCardWidget extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Icon(
-                        Icons.verified_rounded,
-                        color: palette.primary,
-                        size: 14,
-                      ),
+                      if (provider.isVerified) ...[
+                        Icon(
+                          Icons.verified_rounded,
+                          color: palette.primary,
+                          size: 14,
+                        ),
+                      ] else ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 1.5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: const Color(0xFFCBD5E1),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: const Text(
+                            'Not Verified',
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                        ),
+                      ],
                       if (provider.reviewCount == 0) ...[
                         const SizedBox(width: 6),
                         Container(

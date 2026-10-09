@@ -108,7 +108,11 @@ public class MatchingAgentService
                 ReviewCount = p.ReviewCount,
                 MatchScore = totalScore,
                 ScoreBreakdown = breakdown,
-                AiMatchReason = "Specialized skills and strong service coverage in your area."
+                AiMatchReason = "Specialized skills and strong service coverage in your area.",
+                IsVerified = p.IsVerified,
+                VerificationStatus = p.VerificationStatus ?? (p.IsVerified ? "Approved" : "Unverified"),
+                VerificationDocumentUrl = p.VerificationDocumentUrl,
+                VerificationDocumentType = p.VerificationDocumentType
             });
         }
 

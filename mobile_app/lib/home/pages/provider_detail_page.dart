@@ -430,22 +430,23 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
                     child: Stack(
                       children: [
                         _buildAvatar(88),
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: palette.surface,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.verified_rounded,
-                              color: palette.primary,
-                              size: 24,
+                        if (provider.isVerified)
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: palette.surface,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.verified_rounded,
+                                color: palette.primary,
+                                size: 24,
+                              ),
                             ),
                           ),
-                        ),
                       ],
                     ),
                   ),
@@ -643,10 +644,18 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
                 Expanded(
                   child: _buildStatCard(
                     title: 'Verification',
-                    value: 'Identity Verified',
-                    subtitle: 'Background checked',
-                    valueColor: palette.primary,
-                    icon: Icons.verified_user_outlined,
+                    value: provider.isVerified ? 'Identity Verified' : 'Not Verified',
+                    subtitle: provider.isVerified
+                        ? (provider.verificationDocumentType != null
+                            ? '${provider.verificationDocumentType} Approved'
+                            : 'ID Verified')
+                        : 'ID check required',
+                    valueColor: provider.isVerified
+                        ? palette.primary
+                        : const Color(0xFFDC2626),
+                    icon: provider.isVerified
+                        ? Icons.verified_user_rounded
+                        : Icons.gpp_maybe_outlined,
                     palette: palette,
                   ),
                 ),
