@@ -423,7 +423,7 @@ export const HumanReviewsView: React.FC = () => {
                             <th>Cloudflare Document</th>
                             <th>Submitted Date</th>
                             <th>Status</th>
-                            <th className="actions-col">Review / Action</th>
+                            <th className="actions-col" style={{ textAlign: 'right', paddingRight: '20px' }}>Review / Action</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -497,59 +497,57 @@ export const HumanReviewsView: React.FC = () => {
                                   {docs.length === 0 ? (
                                     <span style={{ fontSize: '12px', color: '#94a3b8' }}>None</span>
                                   ) : (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                                        {docs.map((url, pIdx) => (
-                                          <div
-                                            key={pIdx}
-                                            onClick={() => {
-                                              setInspectItem(item);
-                                              setInspectPhotoIndex(pIdx);
-                                            }}
-                                            style={{
-                                              width: '46px',
-                                              height: '34px',
-                                              borderRadius: '5px',
-                                              overflow: 'hidden',
-                                              border: '1px solid #cbd5e1',
-                                              cursor: 'pointer',
-                                              position: 'relative',
-                                              backgroundColor: '#f1f5f9',
-                                              display: 'flex',
-                                              alignItems: 'center',
-                                              justifyContent: 'center',
-                                              boxShadow: '0 1px 2px rgba(0,0,0,0.06)'
-                                            }}
-                                            title={`Photo ${pIdx + 1} (${pIdx === 0 ? 'Front' : pIdx === 1 ? 'Back' : 'Proof'}) - Click to inspect`}
-                                          >
-                                            <img
-                                              src={url}
-                                              alt={`Doc ${pIdx + 1}`}
-                                              style={{
-                                                width: '100%',
-                                                height: '100%',
-                                                objectFit: 'cover'
-                                              }}
-                                              onError={(e) => {
-                                                (e.currentTarget as HTMLElement).style.display = 'none';
-                                              }}
-                                            />
-                                            <span style={{
-                                              position: 'absolute',
-                                              bottom: '1px',
-                                              right: '2px',
-                                              backgroundColor: 'rgba(15,23,42,0.75)',
-                                              color: '#ffffff',
-                                              fontSize: '8px',
-                                              fontWeight: 700,
-                                              padding: '0 2px',
-                                              borderRadius: '2px',
-                                              lineHeight: '10px'
-                                            }}>
-                                              {pIdx === 0 ? 'F' : pIdx === 1 ? 'B' : `${pIdx + 1}`}
-                                            </span>
-                                          </div>
-                                        ))}
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                      <div
+                                        onClick={() => {
+                                          setInspectItem(item);
+                                          setInspectPhotoIndex(0);
+                                        }}
+                                        style={{
+                                          width: '38px',
+                                          height: '28px',
+                                          borderRadius: '4px',
+                                          overflow: 'hidden',
+                                          border: '1px solid #cbd5e1',
+                                          cursor: 'pointer',
+                                          position: 'relative',
+                                          backgroundColor: '#f1f5f9',
+                                          flexShrink: 0,
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          boxShadow: '0 1px 2px rgba(0,0,0,0.06)'
+                                        }}
+                                        title="Click to inspect documents"
+                                      >
+                                        <img
+                                          src={docs[0]}
+                                          alt="Document"
+                                          style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            objectFit: 'cover'
+                                          }}
+                                          onError={(e) => {
+                                            (e.currentTarget as HTMLElement).style.display = 'none';
+                                          }}
+                                        />
+                                        {docs.length > 1 && (
+                                          <span style={{
+                                            position: 'absolute',
+                                            bottom: '1px',
+                                            right: '1px',
+                                            backgroundColor: 'rgba(15,23,42,0.85)',
+                                            color: '#ffffff',
+                                            fontSize: '8px',
+                                            fontWeight: 700,
+                                            padding: '0 3px',
+                                            borderRadius: '2px',
+                                            lineHeight: '10px'
+                                          }}>
+                                            +{docs.length - 1}
+                                          </span>
+                                        )}
                                       </div>
                                       <button
                                         type="button"
@@ -558,7 +556,7 @@ export const HumanReviewsView: React.FC = () => {
                                           setInspectPhotoIndex(0);
                                         }}
                                         style={{
-                                          padding: '4px 10px',
+                                          padding: '4px 8px',
                                           fontSize: '11.5px',
                                           fontWeight: 600,
                                           borderRadius: '6px',
@@ -569,7 +567,7 @@ export const HumanReviewsView: React.FC = () => {
                                           whiteSpace: 'nowrap'
                                         }}
                                       >
-                                        🔍 Inspect ({docs.length})
+                                        Inspect ({docs.length})
                                       </button>
                                     </div>
                                   )}
@@ -617,13 +615,13 @@ export const HumanReviewsView: React.FC = () => {
                                   )}
                                 </td>
 
-                                <td className="actions-col">
-                                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                <td className="actions-col" style={{ textAlign: 'right', paddingRight: '20px' }}>
+                                  <div style={{ display: 'inline-flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' }}>
                                     {!isApproved && (
                                       <button
                                         type="button"
                                         className="admin-btn admin-btn-primary"
-                                        style={{ padding: '5px 12px', fontSize: '12px', fontWeight: 600 }}
+                                        style={{ padding: '5px 12px', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}
                                         disabled={submittingAction}
                                         onClick={() => handleAdjudicate(item, 'Approved', 'Approved by administrator.')}
                                         title="Approve identity and grant verified badge"
@@ -639,6 +637,8 @@ export const HumanReviewsView: React.FC = () => {
                                         style={{
                                           padding: '5px 12px',
                                           fontSize: '12px',
+                                          fontWeight: 600,
+                                          whiteSpace: 'nowrap',
                                           color: '#c81e1e',
                                           borderColor: '#fecaca',
                                           backgroundColor: '#ffffff'
@@ -647,25 +647,8 @@ export const HumanReviewsView: React.FC = () => {
                                         onClick={() => handleAdjudicate(item, 'Rejected', 'Document unclear or invalid.')}
                                         title="Reject document or revoke verification"
                                       >
-                                        ✗ Reject
+                                        {isApproved ? 'Revoke' : '✗ Reject'}
                                       </button>
-                                    )}
-
-                                    {isApproved && (
-                                      <span style={{
-                                        fontSize: '12px',
-                                        color: '#166534',
-                                        backgroundColor: '#dcfce7',
-                                        border: '1px solid #bbf7d0',
-                                        borderRadius: '6px',
-                                        fontWeight: 700,
-                                        padding: '4px 10px',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '4px'
-                                      }}>
-                                        ✓ Badge Active
-                                      </span>
                                     )}
                                   </div>
                                 </td>
@@ -725,7 +708,7 @@ export const HumanReviewsView: React.FC = () => {
                     <th>Customer / Provider</th>
                     <th>Status</th>
                     <th>Time</th>
-                    <th className="actions-col">Adjudicate</th>
+                    <th className="actions-col" style={{ textAlign: 'right', paddingRight: '20px' }}>Adjudicate</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -758,7 +741,7 @@ export const HumanReviewsView: React.FC = () => {
                         </span>
                       </td>
                       <td>{c.timestamp}</td>
-                      <td className="actions-col">
+                      <td className="actions-col" style={{ textAlign: 'right', paddingRight: '20px' }}>
                         {c.status === 'Pending Review' ? (
                           <div style={{ display: 'inline-flex', gap: '6px' }}>
                             <button
