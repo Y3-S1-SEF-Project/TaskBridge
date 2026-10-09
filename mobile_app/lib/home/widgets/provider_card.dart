@@ -54,6 +54,18 @@ class ProviderCardWidget extends StatelessWidget {
     );
   }
 
+  String _formatName(String raw) {
+    if (raw.trim().isEmpty) return 'Specialist';
+    return raw
+        .trim()
+        .split(RegExp(r'\s+'))
+        .map((word) {
+          if (word.isEmpty) return '';
+          return word[0].toUpperCase() + word.substring(1).toLowerCase();
+        })
+        .join(' ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
@@ -78,62 +90,61 @@ class ProviderCardWidget extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Flexible(
                         child: Text(
-                          provider.fullName,
+                          _formatName(provider.fullName),
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: 15.5,
                             fontWeight: FontWeight.w700,
                             color: palette.text,
                           ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (provider.isVerified) ...[
+                        const SizedBox(width: 5),
+                        Icon(
+                          Icons.verified_rounded,
+                          color: palette.primary,
+                          size: 16,
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          provider.category,
+                          style: TextStyle(fontSize: 13, color: palette.muted),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(width: 4),
-                      if (provider.isVerified) ...[
-                        Icon(
-                          Icons.verified_rounded,
-                          color: palette.primary,
-                          size: 14,
+                      const SizedBox(width: 5),
+                      Text(
+                        '·',
+                        style: TextStyle(
+                          color: palette.muted,
+                          fontWeight: FontWeight.bold,
                         ),
-                      ] else ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 5,
-                            vertical: 1.5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: const Color(0xFFCBD5E1),
-                              width: 0.8,
-                            ),
-                          ),
-                          child: const Text(
-                            'Not Verified',
-                            style: TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF64748B),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
+                      const SizedBox(width: 5),
                       if (provider.reviewCount == 0) ...[
-                        const SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
+                            horizontal: 5.5,
                             vertical: 1.5,
                           ),
                           decoration: BoxDecoration(
-                            color: palette.primary.withValues(alpha: 0.12),
+                            color: palette.primary.withValues(alpha: 0.10),
                             borderRadius: BorderRadius.circular(4),
                             border: Border.all(
-                              color: palette.primary.withValues(alpha: 0.35),
+                              color: palette.primary.withValues(alpha: 0.28),
                               width: 0.8,
                             ),
                           ),
@@ -149,7 +160,7 @@ class ProviderCardWidget extends StatelessWidget {
                               Text(
                                 'New Provider',
                                 style: TextStyle(
-                                  fontSize: 10.5,
+                                  fontSize: 10,
                                   fontWeight: FontWeight.w700,
                                   color: palette.primary,
                                 ),
@@ -157,17 +168,17 @@ class ProviderCardWidget extends StatelessWidget {
                             ],
                           ),
                         ),
+                      ] else ...[
+                        Text(
+                          '★ ${provider.rating.toStringAsFixed(1)} (${provider.reviewCount})',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFD97706),
+                          ),
+                        ),
                       ],
                     ],
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    provider.reviewCount == 0
-                        ? '${provider.category} · ★ 0.0 (0)'
-                        : '${provider.category} · ★ ${provider.rating.toStringAsFixed(1)} (${provider.reviewCount})',
-                    style: TextStyle(fontSize: 13, color: palette.muted),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Row(
