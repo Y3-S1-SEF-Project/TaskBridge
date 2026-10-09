@@ -600,7 +600,7 @@ class _HomePageState extends State<HomePage> {
               )
             else
               Column(
-                children: _nearbyProviders.take(3).map((provider) {
+                children: _nearbyProviders.map((provider) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: ProviderCardWidget(provider: provider),
