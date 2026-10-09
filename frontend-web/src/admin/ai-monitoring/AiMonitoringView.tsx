@@ -228,6 +228,11 @@ export const AiMonitoringView: React.FC = () => {
 
   const filteredLogs = logs.filter((l) => (selectedAgentTab === 'all' ? true : l.agent === selectedAgentTab));
 
+  const isPlanningDone = logs.some((l) => l.agent === 'planning' && l.message.includes('Parsed scope'));
+  const isMatchingDone = logs.some((l) => l.agent === 'matching' && l.message.includes('MCDA scoring completed'));
+  const isCoordinationDone = logs.some((l) => l.agent === 'coordination' && (l.message.includes('accepted') || l.message.includes('confirmed')));
+  const isReviewDone = logs.some((l) => l.agent === 'review' && l.message.includes('PASSED'));
+
   const agents = telemetry?.agents ?? [
     {
       name: 'Planning Agent',
@@ -342,7 +347,7 @@ export const AiMonitoringView: React.FC = () => {
                 <span className="admin-live-pulse" style={{ width: '6px', height: '6px' }} />
                 {pipelineStep === 0
                   ? 'Ready / Listening'
-                  : pipelineStep === 5
+                  : pipelineStep === 5 || isReviewDone
                   ? 'All 4 Agents Validated'
                   : `Agent ${pipelineStep}/4 Active`}
               </span>
@@ -396,14 +401,22 @@ export const AiMonitoringView: React.FC = () => {
           {/* Node 1: Planning Agent */}
           <div
             className={`ai-pipeline-node ${
-              pipelineStep === 1 ? 'node-active' : pipelineStep > 1 ? 'node-completed' : ''
+              pipelineStep === 1 && !isPlanningDone
+                ? 'node-active'
+                : pipelineStep > 1 || isPlanningDone
+                ? 'node-completed'
+                : ''
             } ${selectedAgentTab === 'planning' ? 'node-selected' : ''}`}
             onClick={() => setSelectedAgentTab('planning')}
           >
             <div className="ai-pipeline-node-header">
               <div className="ai-pipeline-node-icon">📋</div>
               <span className="ai-pipeline-node-step">
-                {pipelineStep === 1 ? 'Processing...' : pipelineStep > 1 ? '✓ Complete' : 'Step 01'}
+                {pipelineStep === 1 && !isPlanningDone
+                  ? 'Processing...'
+                  : pipelineStep > 1 || isPlanningDone
+                  ? '✓ Complete'
+                  : 'Step 01'}
               </span>
             </div>
             <h4 className="ai-pipeline-node-name">Planning Agent</h4>
@@ -425,7 +438,7 @@ export const AiMonitoringView: React.FC = () => {
           </div>
 
           {/* Connector 1 -> 2 */}
-          <div className={`ai-pipeline-connector ${pipelineStep >= 2 ? 'completed' : pipelineStep === 1 ? 'active' : ''}`}>
+          <div className={`ai-pipeline-connector ${pipelineStep >= 2 || isPlanningDone ? 'completed' : pipelineStep === 1 ? 'active' : ''}`}>
             <div className="ai-pipeline-connector-line">
               <div className="ai-pipeline-connector-arrow" />
             </div>
@@ -434,14 +447,22 @@ export const AiMonitoringView: React.FC = () => {
           {/* Node 2: Matching Agent */}
           <div
             className={`ai-pipeline-node ${
-              pipelineStep === 2 ? 'node-active' : pipelineStep > 2 ? 'node-completed' : ''
+              pipelineStep === 2 && !isMatchingDone
+                ? 'node-active'
+                : pipelineStep > 2 || isMatchingDone
+                ? 'node-completed'
+                : ''
             } ${selectedAgentTab === 'matching' ? 'node-selected' : ''}`}
             onClick={() => setSelectedAgentTab('matching')}
           >
             <div className="ai-pipeline-node-header">
               <div className="ai-pipeline-node-icon">🎯</div>
               <span className="ai-pipeline-node-step">
-                {pipelineStep === 2 ? 'Processing...' : pipelineStep > 2 ? '✓ Complete' : 'Step 02'}
+                {pipelineStep === 2 && !isMatchingDone
+                  ? 'Processing...'
+                  : pipelineStep > 2 || isMatchingDone
+                  ? '✓ Complete'
+                  : 'Step 02'}
               </span>
             </div>
             <h4 className="ai-pipeline-node-name">Matching Agent</h4>
@@ -463,7 +484,7 @@ export const AiMonitoringView: React.FC = () => {
           </div>
 
           {/* Connector 2 -> 3 */}
-          <div className={`ai-pipeline-connector ${pipelineStep >= 3 ? 'completed' : pipelineStep === 2 ? 'active' : ''}`}>
+          <div className={`ai-pipeline-connector ${pipelineStep >= 3 || isCoordinationDone ? 'completed' : pipelineStep === 2 || isMatchingDone ? 'active' : ''}`}>
             <div className="ai-pipeline-connector-line">
               <div className="ai-pipeline-connector-arrow" />
             </div>
@@ -472,14 +493,22 @@ export const AiMonitoringView: React.FC = () => {
           {/* Node 3: Coordination Agent */}
           <div
             className={`ai-pipeline-node ${
-              pipelineStep === 3 ? 'node-active' : pipelineStep > 3 ? 'node-completed' : ''
+              pipelineStep === 3 && !isCoordinationDone
+                ? 'node-active'
+                : pipelineStep > 3 || isCoordinationDone
+                ? 'node-completed'
+                : ''
             } ${selectedAgentTab === 'coordination' ? 'node-selected' : ''}`}
             onClick={() => setSelectedAgentTab('coordination')}
           >
             <div className="ai-pipeline-node-header">
               <div className="ai-pipeline-node-icon">⚡</div>
               <span className="ai-pipeline-node-step">
-                {pipelineStep === 3 ? 'Processing...' : pipelineStep > 3 ? '✓ Complete' : 'Step 03'}
+                {pipelineStep === 3 && !isCoordinationDone
+                  ? 'Negotiating...'
+                  : pipelineStep > 3 || isCoordinationDone
+                  ? '✓ Complete'
+                  : 'Step 03'}
               </span>
             </div>
             <h4 className="ai-pipeline-node-name">Coordination Agent</h4>
@@ -491,7 +520,7 @@ export const AiMonitoringView: React.FC = () => {
               </div>
               <div className="ai-pipeline-node-meta-row">
                 <span>Trigger:</span>
-                <strong>Mobile App (Book)</strong>
+                <strong>Mobile App (Book/Bid)</strong>
               </div>
               <div className="ai-pipeline-node-meta-row">
                 <span>Avg Latency:</span>
@@ -501,7 +530,7 @@ export const AiMonitoringView: React.FC = () => {
           </div>
 
           {/* Connector 3 -> 4 */}
-          <div className={`ai-pipeline-connector ${pipelineStep >= 4 ? 'completed' : pipelineStep === 3 ? 'active' : ''}`}>
+          <div className={`ai-pipeline-connector ${pipelineStep >= 4 || isReviewDone ? 'completed' : pipelineStep === 3 || isCoordinationDone ? 'active' : ''}`}>
             <div className="ai-pipeline-connector-line">
               <div className="ai-pipeline-connector-arrow" />
             </div>
@@ -510,14 +539,22 @@ export const AiMonitoringView: React.FC = () => {
           {/* Node 4: Review Agent */}
           <div
             className={`ai-pipeline-node ${
-              pipelineStep === 4 ? 'node-active' : pipelineStep > 4 ? 'node-completed' : ''
+              pipelineStep === 4 && !isReviewDone
+                ? 'node-active'
+                : pipelineStep >= 4 && isReviewDone
+                ? 'node-completed'
+                : ''
             } ${selectedAgentTab === 'review' ? 'node-selected' : ''}`}
             onClick={() => setSelectedAgentTab('review')}
           >
             <div className="ai-pipeline-node-header">
               <div className="ai-pipeline-node-icon">🔍</div>
               <span className="ai-pipeline-node-step">
-                {pipelineStep === 4 ? 'Auditing...' : pipelineStep > 4 ? '✓ Complete' : 'Step 04'}
+                {pipelineStep === 4 && !isReviewDone
+                  ? 'Auditing...'
+                  : pipelineStep >= 4 && isReviewDone
+                  ? '✓ Complete'
+                  : 'Step 04'}
               </span>
             </div>
             <h4 className="ai-pipeline-node-name">Review Agent</h4>
