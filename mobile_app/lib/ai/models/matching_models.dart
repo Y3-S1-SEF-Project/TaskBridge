@@ -40,6 +40,10 @@ class MatchedProvider {
   final int matchScore; // e.g. 98
   final String aiMatchReason;
   final ScoreBreakdown scoreBreakdown;
+  final bool isVerified;
+  final String? verificationStatus;
+  final String? verificationDocumentType;
+  final String? verificationDocumentUrl;
 
   const MatchedProvider({
     required this.providerId,
@@ -57,6 +61,10 @@ class MatchedProvider {
     required this.matchScore,
     required this.aiMatchReason,
     required this.scoreBreakdown,
+    this.isVerified = false,
+    this.verificationStatus,
+    this.verificationDocumentType,
+    this.verificationDocumentUrl,
   });
 
   factory MatchedProvider.fromJson(Map<String, dynamic> json) {
@@ -80,6 +88,10 @@ class MatchedProvider {
       scoreBreakdown: ScoreBreakdown.fromJson(
         json['scoreBreakdown'] as Map<String, dynamic>? ?? {},
       ),
+      isVerified: (json['isVerified'] as bool?) ?? false,
+      verificationStatus: json['verificationStatus'] as String?,
+      verificationDocumentType: json['verificationDocumentType'] as String?,
+      verificationDocumentUrl: json['verificationDocumentUrl'] as String?,
     );
   }
 
@@ -97,6 +109,10 @@ class MatchedProvider {
       rating: rating,
       reviewCount: reviewCount,
       distanceKm: distanceKm,
+      isVerified: isVerified,
+      verificationStatus: verificationStatus,
+      verificationDocumentType: verificationDocumentType,
+      verificationDocumentUrl: verificationDocumentUrl,
     );
   }
 }

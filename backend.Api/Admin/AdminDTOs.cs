@@ -257,4 +257,36 @@ public sealed record AiWorkflowsSummaryDto(
     int HumanReviewFallbacks,
     List<AiWorkflowItemDto> Workflows);
 
+public sealed record ProviderVerificationItemDto(
+    Guid ProviderId,
+    Guid UserId,
+    string ProviderCode,
+    string FullName,
+    string Email,
+    string Phone,
+    string Category,
+    string Location,
+    string? DocumentType,
+    string? DocumentUrl,
+    string Status,
+    DateTimeOffset? SubmittedAt,
+    DateTimeOffset? ApprovedAt,
+    string? Notes,
+    double Rating,
+    int ReviewCount,
+    decimal HourlyRate,
+    List<string>? DocumentUrls = null);
+
+public sealed record VerificationsSummaryDto(
+    int TotalVerifications,
+    int PendingCount,
+    int ApprovedCount,
+    int RejectedCount,
+    List<ProviderVerificationItemDto> Items);
+
+public sealed record AdjudicateVerificationRequest(
+    string Status,
+    string? Notes = null);
+
+
 

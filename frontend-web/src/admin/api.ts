@@ -17,6 +17,7 @@ import type {
   DisputeRecord,
   SupportInquiryRecord,
   InquiriesSummary,
+  VerificationsSummary,
 } from './types';
 
 const API_BASE = '/api/admin';
@@ -275,6 +276,17 @@ export async function toggleProviderStatus(id: string): Promise<{ id: string; is
   if (res.ok) return await res.json();
   const err = await res.json().catch(() => ({}));
   throw new Error(err.message || 'Failed to toggle provider status.');
+}
+
+export async function toggleCustomerStatus(id: string): Promise<{ id: string; isSuspended: boolean }> {
+  const token = getStoredToken();
+  const res = await fetch(`${API_BASE}/customers/${id}/status`, {
+    method: 'PATCH',
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  if (res.ok) return await res.json();
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to toggle customer status.');
 }
 
 export async function fetchCustomers(params?: {
@@ -557,4 +569,95 @@ export async function deleteAdminInquiry(id: string): Promise<boolean> {
   return res.ok;
 }
 
+export async function fetchVerifications(params?: { status?: string; search?: string }): Promise<VerificationsSummary> {
+  const token = getStoredToken();
+  const query = new URLSearchParams();
+  if (params?.status && params.status !== 'All') query.append('status', params.status);
+  if (params?.search) query.append('search', params.search);
 
+  try {
+    const res = await fetch(`/api/admin/verifications?${query.toString()}`, {
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        total: data.totalVerifications ?? data.total ?? (data.items?.length ?? 0),
+        pendingCount: data.pendingCount ?? 0,
+        approvedCount: data.approvedCount ?? 0,
+        rejectedCount: data.rejectedCount ?? 0,
+        unverifiedCount: data.unverifiedCount ?? 0,
+        items: (data.items ?? []).map((it: any) => ({
+          ...it,
+          providerProfileId: it.providerId ?? it.providerProfileId ?? it.userId,
+          providerId: it.providerId ?? it.providerProfileId ?? it.userId,
+          city: it.location ?? it.city ?? 'Colombo',
+          phoneNumber: it.phone ?? it.phoneNumber ?? 'N/A',
+          phone: it.phone ?? it.phoneNumber ?? 'N/A',
+          verificationDocumentType: it.documentType ?? it.verificationDocumentType ?? 'National ID',
+          documentType: it.documentType ?? it.verificationDocumentType ?? 'National ID',
+          verificationDocumentUrl: it.documentUrl ?? it.verificationDocumentUrl,
+          documentUrl: it.documentUrl ?? it.verificationDocumentUrl,
+          verificationSubmittedAt: it.submittedAt ?? it.verificationSubmittedAt,
+          submittedAt: it.submittedAt ?? it.verificationSubmittedAt,
+          verificationStatus: it.status ?? it.verificationStatus ?? 'Unverified',
+          status: it.status ?? it.verificationStatus ?? 'Unverified',
+          isVerified: it.status?.toLowerCase() === 'approved' || it.isVerified === true,
+        })),
+      };
+    }
+  } catch {}
+
+  return { total: 0, pendingCount: 0, approvedCount: 0, rejectedCount: 0, unverifiedCount: 0, items: [] };
+}
+
+export async function adjudicateVerification(
+  id: string,
+  data: { status: 'Approved' | 'Rejected'; notes?: string }
+): Promise<{ message: string; providerProfileId: string; status: string; isVerified: boolean }> {
+  const token = getStoredToken();
+  const res = await fetch(`/api/admin/verifications/${encodeURIComponent(id)}/adjudicate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (res.ok) return await res.json();
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.message || 'Failed to adjudicate verification.');
+}
+
+export interface LiveStreamEventItem {
+  id: string;
+  step: number;
+  agent: 'planning' | 'matching' | 'coordination' | 'review';
+  message: string;
+  isHighlight: boolean;
+  latencyMs: number;
+  tokens: number;
+  timestamp: string;
+}
+
+export async function fetchAiLiveStream(): Promise<{ currentStep: number; logs: LiveStreamEventItem[] }> {
+  const token = getStoredToken();
+  try {
+    const res = await fetch(`${API_BASE}/ai/live-stream`, {
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+    if (res.ok) return await res.json();
+  } catch {}
+  return { currentStep: 0, logs: [] };
+}
+
+export async function clearAiLiveStream(): Promise<void> {
+  const token = getStoredToken();
+  try {
+    await fetch(`${API_BASE}/ai/live-stream/clear`, {
+      method: 'POST',
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+  } catch {}
+}

@@ -107,7 +107,7 @@ export const AdminSelect: React.FC<AdminSelectProps> = ({
     <div
       ref={containerRef}
       className={`admin-custom-select-wrap ${className}`}
-      style={{ position: 'relative', display: 'inline-block', width: '100%', ...style }}
+      style={{ position: 'relative', display: 'inline-block', ...style }}
     >
       {/* Trigger Button */}
       <button

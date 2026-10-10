@@ -40,6 +40,9 @@ class NotificationService extends ChangeNotifier {
   static void Function(NotificationModel notification)?
   onInAppNotificationReceived;
 
+  /// Global real-time notifier for provider verification status changes (e.g. approved / rejected by admin)
+  static final ValueNotifier<bool?> verificationStatusChangeNotifier = ValueNotifier<bool?>(null);
+
   static String? _workingBaseUrl;
   static List<String> get _candidateUrls {
     if (_workingBaseUrl != null) return [_workingBaseUrl!];
@@ -125,6 +128,7 @@ class NotificationService extends ChangeNotifier {
 
         // Listen for real-time notifications dispatched from backend controllers
         _hubConnection!.on('ReceiveNotification', _handleIncomingNotification);
+        _hubConnection!.on('ProviderVerificationChanged', _handleProviderVerificationChanged);
 
         await _hubConnection!.start();
         _workingBaseUrl = base;
@@ -263,10 +267,34 @@ class NotificationService extends ChangeNotifier {
 
       // Trigger In-App Floating Alert
       onInAppNotificationReceived?.call(notif);
+
+      // Check if this notification is provider verification approval/rejection
+      if (notif.type == 'VerificationApproved') {
+        developer.log('🎉 [NotificationService] VerificationApproved received: setting status to verified');
+        verificationStatusChangeNotifier.value = true;
+      } else if (notif.type == 'VerificationRejected') {
+        developer.log('⚠️ [NotificationService] VerificationRejected received: setting status to unverified');
+        verificationStatusChangeNotifier.value = false;
+      }
     } catch (e) {
       developer.log(
         '⚠️ [NotificationService] Error parsing incoming notification: $e',
       );
+    }
+  }
+
+  void _handleProviderVerificationChanged(List<dynamic>? arguments) {
+    if (arguments == null || arguments.isEmpty) return;
+    try {
+      final raw = arguments[0];
+      final Map<String, dynamic> json = raw is Map<String, dynamic>
+          ? raw
+          : jsonDecode(raw.toString());
+      final isVerified = json['isVerified'] == true;
+      developer.log('🔔 [NotificationService] ProviderVerificationChanged SignalR payload received: isVerified=$isVerified');
+      verificationStatusChangeNotifier.value = isVerified;
+    } catch (e) {
+      developer.log('⚠️ [NotificationService] Error parsing ProviderVerificationChanged: $e');
     }
   }
 
