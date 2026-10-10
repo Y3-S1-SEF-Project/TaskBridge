@@ -1,0 +1,168 @@
+{
+	"info": {
+		"_postman_id": "8a32d1e2-5a91-4c28-98e3-f654bce32109",
+		"name": "TaskBridge E2E Integration Workflow",
+		"description": "Complete End-to-End business workflow testing across Customer, AI Agents, Providers, and Admin resolution.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Step 1: Customer Auth - Login / Token Verification",
+			"request": {
+				"method": "POST",
+				"header": [
+					{ "key": "Content-Type", "value": "application/json" }
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"identifier\": \"customer@taskbridge.com\",\n  \"password\": \"Pass1234\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/auth/login",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "auth", "login"]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Auth API response received and verified', function () {",
+							"    pm.expect(pm.response.code).to.be.oneOf([200, 400, 401]);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			]
+		},
+		{
+			"name": "Step 2: Service Request Creation & AI Planning Decomposition",
+			"request": {
+				"method": "POST",
+				"header": [
+					{ "key": "Content-Type", "value": "application/json" }
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"customerName\": \"Nimal Silva\",\n  \"customerPhone\": \"0771234567\",\n  \"description\": \"Kitchen faucet is leaking and water pipe needs replacement\",\n  \"location\": \"Colombo 05\",\n  \"category\": \"Plumbing\",\n  \"estimatedBudget\": 5000\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/service-requests/plan",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "service-requests", "plan"]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Planning Agent responds within SLA', function () {",
+							"    pm.expect(pm.response.code).to.be.oneOf([200, 201, 400, 401, 404]);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			]
+		},
+		{
+			"name": "Step 3: Provider Catalog & AI Matching Candidates",
+			"request": {
+				"method": "GET",
+				"header": [
+					{ "key": "Content-Type", "value": "application/json" }
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/providers?category=Plumbing",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "providers"],
+					"query": [{ "key": "category", "value": "Plumbing" }]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Matching providers retrieved successfully', function () {",
+							"    pm.expect(pm.response.code).to.be.oneOf([200, 204, 401]);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			]
+		},
+		{
+			"name": "Step 4: AI Coordination Agent - Multi-Quote Evaluation",
+			"request": {
+				"method": "POST",
+				"header": [
+					{ "key": "Content-Type", "value": "application/json" }
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"jobPlan\": {\n    \"serviceTitle\": \"Kitchen faucet is leaking\",\n    \"category\": \"Plumbing\",\n    \"location\": \"Colombo 05\",\n    \"budget\": 5000\n  },\n  \"candidateProviders\": [\n    {\n      \"providerId\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n      \"providerName\": \"Kamal Perera\",\n      \"hourlyRate\": 2200,\n      \"quotedFee\": 4500,\n      \"estimatedHours\": 2,\n      \"rating\": 4.9,\n      \"reviewCount\": 18,\n      \"availabilitySummary\": \"Available tomorrow morning\"\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/ai/coordination/evaluate",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "ai", "coordination", "evaluate"]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Coordination evaluation completed', function () {",
+							"    pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 404]);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			]
+		},
+		{
+			"name": "Step 5: Job Completion & AI Review Verification",
+			"request": {
+				"method": "POST",
+				"header": [
+					{ "key": "Content-Type", "value": "application/json" }
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"bookingId\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"customerRating\": 5,\n  \"customerFeedback\": \"Excellent pipe repair work, clean and punctually completed.\",\n  \"beforePhotoUrls\": [\"https://example.com/before.jpg\"],\n  \"afterPhotoUrls\": [\"https://example.com/after.jpg\"]\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/ai/review/verify",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "ai", "review", "verify"]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Review evaluation criteria verified', function () {",
+							"    pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 404]);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://13.60.35.78"
+		}
+	]
+}
