@@ -182,28 +182,27 @@ export const ComplaintsView: React.FC = () => {
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Dispute #</th>
-                <th>Booking Ref</th>
-                <th>Complainant</th>
-                <th>Provider Involved</th>
-                <th>Service & Category</th>
-                <th>Issue Category</th>
-                <th>Fee Amount</th>
-                <th>Status</th>
-                <th>Filed At</th>
-                <th className="actions-col">Actions</th>
+                <th style={{ width: '105px' }}>Dispute / Ref</th>
+                <th style={{ width: '130px' }}>Complainant</th>
+                <th style={{ width: '120px' }}>Provider</th>
+                <th style={{ width: '140px' }}>Service</th>
+                <th>Issue</th>
+                <th style={{ width: '95px' }}>Fee</th>
+                <th style={{ width: '90px' }}>Status</th>
+                <th style={{ width: '85px' }}>Filed At</th>
+                <th className="actions-col" style={{ textAlign: 'right', paddingRight: '20px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={10} style={{ textAlign: 'center', padding: '40px', color: '#64736a' }}>
+                  <td colSpan={9} style={{ textAlign: 'center', padding: '40px', color: '#64736a' }}>
                     Loading dispute cases...
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={{ textAlign: 'center', padding: '40px', color: '#64736a' }}>
+                  <td colSpan={9} style={{ textAlign: 'center', padding: '40px', color: '#64736a' }}>
                     No disputes match the selected filters.
                   </td>
                 </tr>
@@ -213,21 +212,23 @@ export const ComplaintsView: React.FC = () => {
                   return (
                     <tr key={d.id}>
                       <td>
-                        <span className="admin-inquiry-code" style={{ color: '#b91c1c', fontWeight: 800 }}>
+                        <span className="admin-inquiry-code" style={{ color: '#b91c1c', fontWeight: 700, fontSize: '12px' }}>
                           {d.disputeReference}
                         </span>
-                      </td>
-                      <td>
-                        <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>
+                        <div style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '11px', color: '#64736a', marginTop: '2px' }}>
                           #{d.bookingReference}
-                        </span>
+                        </div>
                       </td>
                       <td>
-                        <strong>{d.customerName}</strong>
+                        <strong style={{ fontSize: '13px' }}>{d.customerName}</strong>
                       </td>
-                      <td>{d.providerName}</td>
                       <td>
-                        <div style={{ fontWeight: 600 }}>{d.serviceTitle}</div>
+                        <span style={{ fontSize: '13px' }}>{d.providerName}</span>
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 600, fontSize: '12.5px', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {d.serviceTitle}
+                        </div>
                         <div style={{ fontSize: '11px', color: '#64736a' }}>{d.category}</div>
                       </td>
                       <td>
@@ -236,9 +237,9 @@ export const ComplaintsView: React.FC = () => {
                         </span>
                       </td>
                       <td>
-                        <span style={{ fontWeight: 700, color: '#0f172a' }}>
+                        <strong style={{ fontWeight: 700, color: '#0f172a', fontSize: '12.5px', whiteSpace: 'nowrap' }}>
                           Rs. {d.feeAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                        </span>
+                        </strong>
                       </td>
                       <td>
                         <span
@@ -249,27 +250,27 @@ export const ComplaintsView: React.FC = () => {
                           {isResolved ? 'Resolved' : 'Under Review'}
                         </span>
                       </td>
-                      <td style={{ fontSize: '12px', color: '#64736a' }}>
+                      <td style={{ fontSize: '12px', color: '#64736a', whiteSpace: 'nowrap' }}>
                         {new Date(d.createdAt).toLocaleDateString('en-GB', {
                           day: '2-digit',
                           month: 'short',
                           year: 'numeric',
                         })}
                       </td>
-                      <td className="actions-col">
+                      <td className="actions-col" style={{ textAlign: 'right', paddingRight: '20px' }}>
                         <button
                           type="button"
                           className="admin-btn admin-btn-secondary"
                           style={{
                             padding: '5px 12px',
                             fontSize: '12px',
-                            fontWeight: 700,
-                            borderColor: isResolved ? '#e2e8f0' : '#f87171',
-                            color: isResolved ? '#334155' : '#b91c1c',
+                            fontWeight: 600,
+                            whiteSpace: 'nowrap',
                           }}
                           onClick={() => handleOpenDispute(d)}
+                          title="View dispute mediation and resolution details"
                         >
-                          {isResolved ? 'View Details' : 'Mediate / Resolve'}
+                          {isResolved ? 'View Details' : 'View / Resolve'}
                         </button>
                       </td>
                     </tr>

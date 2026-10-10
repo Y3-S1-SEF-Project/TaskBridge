@@ -578,11 +578,35 @@ class _BookSpecialistPageState extends State<BookSpecialistPage> {
                               ),
                             ),
                             const SizedBox(width: 4),
-                            const Icon(
-                              Icons.verified_rounded,
-                              color: AppColors.primary,
-                              size: 16,
-                            ),
+                            if (provider.isVerified)
+                              const Icon(
+                                Icons.verified_rounded,
+                                color: AppColors.primary,
+                                size: 16,
+                              )
+                            else
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 1.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: const Color(0xFFCBD5E1),
+                                    width: 0.8,
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Not Verified',
+                                  style: TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                         const SizedBox(height: 4),

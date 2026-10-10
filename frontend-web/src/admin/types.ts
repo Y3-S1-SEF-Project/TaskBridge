@@ -355,4 +355,48 @@ export interface InquiriesSummary {
   resolvedCount: number;
 }
 
+export interface ProviderVerificationItem {
+  providerProfileId?: string;
+  providerId?: string;
+  userId: string;
+  providerCode?: string;
+  fullName: string;
+  businessName?: string;
+  email: string;
+  phoneNumber?: string;
+  phone?: string;
+  category: string;
+  experienceYears?: number;
+  hourlyRate: number;
+  city?: string;
+  location?: string;
+  isVerified?: boolean;
+  verificationStatus?: 'Pending' | 'Approved' | 'Rejected' | 'Unverified' | string;
+  status?: 'Pending' | 'Approved' | 'Rejected' | 'Unverified' | string;
+  verificationDocumentUrl?: string | null;
+  documentUrl?: string | null;
+  documentUrls?: string[];
+  verificationDocumentUrls?: string[];
+  verificationDocumentType?: 'NIC' | 'DrivingLicense' | string | null;
+  documentType?: string | null;
+  verificationSubmittedAt?: string | null;
+  submittedAt?: string | null;
+  verificationApprovedAt?: string | null;
+  approvedAt?: string | null;
+  verificationNotes?: string | null;
+  notes?: string | null;
+  registeredAt?: string;
+  rating?: number;
+  reviewCount?: number;
+}
+
+export interface VerificationsSummary {
+  total: number;
+  pendingCount: number;
+  approvedCount: number;
+  rejectedCount: number;
+  unverifiedCount: number;
+  items: ProviderVerificationItem[];
+}
+
 

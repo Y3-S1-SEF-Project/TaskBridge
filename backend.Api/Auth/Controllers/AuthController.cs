@@ -10,7 +10,7 @@ namespace TaskBridge.Api.Auth;
 [ApiController]
 [Route("api/auth")]
 [EnableRateLimiting("auth")]
-public sealed class AuthController(AuthService auth, AuthDbContext db) : ControllerBase
+public sealed class AuthController(AuthService auth, AuthDbContext db, IProfileImageService imageService) : ControllerBase
 {
     // Registers a new user and sends an email OTP verification code.
     [HttpPost("register")]
@@ -37,8 +37,8 @@ public sealed class AuthController(AuthService auth, AuthDbContext db) : Control
     public async Task<ActionResult<UserResponse>> Me(CancellationToken ct)
     {
         var id = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
-        return user is null ? Unauthorized() : Ok(AuthService.MapUser(user));
+        var user = await db.Users.AsNoTracking().Include(u => u.ProviderProfile).SingleOrDefaultAsync(x => x.Id == id, ct);
+        return user is null ? Unauthorized() : Ok(AuthService.MapUser(user, user.ProviderProfile));
     }
 
     // Updates profile details (Address, Location, Preferences, Photo) from screen C08.
@@ -92,6 +92,103 @@ public sealed class AuthController(AuthService auth, AuthDbContext db) : Control
 
         var updated = await auth.UploadCertification(id.Value, file, ct);
         return Ok(updated);
+    }
+
+    // Uploads National ID or Driving License document to Cloudflare R2 for verification (up to 3 photos)
+    [HttpPost("provider/verification-document")]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<UserResponse>> UploadVerificationDocument(
+        IFormFile file,
+        [FromForm] string? documentType,
+        [FromForm] Guid? userId,
+        CancellationToken ct)
+    {
+        var id = await ResolveUserId(userId, ct);
+        if (!id.HasValue) return Unauthorized();
+
+        var user = await db.Users.FindAsync([id.Value], ct);
+        if (user is null) return NotFound();
+
+        var provider = await db.Providers.SingleOrDefaultAsync(p => p.UserId == id.Value, ct);
+
+        var existingRaw = provider?.VerificationDocumentUrl ?? user.ProviderVerificationDocumentUrl;
+        var existingList = !string.IsNullOrWhiteSpace(existingRaw)
+            ? existingRaw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList()
+            : new List<string>();
+
+        if (existingList.Count >= 3)
+        {
+            return BadRequest(new { message = "Maximum of 3 document photos allowed. Please remove a photo before uploading another." });
+        }
+
+        var docType = string.IsNullOrWhiteSpace(documentType) ? "National ID" : documentType.Trim();
+        var docUrl = await imageService.UploadVerificationDocumentAsync(file, id.Value, docType, ct);
+
+        existingList.Add(docUrl);
+        var combinedUrl = string.Join(",", existingList);
+
+        user.ProviderVerificationDocumentUrl = combinedUrl;
+        user.ProviderVerificationStatus = "Pending";
+        user.UpdatedAt = DateTimeOffset.UtcNow;
+
+        if (provider != null)
+        {
+            provider.VerificationDocumentUrl = combinedUrl;
+            provider.VerificationDocumentType = docType;
+            provider.VerificationStatus = "Pending";
+            provider.VerificationSubmittedAt = DateTimeOffset.UtcNow;
+            provider.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
+        await db.SaveChangesAsync(ct);
+        return Ok(AuthService.MapUser(user, provider));
+    }
+
+    // Removes an individual verification document photo
+    [HttpDelete("provider/verification-document")]
+    public async Task<ActionResult<UserResponse>> RemoveVerificationDocument(
+        [FromQuery] string? documentUrl,
+        [FromQuery] Guid? userId,
+        CancellationToken ct)
+    {
+        var id = await ResolveUserId(userId, ct);
+        if (!id.HasValue) return Unauthorized();
+
+        var user = await db.Users.FindAsync([id.Value], ct);
+        if (user is null) return NotFound();
+
+        var provider = await db.Providers.SingleOrDefaultAsync(p => p.UserId == id.Value, ct);
+
+        var existingRaw = provider?.VerificationDocumentUrl ?? user.ProviderVerificationDocumentUrl;
+        var existingList = !string.IsNullOrWhiteSpace(existingRaw)
+            ? existingRaw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList()
+            : new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(documentUrl))
+        {
+            existingList.RemoveAll(u => string.Equals(u.Trim(), documentUrl.Trim(), StringComparison.OrdinalIgnoreCase));
+        }
+
+        var combinedUrl = existingList.Count > 0 ? string.Join(",", existingList) : null;
+        var newStatus = existingList.Count > 0 ? "Pending" : "Unverified";
+
+        user.ProviderVerificationDocumentUrl = combinedUrl;
+        user.ProviderVerificationStatus = newStatus;
+        user.UpdatedAt = DateTimeOffset.UtcNow;
+
+        if (provider != null)
+        {
+            provider.VerificationDocumentUrl = combinedUrl;
+            provider.VerificationStatus = newStatus;
+            if (existingList.Count == 0)
+            {
+                provider.VerificationSubmittedAt = null;
+            }
+            provider.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
+        await db.SaveChangesAsync(ct);
+        return Ok(AuthService.MapUser(user, provider));
     }
 
     private async Task<Guid?> ResolveUserId(Guid? explicitId, CancellationToken ct)

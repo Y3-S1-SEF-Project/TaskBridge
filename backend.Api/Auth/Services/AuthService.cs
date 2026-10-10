@@ -255,6 +255,19 @@ public sealed class AuthService(
         if (req.Bio != null) user.ProviderBio = req.Bio.Trim();
         if (req.Location != null) user.Location = req.Location.Trim();
         if (req.HourlyRate.HasValue && req.HourlyRate.Value > 0) user.ProviderHourlyRate = req.HourlyRate.Value;
+        if (req.VerificationDocumentUrl != null)
+        {
+            if (string.IsNullOrWhiteSpace(req.VerificationDocumentUrl))
+            {
+                user.ProviderVerificationDocumentUrl = null;
+                user.ProviderVerificationStatus = "Unverified";
+            }
+            else
+            {
+                user.ProviderVerificationDocumentUrl = req.VerificationDocumentUrl.Trim();
+                user.ProviderVerificationStatus = "Pending";
+            }
+        }
         user.UpdatedAt = DateTimeOffset.UtcNow;
 
         var resolvedCategory = !string.IsNullOrWhiteSpace(req.Category)
@@ -277,6 +290,10 @@ public sealed class AuthService(
                 Availability = req.Availability?.Trim(),
                 Bio = req.Bio?.Trim(),
                 HourlyRate = req.HourlyRate.HasValue && req.HourlyRate.Value > 0 ? req.HourlyRate.Value : (user.ProviderHourlyRate ?? 2500m),
+                VerificationDocumentUrl = req.VerificationDocumentUrl?.Trim(),
+                VerificationDocumentType = req.VerificationDocumentType?.Trim() ?? "National ID",
+                VerificationStatus = !string.IsNullOrWhiteSpace(req.VerificationDocumentUrl) ? "Pending" : "Unverified",
+                VerificationSubmittedAt = !string.IsNullOrWhiteSpace(req.VerificationDocumentUrl) ? DateTimeOffset.UtcNow : null,
                 CreatedAt = DateTimeOffset.UtcNow,
                 IsActive = true
             };
@@ -295,11 +312,27 @@ public sealed class AuthService(
             if (req.Availability != null) provider.Availability = req.Availability.Trim();
             if (req.Bio != null) provider.Bio = req.Bio.Trim();
             if (req.HourlyRate.HasValue && req.HourlyRate.Value > 0) provider.HourlyRate = req.HourlyRate.Value;
+            if (req.VerificationDocumentUrl != null)
+            {
+                if (string.IsNullOrWhiteSpace(req.VerificationDocumentUrl))
+                {
+                    provider.VerificationDocumentUrl = null;
+                    provider.VerificationStatus = "Unverified";
+                    provider.VerificationSubmittedAt = null;
+                }
+                else
+                {
+                    provider.VerificationDocumentUrl = req.VerificationDocumentUrl.Trim();
+                    provider.VerificationDocumentType = req.VerificationDocumentType?.Trim() ?? provider.VerificationDocumentType ?? "National ID";
+                    provider.VerificationStatus = "Pending";
+                    provider.VerificationSubmittedAt = DateTimeOffset.UtcNow;
+                }
+            }
             provider.UpdatedAt = DateTimeOffset.UtcNow;
         }
 
         await db.SaveChangesAsync(ct);
-        return MapUser(user);
+        return MapUser(user, provider);
     }
 
     public async Task<UserResponse> UploadCertification(Guid userId, IFormFile file, CancellationToken ct)
@@ -330,25 +363,38 @@ public sealed class AuthService(
         return string.IsNullOrWhiteSpace(cleaned) ? null : cleaned;
     }
 
-    public static UserResponse MapUser(AppUser u) => new(
-        u.Id,
-        u.FullName,
-        u.Email,
-        u.Phone,
-        CleanLocationString(u.Address),
-        CleanLocationString(u.Location),
-        u.Preferences,
-        u.ProfilePhotoUrl,
-        u.IsProvider,
-        u.ProviderCategory,
-        u.ProviderSkills,
-        u.ProviderServices,
-        u.ProviderExperience,
-        u.ProviderCertifications,
-        u.ProviderServiceAreas,
-        u.ProviderAvailability,
-        u.ProviderBio,
-        u.ProviderEarnings,
-        u.ProviderHourlyRate ?? 2500m,
-        u.Role ?? "User");
+    public static UserResponse MapUser(AppUser u, ProviderProfile? p = null)
+    {
+        var prov = p ?? u.ProviderProfile;
+        var isVer = prov?.IsVerified ?? u.IsVerifiedProvider;
+        var verStatus = prov?.VerificationStatus ?? u.ProviderVerificationStatus ?? (isVer ? "Approved" : "Unverified");
+        var docUrl = prov?.VerificationDocumentUrl ?? u.ProviderVerificationDocumentUrl;
+        var docType = prov?.VerificationDocumentType;
+
+        return new(
+            u.Id,
+            u.FullName,
+            u.Email,
+            u.Phone,
+            CleanLocationString(u.Address),
+            CleanLocationString(u.Location),
+            u.Preferences,
+            u.ProfilePhotoUrl,
+            u.IsProvider,
+            u.ProviderCategory,
+            u.ProviderSkills,
+            u.ProviderServices,
+            u.ProviderExperience,
+            u.ProviderCertifications,
+            u.ProviderServiceAreas,
+            u.ProviderAvailability,
+            u.ProviderBio,
+            u.ProviderEarnings,
+            u.ProviderHourlyRate ?? 2500m,
+            u.Role ?? "User",
+            isVer,
+            verStatus,
+            docUrl,
+            docType);
+    }
 }

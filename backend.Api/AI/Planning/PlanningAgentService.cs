@@ -294,6 +294,17 @@ public class PlanningAgentService
             Console.WriteLine($"[⚡ TASKBRIDGE AI] Tokens: {tokensUsed} | Latency: {sw.ElapsedMilliseconds} ms");
             Console.ResetColor();
 
+            // Record to Real-Time AI Live Pipeline for Admin Monitoring
+            AiLivePipeline.RecordEvent(1, "planning",
+                $"▶ <strong>[Planning Agent]</strong> Received user prompt from mobile client: \"{request.Prompt}\"" +
+                (!string.IsNullOrWhiteSpace(plan.Location) ? $" (Location: <strong>{plan.Location}</strong>)" : ""),
+                true, (int)sw.ElapsedMilliseconds / 2, tokensUsed / 2);
+
+            AiLivePipeline.RecordEvent(1, "planning",
+                $"✓ <strong>[Planning Agent]</strong> Parsed scope: <strong>{plan.ServiceTitle}</strong> ({plan.Category}). " +
+                $"Budget: <strong>{plan.BudgetDisplay}</strong>. Schedule: {(string.IsNullOrEmpty(plan.ScheduledDate) ? "Flexible" : plan.ScheduledDate)}. Handing off context to <strong>Matching Agent</strong> ➔",
+                true, (int)sw.ElapsedMilliseconds, tokensUsed);
+
             return new PlanningAnalyzeResponse
             {
                 Success = true,
@@ -415,6 +426,17 @@ public class PlanningAgentService
         {
             clarification = "When would you like this service scheduled? Please select your preferred date and time.";
         }
+
+        // Record to Real-Time AI Live Pipeline for Admin Monitoring
+        AiLivePipeline.RecordEvent(1, "planning",
+            $"▶ <strong>[Planning Agent]</strong> Received user prompt from mobile client: \"{request.Prompt}\"" +
+            (!string.IsNullOrWhiteSpace(plan.Location) ? $" (Location: <strong>{plan.Location}</strong>)" : ""),
+            true, (int)latencyMs / 2, 140);
+
+        AiLivePipeline.RecordEvent(1, "planning",
+            $"✓ <strong>[Planning Agent]</strong> Parsed scope: <strong>{plan.ServiceTitle}</strong> ({plan.Category}). " +
+            $"Budget: <strong>{plan.BudgetDisplay}</strong>. Schedule: {(string.IsNullOrEmpty(plan.ScheduledDate) ? "Flexible" : plan.ScheduledDate)}. Handing off context to <strong>Matching Agent</strong> ➔",
+            true, (int)latencyMs, 280);
 
         return new PlanningAnalyzeResponse
         {

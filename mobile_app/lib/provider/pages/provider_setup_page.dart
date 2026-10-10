@@ -190,6 +190,14 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
   String? _certificationUrl;
   String? _certFileName;
   bool _uploadingCert = false;
+
+  // Identity Verification (NIC / Driving License)
+  String _selectedDocType = 'NIC';
+  List<String> _verificationDocumentUrls = [];
+  String? _verificationDocumentUrl;
+  String? _verificationStatus;
+  bool _uploadingVerificationDoc = false;
+
   bool _busy = false;
   String? _error;
 
@@ -329,6 +337,17 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
           ? uri!.pathSegments.last
           : 'Certificate document';
     }
+
+    _verificationDocumentUrls = List<String>.from(
+      widget.user.verificationDocumentUrls,
+    );
+    _verificationDocumentUrl = _verificationDocumentUrls.isNotEmpty
+        ? _verificationDocumentUrls.join(',')
+        : null;
+    _verificationStatus =
+        widget.user.verificationStatus ??
+        (_verificationDocumentUrls.isNotEmpty ? 'Pending' : 'Unverified');
+    _selectedDocType = widget.user.verificationDocumentType ?? 'NIC';
 
     _loadDefaultLocationIfNeeded();
   }
@@ -678,6 +697,196 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Could not upload certification: $e'),
+            backgroundColor: palette.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickAndUploadVerificationDoc() async {
+    final palette = AppPalette.of(context);
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      backgroundColor: palette.surface,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Upload ${_verificationDocumentUrls.isEmpty ? "Front Side" : (_verificationDocumentUrls.length == 1 ? "Back Side" : "Photo 3")} (${_selectedDocType == "DrivingLicense" ? "Driving License" : "National ID"})',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: palette.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Capture or choose a clear photo of your document (${_verificationDocumentUrls.isEmpty ? "Front Side" : (_verificationDocumentUrls.length == 1 ? "Back Side" : "Additional Proof")}). Both sides are required for admin approval.',
+                style: TextStyle(fontSize: 13, color: palette.textSecondary),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  backgroundColor: palette.primaryLight,
+                  child: Icon(
+                    Icons.photo_library_outlined,
+                    color: palette.primary,
+                  ),
+                ),
+                title: const Text(
+                  'Choose photo from Gallery',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  'JPG, PNG, WEBP',
+                  style: TextStyle(fontSize: 12, color: palette.textSecondary),
+                ),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final allowed = await _ensurePermission(ImageSource.gallery);
+                  if (!allowed) return;
+                  _processVerificationUpload(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  backgroundColor: palette.primaryLight,
+                  child: Icon(
+                    Icons.camera_alt_outlined,
+                    color: palette.primary,
+                  ),
+                ),
+                title: const Text(
+                  'Take Photo with Camera',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  'Capture document clearly',
+                  style: TextStyle(fontSize: 12, color: palette.textSecondary),
+                ),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final allowed = await _ensurePermission(ImageSource.camera);
+                  if (!allowed) return;
+                  _processVerificationUpload(ImageSource.camera);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _processVerificationUpload(ImageSource source) async {
+    final palette = AppPalette.of(context);
+    try {
+      final picked = await _picker.pickImage(
+        source: source,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 90,
+      );
+      if (picked == null) return;
+
+      setState(() {
+        _uploadingVerificationDoc = true;
+      });
+
+      final updated = await widget.api.uploadVerificationDocument(
+        picked.path,
+        documentType: _selectedDocType,
+        userId: widget.user.id,
+      );
+
+      if (mounted) {
+        setState(() {
+          _verificationDocumentUrls = List<String>.from(
+            updated.verificationDocumentUrls,
+          );
+          _verificationDocumentUrl = _verificationDocumentUrls.isNotEmpty
+              ? _verificationDocumentUrls.join(',')
+              : null;
+          _verificationStatus = updated.verificationStatus ?? 'Pending';
+          _uploadingVerificationDoc = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${_selectedDocType == "DrivingLicense" ? "Driving License" : "National ID"} photo (${_verificationDocumentUrls.length}/3) uploaded to Cloudflare!',
+            ),
+            backgroundColor: palette.primary,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _uploadingVerificationDoc = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not upload verification document: $e'),
+            backgroundColor: palette.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _removeVerificationDoc(int index) async {
+    if (index < 0 || index >= _verificationDocumentUrls.length) return;
+    final palette = AppPalette.of(context);
+    final targetUrl = _verificationDocumentUrls[index];
+
+    // Optimistic local removal
+    setState(() {
+      _verificationDocumentUrls.removeAt(index);
+      _verificationDocumentUrl = _verificationDocumentUrls.isNotEmpty
+          ? _verificationDocumentUrls.join(',')
+          : null;
+      if (_verificationDocumentUrls.isEmpty) {
+        _verificationStatus = 'Unverified';
+      }
+    });
+
+    try {
+      final updated = await widget.api.removeVerificationDocument(
+        targetUrl,
+        userId: widget.user.id,
+      );
+      if (mounted) {
+        setState(() {
+          _verificationDocumentUrls = List<String>.from(
+            updated.verificationDocumentUrls,
+          );
+          _verificationDocumentUrl = _verificationDocumentUrls.isNotEmpty
+              ? _verificationDocumentUrls.join(',')
+              : null;
+          _verificationStatus =
+              updated.verificationStatus ??
+              (_verificationDocumentUrls.isEmpty ? 'Unverified' : 'Pending');
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Photo removed.'),
+            backgroundColor: palette.primary,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to remove photo on server: $e'),
             backgroundColor: palette.error,
           ),
         );
@@ -1518,6 +1727,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
           MaterialPageRoute(
             builder: (_) => ProviderMainPage(user: updated, api: widget.api),
           ),
+          result: updated,
         );
       }
     } catch (e) {
@@ -1533,6 +1743,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
             builder: (_) =>
                 ProviderMainPage(user: fallbackUser, api: widget.api),
           ),
+          result: fallbackUser,
         );
       }
     } finally {
@@ -1579,6 +1790,8 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
         bio: _bioController.text.trim(),
         location: _providerLocation?.address ?? _providerLocation?.shortName,
         hourlyRate: parsedRate,
+        verificationDocumentUrl: _verificationDocumentUrl,
+        verificationDocumentType: _selectedDocType,
       );
 
       await UserModeService.setMode(UserMode.provider);
@@ -1591,6 +1804,7 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
           MaterialPageRoute(
             builder: (_) => ProviderMainPage(user: updated, api: widget.api),
           ),
+          result: updated,
         );
       }
     } catch (e) {
@@ -2343,7 +2557,10 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
                           enabled: !_busy,
                         ),
 
-                        // ── 5. Upload Certifications Card ──
+                        _buildVerificationSection(palette),
+                        const SizedBox(height: AppSpacing.s16),
+
+                        // Optional Certifications (Secondary)
                         InkWell(
                           onTap: _uploadingCert ? null : _pickAndUploadCert,
                           borderRadius: BorderRadius.circular(16),
@@ -2896,6 +3113,454 @@ class _ProviderSetupPageState extends State<ProviderSetupPage> {
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildVerificationSection(AppPalette palette) {
+    final docCount = _verificationDocumentUrls.length;
+    final isVerified = widget.user.isVerified;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Identity Verification & Trust Badge',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: palette.textPrimary,
+              ),
+            ),
+            if (isVerified)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.green.shade300, width: 0.8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.verified_rounded,
+                      size: 12,
+                      color: Colors.green.shade700,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Verified',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.green.shade800,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (docCount > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: docCount >= 2
+                      ? Colors.green.shade50
+                      : Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: docCount >= 2
+                        ? Colors.green.shade300
+                        : Colors.amber.shade300,
+                    width: 0.8,
+                  ),
+                ),
+                child: Text(
+                  '$docCount/3 Photos (${docCount >= 2 ? "Both sides" : "1 side"})',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: docCount >= 2
+                        ? Colors.green.shade900
+                        : Colors.amber.shade900,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'Upload both front and back sides of your ${_selectedDocType == "DrivingLicense" ? "Driving License" : "National ID (NIC)"} (up to 3 photos) to get verified. Providers with verified badges receive up to 3x more bookings.',
+          style: TextStyle(
+            fontSize: 12.5,
+            color: palette.textSecondary,
+            height: 1.35,
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // Document Type Selection (NIC vs DL)
+        Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                onTap: _busy || _uploadingVerificationDoc
+                    ? null
+                    : () => setState(() => _selectedDocType = 'NIC'),
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 9,
+                    horizontal: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _selectedDocType == 'NIC'
+                        ? palette.primary.withValues(alpha: 0.1)
+                        : palette.surface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _selectedDocType == 'NIC'
+                          ? palette.primary
+                          : palette.border,
+                      width: _selectedDocType == 'NIC' ? 1.6 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.badge_outlined,
+                        size: 16,
+                        color: _selectedDocType == 'NIC'
+                            ? palette.primary
+                            : palette.textSecondary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'National ID (NIC)',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: _selectedDocType == 'NIC'
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: _selectedDocType == 'NIC'
+                              ? palette.primary
+                              : palette.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: InkWell(
+                onTap: _busy || _uploadingVerificationDoc
+                    ? null
+                    : () => setState(() => _selectedDocType = 'DrivingLicense'),
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 9,
+                    horizontal: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _selectedDocType == 'DrivingLicense'
+                        ? palette.primary.withValues(alpha: 0.1)
+                        : palette.surface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _selectedDocType == 'DrivingLicense'
+                          ? palette.primary
+                          : palette.border,
+                      width: _selectedDocType == 'DrivingLicense' ? 1.6 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.directions_car_outlined,
+                        size: 16,
+                        color: _selectedDocType == 'DrivingLicense'
+                            ? palette.primary
+                            : palette.textSecondary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Driving License',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: _selectedDocType == 'DrivingLicense'
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: _selectedDocType == 'DrivingLicense'
+                              ? palette.primary
+                              : palette.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+
+        // List of Uploaded Document Photos (Removable one by one)
+        if (_verificationDocumentUrls.isNotEmpty) ...[
+          for (int i = 0; i < _verificationDocumentUrls.length; i++) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: palette.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: palette.border, width: 1),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              child: Row(
+                children: [
+                  // Photo thumbnail
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: palette.background,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: palette.border.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.network(
+                      _verificationDocumentUrls[i],
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Icon(
+                        Icons.verified_user_rounded,
+                        size: 24,
+                        color: palette.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Label & Status
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          i == 0
+                              ? 'Front Side (Photo 1)'
+                              : (i == 1
+                                    ? 'Back Side (Photo 2)'
+                                    : 'Photo 3 (Additional Proof)'),
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: palette.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 1.5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isVerified
+                                    ? Colors.green.shade50
+                                    : (_verificationStatus == 'Rejected'
+                                          ? Colors.red.shade50
+                                          : Colors.amber.shade50),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: isVerified
+                                      ? Colors.green.shade300
+                                      : (_verificationStatus == 'Rejected'
+                                            ? Colors.red.shade300
+                                            : Colors.amber.shade300),
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: Text(
+                                isVerified
+                                    ? '✓ Verified'
+                                    : (_verificationStatus == 'Rejected'
+                                          ? '✗ Rejected'
+                                          : '⏳ Pending Review'),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: isVerified
+                                      ? Colors.green.shade800
+                                      : (_verificationStatus == 'Rejected'
+                                            ? Colors.red.shade900
+                                            : Colors.amber.shade900),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Individual Remove button
+                  IconButton(
+                    icon: Icon(
+                      Icons.close_rounded,
+                      size: 20,
+                      color: palette.textSecondary,
+                    ),
+                    tooltip: 'Remove this photo',
+                    onPressed: _busy || _uploadingVerificationDoc
+                        ? null
+                        : () => _removeVerificationDoc(i),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+
+        // Add Photo slot (when < 3 photos)
+        if (docCount < 3) ...[
+          InkWell(
+            onTap: _uploadingVerificationDoc
+                ? null
+                : _pickAndUploadVerificationDoc,
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              decoration: BoxDecoration(
+                color: docCount == 0
+                    ? palette.surface
+                    : palette.primary.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: palette.primary.withValues(alpha: 0.4),
+                  width: 1.2,
+                  style: BorderStyle.solid,
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              child: _uploadingVerificationDoc
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox.square(
+                            dimension: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                palette.primary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Uploading photo ${docCount + 1} of 3 to Cloudflare R2…',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: palette.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: palette.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.add_a_photo_outlined,
+                            size: 22,
+                            color: palette.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                docCount == 0
+                                    ? 'Upload Front Side (Photo 1 of 3)'
+                                    : (docCount == 1
+                                          ? 'Upload Back Side (Photo 2 of 3)'
+                                          : 'Upload Additional Photo (3 of 3)'),
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: palette.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                docCount == 0
+                                    ? 'Tap to take photo or choose from gallery'
+                                    : 'Tap to add ${docCount == 1 ? "back side" : "extra photo"} (up to 3 total)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: palette.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 14,
+                          color: palette.primary,
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ] else ...[
+          // All 3 uploaded notice
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.green.shade200, width: 0.8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.check_circle_rounded,
+                  size: 16,
+                  color: Colors.green.shade700,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'All 3 photos uploaded (Front, Back & Extra). You can remove individual photos with (X) above to replace them.',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: Colors.green.shade900,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

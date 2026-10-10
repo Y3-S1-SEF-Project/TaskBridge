@@ -73,17 +73,16 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
 
       if (mounted) {
         final filteredBookings = list.where((b) {
-          if (widget.user == null) return true;
+          if (widget.user == null) return false;
           if (provId != null &&
+              provId.isNotEmpty &&
               b.providerId != null &&
-              b.providerId!.toLowerCase() == provId) {
-            return true;
+              b.providerId!.isNotEmpty) {
+            return b.providerId!.toLowerCase() == provId;
           }
-          if (provName != null) {
+          if (provName != null && provName.isNotEmpty) {
             final bProv = b.providerName.trim().toLowerCase();
-            if (bProv.contains(provName) || provName.contains(bProv)) {
-              return true;
-            }
+            return bProv.isNotEmpty && bProv == provName;
           }
           return false;
         }).toList();
@@ -93,17 +92,16 @@ class _ProviderJobsPageState extends State<ProviderJobsPage> {
           if (s == 'accepted') {
             return false;
           }
-          if (widget.user == null) return true;
+          if (widget.user == null) return false;
           if (provId != null &&
+              provId.isNotEmpty &&
               p.providerId != null &&
-              p.providerId!.toLowerCase() == provId) {
-            return true;
+              p.providerId!.isNotEmpty) {
+            return p.providerId!.toLowerCase() == provId;
           }
-          if (provName != null) {
+          if (provName != null && provName.isNotEmpty) {
             final pProv = p.providerName.trim().toLowerCase();
-            if (pProv.contains(provName) || provName.contains(pProv)) {
-              return true;
-            }
+            return pProv.isNotEmpty && pProv == provName;
           }
           return false;
         }).toList();

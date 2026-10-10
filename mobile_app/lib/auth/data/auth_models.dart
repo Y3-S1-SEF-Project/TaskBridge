@@ -19,6 +19,10 @@ class AuthUser {
     this.providerBio,
     this.providerEarnings,
     this.providerHourlyRate,
+    this.isVerified = false,
+    this.verificationStatus,
+    this.verificationDocumentUrl,
+    this.verificationDocumentType,
   });
 
   final String id;
@@ -40,6 +44,21 @@ class AuthUser {
   final String? providerBio;
   final double? providerEarnings;
   final double? providerHourlyRate;
+  final bool isVerified;
+  final String? verificationStatus;
+  final String? verificationDocumentUrl;
+  final String? verificationDocumentType;
+
+  List<String> get verificationDocumentUrls {
+    if (verificationDocumentUrl == null || verificationDocumentUrl!.trim().isEmpty) {
+      return const [];
+    }
+    return verificationDocumentUrl!
+        .split(',')
+        .map((u) => u.trim())
+        .where((u) => u.isNotEmpty)
+        .toList();
+  }
 
   AuthUser copyWith({
     String? fullName,
@@ -60,6 +79,10 @@ class AuthUser {
     String? providerBio,
     double? providerEarnings,
     double? providerHourlyRate,
+    bool? isVerified,
+    String? verificationStatus,
+    String? verificationDocumentUrl,
+    String? verificationDocumentType,
   }) => AuthUser(
     id: id,
     fullName: fullName ?? this.fullName,
@@ -81,6 +104,12 @@ class AuthUser {
     providerBio: providerBio ?? this.providerBio,
     providerEarnings: providerEarnings ?? this.providerEarnings,
     providerHourlyRate: providerHourlyRate ?? this.providerHourlyRate,
+    isVerified: isVerified ?? this.isVerified,
+    verificationStatus: verificationStatus ?? this.verificationStatus,
+    verificationDocumentUrl:
+        verificationDocumentUrl ?? this.verificationDocumentUrl,
+    verificationDocumentType:
+        verificationDocumentType ?? this.verificationDocumentType,
   );
 
   factory AuthUser.fromJson(Map<String, dynamic> json) => AuthUser(
@@ -107,6 +136,14 @@ class AuthUser {
     providerHourlyRate: (json['providerHourlyRate'] is num)
         ? (json['providerHourlyRate'] as num).toDouble()
         : 2500.0,
+    isVerified: (json['isVerified'] as bool?) ??
+        (json['isVerifiedProvider'] as bool?) ??
+        false,
+    verificationStatus: json['verificationStatus'] as String? ??
+        json['providerVerificationStatus'] as String?,
+    verificationDocumentUrl: json['verificationDocumentUrl'] as String? ??
+        json['providerVerificationDocumentUrl'] as String?,
+    verificationDocumentType: json['verificationDocumentType'] as String?,
   );
 
   Map<String, dynamic> toJson() => {
@@ -129,6 +166,10 @@ class AuthUser {
     'providerBio': providerBio,
     'providerEarnings': providerEarnings,
     'providerHourlyRate': providerHourlyRate,
+    'isVerified': isVerified,
+    'verificationStatus': verificationStatus,
+    'verificationDocumentUrl': verificationDocumentUrl,
+    'verificationDocumentType': verificationDocumentType,
   };
 }
 
