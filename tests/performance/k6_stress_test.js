@@ -15,7 +15,7 @@ export const options = {
   },
 };
 
-const BASE_URL = __ENV.BASE_URL || 'http://13.60.35.78';
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:5298';
 
 export default function () {
   const headers = { 'Content-Type': 'application/json' };
@@ -25,7 +25,7 @@ export default function () {
   
   check(res, {
     'Providers API responds safely': (r) => 
-      r.status === 200 || r.status === 401 || r.status === 404 || r.status === 204,
+      r.status === 200 || r.status === 401 || r.status === 204,
   });
 
   sleep(0.5);

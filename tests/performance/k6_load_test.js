@@ -16,7 +16,7 @@ export const options = {
   },
 };
 
-const BASE_URL = __ENV.BASE_URL || 'http://13.60.35.78';
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:5298';
 
 export default function () {
   const headers = {
@@ -30,17 +30,17 @@ export default function () {
       r.status === 200 || r.status === 401 || r.status === 204,
   });
 
-  // Test 2: AI Planning Agent Analyze Endpoint Latency
+  // Test 2: AI Planning Agent / Service Requests Endpoint Latency
   const planPayload = JSON.stringify({
-    prompt: 'Kitchen sink pipe repair and faucet installation',
-    userLocation: 'Colombo 05',
-    budget: 5000,
+    description: 'Kitchen sink pipe repair and faucet installation',
+    location: 'Colombo 05',
+    estimatedBudget: 5000,
   });
 
-  const resPlan = http.post(`${BASE_URL}/api/service-requests/plan`, planPayload, { headers });
+  const resPlan = http.post(`${BASE_URL}/api/requests`, planPayload, { headers });
   check(resPlan, {
-    'POST /api/service-requests/plan completes safely (200, 400, 401, 404)': (r) => 
-      r.status === 200 || r.status === 400 || r.status === 401 || r.status === 404,
+    'POST /api/requests completes safely (201, 200, 400, 401)': (r) => 
+      r.status === 201 || r.status === 200 || r.status === 400 || r.status === 401,
   });
 
   sleep(1);
